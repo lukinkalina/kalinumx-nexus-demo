@@ -525,7 +525,13 @@ var KXAPP;
                 catch { } setTimeout(() => { try {
                     void runtime.actions.invoke('ACTION.CORE.REMINDERS.REARM', {}, lyCtx()).catch(() => { });
                 }
-                catch { } }, 4000); KXFieldRegistry.install(runtime); KXTimer.install(runtime, { deviceId: () => activeDevice?.id }); KXLists.install(runtime); KXLayout.install(runtime); KXAppStates.install(runtime); await runtime.appStates.ready; KXInsights.install(runtime); KXProcesses.install(runtime); KXBrand.install(runtime, { version: NEXUS_VERSION }); cacheSplash(); KXAppearancePacks.install(runtime); void refreshCustomThemes(); await refreshIconPack(); await ensureDefaultIconPack(); applyDefaultBrandIcon(); registerLayoutViews(); await registerWidgetViews(); runtime.lists.registerList('PROMPT.KIND', KXPrompts.KIND_LIST); registerShellSettings(); runtime.fields.registerDefaults(KXPrompts.TABLE_SCOPE, KXPrompts.TABLE_FIELDS); runtime.fields.registerViewPresets(KXPrompts.TABLE_SCOPE, KXPrompts.TABLE_VIEWS); runtime.identity.protectOwners(globalThis.KXNotifications?.SENSITIVE || ['APP.KX.HEALTH', 'APP.KX.FINANCE', 'APP.KX.HR', 'APP.KX.SUBSCRIPTIONS', 'APP.KX.VAULT']); homeInstall = KXPersonalHomeComposite.install(runtime, personalRuntime, { includeHomeMaintenance: true, includeCoreTasks: true /* N2.1e: Core Tasks part enabled, bound to the verified local session; without a session it fails closed (AUTH_SESSION_REQUIRED) and the card says so. */, identityProvider: { getAuthenticatedSubjectId: () => { const id = runtime.identity; if (!id)
+                catch { } }, 4000); KXFieldRegistry.install(runtime); KXTimer.install(runtime, { deviceId: () => activeDevice?.id }); KXLists.install(runtime); KXLayout.install(runtime); KXAppStates.install(runtime); await runtime.appStates.ready; KXInsights.install(runtime); KXProcesses.install(runtime); KXBrand.install(runtime, { version: NEXUS_VERSION }); cacheSplash(); KXAppearancePacks.install(runtime); void refreshCustomThemes(); await refreshIconPack(); applyDefaultBrandIcon(); /* N2.6b: import výchozích ikon až po zobrazení aplikace, na pozadí (dříve blokoval start ~1,5 s a zamrzl telefon) */ /* N2.6b: import výchozích ikon až po zobrazení aplikace, na pozadí (dříve blokoval start ~1,5 s a zamrzl telefon) */ setTimeout(() => { void ensureDefaultIconPack().then((done) => { if (done) {
+                    try {
+                        render();
+                        decoratePackIcons(document);
+                    }
+                    catch { }
+                } }); }, 2500); registerLayoutViews(); await registerWidgetViews(); runtime.lists.registerList('PROMPT.KIND', KXPrompts.KIND_LIST); registerShellSettings(); runtime.fields.registerDefaults(KXPrompts.TABLE_SCOPE, KXPrompts.TABLE_FIELDS); runtime.fields.registerViewPresets(KXPrompts.TABLE_SCOPE, KXPrompts.TABLE_VIEWS); runtime.identity.protectOwners(globalThis.KXNotifications?.SENSITIVE || ['APP.KX.HEALTH', 'APP.KX.FINANCE', 'APP.KX.HR', 'APP.KX.SUBSCRIPTIONS', 'APP.KX.VAULT']); homeInstall = KXPersonalHomeComposite.install(runtime, personalRuntime, { includeHomeMaintenance: true, includeCoreTasks: true /* N2.1e: Core Tasks part enabled, bound to the verified local session; without a session it fails closed (AUTH_SESSION_REQUIRED) and the card says so. */, identityProvider: { getAuthenticatedSubjectId: () => { const id = runtime.identity; if (!id)
                             throw new Error('AUTH_IDENTITY_UNAVAILABLE'); return id.validate(); } } }); schoolInstall = KXSchool.install(runtime, personalRuntime); personalOwnerInstall = KXPersonalPlannerOwner.install(personalRuntime, runtime); {
                     const savedModules = (await runtime.settings.list('modules.enabled')).find((r) => r.scopeType === 'WORKSPACE' && r.scopeId === activeWorkspace.id)?.value;
                     n2Modules = KXModules.install({ core: runtime, personal: personalRuntime, preinstalled: ['CORE', 'CORE.IDENTITY', 'CORE.HANDOFF', 'CORE.RECORD_CODES', 'CORE.RECORDER', 'CORE.PROMPTS', 'CORE.FIELDS', 'CORE.TIMER', 'CORE.LISTS', 'CORE.LAYOUT', 'CORE.APP_STATES', 'CORE.INSIGHTS', 'CORE.PROCESSES', 'CORE.BRAND', 'CORE.APPEARANCE_PACKS', 'APP.KX.VEHICLES', 'APP.KX.PETS', 'APP.KX.HOME', 'APP.KX.SCHOOL', 'SERVICE.PLANNER_OWNER'] }, Array.isArray(savedModules) && savedModules.length ? savedModules : 'FULL');
@@ -6476,17 +6482,22 @@ var KXAPP;
             const manifest = JSON.parse(new TextDecoder().decode(z['manifest.json']));
             const mime = { webp: 'image/webp', png: 'image/png', svg: 'image/svg+xml' };
             const files = {};
+            let n = 0;
             for (const [k, v] of Object.entries(z)) {
                 const ext = k.split('.').pop().toLowerCase();
                 if ((k.startsWith('icons/') || k.startsWith('small/')) && mime[ext])
                     files[k] = `data:${mime[ext]};base64,${b64(v)}`;
+                if (++n % 12 === 0)
+                    await new Promise(r => setTimeout(r, 0));
             }
             await runtime.actions.invoke('ACTION.CORE.APPEARANCE.ICONS.IMPORT', { manifest, files, name: manifest.name, activate: true }, C);
             await refreshIconPack();
+            return true;
         }
         catch (e) {
             console.warn('KX default icon pack', e);
         }
+        return false;
     }
     /* N2.6b: výchozí značka – logo Kaira „Royal Gold“ jako ikona v prohlížeči (index.html se nemění) */
     function applyDefaultBrandIcon() { try {
