@@ -82,6 +82,7 @@ var KXAPP;
     let minimizePersistEnabled = true;
     let saveBeforeMinimizeEnabled = true;
     let selectedWidget = null;
+    let inspectorOpenedAt = 0;
     // N2.1g: the Shell user follows the verified session (switching = sign-in as another enrolled user).
     let CURRENT_USER_ID = 'USER.LUKAS';
     let CURRENT_PERSONAL_SPACE = 'SPACE.PERSONAL.LUKAS';
@@ -524,7 +525,7 @@ var KXAPP;
                 catch { } setTimeout(() => { try {
                     void runtime.actions.invoke('ACTION.CORE.REMINDERS.REARM', {}, lyCtx()).catch(() => { });
                 }
-                catch { } }, 4000); KXFieldRegistry.install(runtime); KXTimer.install(runtime, { deviceId: () => activeDevice?.id }); KXLists.install(runtime); KXLayout.install(runtime); KXAppStates.install(runtime); await runtime.appStates.ready; KXInsights.install(runtime); KXProcesses.install(runtime); KXBrand.install(runtime, { version: NEXUS_VERSION }); cacheSplash(); KXAppearancePacks.install(runtime); void refreshCustomThemes(); await refreshIconPack(); registerLayoutViews(); await registerWidgetViews(); runtime.lists.registerList('PROMPT.KIND', KXPrompts.KIND_LIST); registerShellSettings(); runtime.fields.registerDefaults(KXPrompts.TABLE_SCOPE, KXPrompts.TABLE_FIELDS); runtime.fields.registerViewPresets(KXPrompts.TABLE_SCOPE, KXPrompts.TABLE_VIEWS); runtime.identity.protectOwners(globalThis.KXNotifications?.SENSITIVE || ['APP.KX.HEALTH', 'APP.KX.FINANCE', 'APP.KX.HR', 'APP.KX.SUBSCRIPTIONS', 'APP.KX.VAULT']); homeInstall = KXPersonalHomeComposite.install(runtime, personalRuntime, { includeHomeMaintenance: true, includeCoreTasks: true /* N2.1e: Core Tasks part enabled, bound to the verified local session; without a session it fails closed (AUTH_SESSION_REQUIRED) and the card says so. */, identityProvider: { getAuthenticatedSubjectId: () => { const id = runtime.identity; if (!id)
+                catch { } }, 4000); KXFieldRegistry.install(runtime); KXTimer.install(runtime, { deviceId: () => activeDevice?.id }); KXLists.install(runtime); KXLayout.install(runtime); KXAppStates.install(runtime); await runtime.appStates.ready; KXInsights.install(runtime); KXProcesses.install(runtime); KXBrand.install(runtime, { version: NEXUS_VERSION }); cacheSplash(); KXAppearancePacks.install(runtime); void refreshCustomThemes(); await refreshIconPack(); await ensureDefaultIconPack(); applyDefaultBrandIcon(); registerLayoutViews(); await registerWidgetViews(); runtime.lists.registerList('PROMPT.KIND', KXPrompts.KIND_LIST); registerShellSettings(); runtime.fields.registerDefaults(KXPrompts.TABLE_SCOPE, KXPrompts.TABLE_FIELDS); runtime.fields.registerViewPresets(KXPrompts.TABLE_SCOPE, KXPrompts.TABLE_VIEWS); runtime.identity.protectOwners(globalThis.KXNotifications?.SENSITIVE || ['APP.KX.HEALTH', 'APP.KX.FINANCE', 'APP.KX.HR', 'APP.KX.SUBSCRIPTIONS', 'APP.KX.VAULT']); homeInstall = KXPersonalHomeComposite.install(runtime, personalRuntime, { includeHomeMaintenance: true, includeCoreTasks: true /* N2.1e: Core Tasks part enabled, bound to the verified local session; without a session it fails closed (AUTH_SESSION_REQUIRED) and the card says so. */, identityProvider: { getAuthenticatedSubjectId: () => { const id = runtime.identity; if (!id)
                             throw new Error('AUTH_IDENTITY_UNAVAILABLE'); return id.validate(); } } }); schoolInstall = KXSchool.install(runtime, personalRuntime); personalOwnerInstall = KXPersonalPlannerOwner.install(personalRuntime, runtime); {
                     const savedModules = (await runtime.settings.list('modules.enabled')).find((r) => r.scopeType === 'WORKSPACE' && r.scopeId === activeWorkspace.id)?.value;
                     n2Modules = KXModules.install({ core: runtime, personal: personalRuntime, preinstalled: ['CORE', 'CORE.IDENTITY', 'CORE.HANDOFF', 'CORE.RECORD_CODES', 'CORE.RECORDER', 'CORE.PROMPTS', 'CORE.FIELDS', 'CORE.TIMER', 'CORE.LISTS', 'CORE.LAYOUT', 'CORE.APP_STATES', 'CORE.INSIGHTS', 'CORE.PROCESSES', 'CORE.BRAND', 'CORE.APPEARANCE_PACKS', 'APP.KX.VEHICLES', 'APP.KX.PETS', 'APP.KX.HOME', 'APP.KX.SCHOOL', 'SERVICE.PLANNER_OWNER'] }, Array.isArray(savedModules) && savedModules.length ? savedModules : 'FULL');
@@ -6086,11 +6087,18 @@ var KXAPP;
         document.querySelectorAll('[data-viz]').forEach(x => x.onclick = () => addVisualization(x.dataset.viz));
         const inspector = el('#inspector');
         inspector?.addEventListener('click', e => e.stopPropagation());
-        document.body.onclick = () => {
-            if (state.inspector) {
-                state.inspector = false;
-                render();
-            }
+        /* N2.6b fix: a click that OPENS a hub (tree, icon rail, hub card, menu, top bar) bubbled up here and closed the hub at once –
+           the hub never stayed open from the menu (only the Aplikace catalogue remained); also ignore the click that is still being handled */
+        document.body.onclick = (e) => {
+            if (!state.inspector)
+                return;
+            const t = e?.target;
+            if (t?.closest?.('.sidebar,.topbar,[data-tree-hub],[data-tree-item],[data-open-hub],[data-app-open],[data-app],.kx-more-menu,#modal,#drawer,.toast,[role=menu]'))
+                return;
+            if (performance.now() - inspectorOpenedAt < 600)
+                return;
+            state.inspector = false;
+            render();
         };
         bindDrag();
     }
@@ -6450,6 +6458,50 @@ var KXAPP;
     }
     // ---------------- N2.2g: icon packs (*.kxicons.zip) ----------------
     let packIcons = {}, packSmall = {}, iconPacksCache = [];
+    /* N2.6b (rozhodnutí uživatele): výchozí sada ikon „Tyrkys a zlato“ – jednou při prvním spuštění, jen když uživatel žádnou sadu nemá; ruční volbu nikdy nepřepíše */
+    async function ensureDefaultIconPack() {
+        try {
+            const KEY = 'kx.iconpack.default.v1';
+            if (localStorage.getItem(KEY))
+                return;
+            const C = lyCtx();
+            const list = await runtime.actions.invoke('ACTION.CORE.APPEARANCE.ICONS.PACKS', {}, C);
+            localStorage.setItem(KEY, '1');
+            if ((list || []).length)
+                return;
+            const r = await fetch('assets/icons/kx-default-teal-gold.kxicons.zip');
+            if (!r.ok)
+                return;
+            const z = await readZip(await r.arrayBuffer());
+            const manifest = JSON.parse(new TextDecoder().decode(z['manifest.json']));
+            const mime = { webp: 'image/webp', png: 'image/png', svg: 'image/svg+xml' };
+            const files = {};
+            for (const [k, v] of Object.entries(z)) {
+                const ext = k.split('.').pop().toLowerCase();
+                if ((k.startsWith('icons/') || k.startsWith('small/')) && mime[ext])
+                    files[k] = `data:${mime[ext]};base64,${b64(v)}`;
+            }
+            await runtime.actions.invoke('ACTION.CORE.APPEARANCE.ICONS.IMPORT', { manifest, files, name: manifest.name, activate: true }, C);
+            await refreshIconPack();
+        }
+        catch (e) {
+            console.warn('KX default icon pack', e);
+        }
+    }
+    /* N2.6b: výchozí značka – logo Kaira „Royal Gold“ jako ikona v prohlížeči (index.html se nemění) */
+    function applyDefaultBrandIcon() { try {
+        if (document.querySelector('link[data-kx-brand-icon]'))
+            return;
+        for (const [rel, href, sz] of [['icon', 'assets/brand/favicon-32.png', '32x32'], ['apple-touch-icon', 'assets/brand/favicon-192.png', '192x192']]) {
+            const l = document.createElement('link');
+            l.rel = rel;
+            l.href = href;
+            l.sizes = sz;
+            l.dataset.kxBrandIcon = '1';
+            document.head.appendChild(l);
+        }
+    }
+    catch { } }
     async function refreshIconPack() { try {
         const C = lyCtx();
         const [a, list] = await Promise.all([runtime.actions.invoke('ACTION.CORE.APPEARANCE.ICONS.ACTIVE', {}, C), runtime.actions.invoke('ACTION.CORE.APPEARANCE.ICONS.PACKS', {}, C)]);
@@ -8079,7 +8131,16 @@ var KXAPP;
         treePlacement = 'PRIMARY';
     } applyTreePin(); }
     function applyTreePin() { const sh = document.querySelector('.app-shell'); if (!sh)
-        return; sh.classList.toggle('tree-unpinned', !treePinned); sh.classList.toggle('tree-open', treeShown && (!treePinned || window.innerWidth <= 760)); /* on a phone ☰ always opens the tree sheet */ /* on a phone ☰ always opens the tree sheet */ const b = document.querySelector('[data-action="tree-pin"]'); if (b) {
+        return; sh.classList.toggle('tree-unpinned', !treePinned); /* N2.6b: unpinned = icon rail; the full tree slides over only when opened */ /* N2.6b: unpinned = icon rail; the full tree slides over only when opened */ sh.classList.toggle('kx-rail', !treePinned && !(treeShown && (!treePinned || window.innerWidth <= 760))); {
+        const pb = sh.querySelector('[data-action="tree-pin"]');
+        if (pb) {
+            const t = treePinned ? TL('nav.pin.unpin') : TL('nav.pin.pin');
+            pb.title = t;
+            pb.setAttribute('aria-label', t);
+            pb.setAttribute('aria-pressed', String(treePinned));
+            pb.classList.toggle('on', treePinned);
+        }
+    } sh.classList.toggle('tree-open', treeShown && (!treePinned || window.innerWidth <= 760)); /* on a phone ☰ always opens the tree sheet */ /* on a phone ☰ always opens the tree sheet */ const b = document.querySelector('[data-action="tree-pin"]'); if (b) {
         b.classList.toggle('active', treePinned);
         b.setAttribute('title', TL(treePinned ? 'tree.unpin' : 'tree.pin'));
     } }
@@ -12118,6 +12179,7 @@ var KXAPP;
             agentHostUi.agentCode = '';
         }
         state.inspector = true;
+        inspectorOpenedAt = performance.now();
         render();
         const ins = el('#inspector');
         if (!ins)
@@ -12664,6 +12726,29 @@ var KXAPP;
             };
         });
     }
+    /* N2.6b: one rule for closing – Escape or a click outside closes the open window (#modal) and side panel (#drawer); clicks inside menus / popovers / toasts don't */
+    function closeOpenWindow() { const m = el('#modal'); if (m?.classList.contains('open')) {
+        m.querySelector('[data-close]')?.click();
+        if (m.classList.contains('open'))
+            m.classList.remove('open');
+        return true;
+    } const d = el('#drawer'); if (d?.classList.contains('open')) {
+        d.querySelector('[data-close]')?.click();
+        if (d.classList.contains('open'))
+            d.classList.remove('open');
+        return true;
+    } return false; }
+    document.addEventListener('pointerdown', (e) => { const t = e.target; if (!t || !t.closest)
+        return; if (t.closest('.topbar,[data-action],.toast,[role=menu],.kx-more-menu,.menu,.kxs-root,.startup-picker,#kxDemoBar,.kx-popover,[data-keep-open]'))
+        return; const m = el('#modal'); if (m?.classList.contains('open')) {
+        const box = m.querySelector('.modal');
+        if (box && !box.contains(t)) {
+            closeOpenWindow();
+            return;
+        }
+    } const d = el('#drawer'); if (d?.classList.contains('open') && !d.contains(t)) {
+        closeOpenWindow();
+    } }, true);
     function mount() {
         const snap = readSplashCache();
         splashShownAt = 0;
@@ -12697,7 +12782,7 @@ var KXAPP;
         });
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape') {
-                if (closeTransientLayer()) {
+                if (closeTransientLayer() || closeOpenWindow()) {
                     e.preventDefault();
                     e.stopPropagation();
                 }

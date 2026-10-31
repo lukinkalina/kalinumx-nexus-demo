@@ -831,3 +831,30 @@ html[data-color-vision="ACHROMA"]{--line:#777}html[data-color-vision="ACHROMA"] 
 .kx-notes-swatches{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:-4px 0 8px}.kx-swatch{width:22px;height:22px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--border);cursor:pointer}.kx-swatch.on{box-shadow:0 0 0 2px var(--text)}
 .kx-notes-tpl{border:1px solid var(--border);border-radius:10px;padding:8px;margin:4px 0 6px;background:var(--surface)}.kx-notes-tpl-list{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}.kx-why{display:block;color:var(--muted);font-size:12px;margin-top:2px}
 .kx-notes-filters{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.kx-notes-filters label{display:flex;flex-direction:column;font-size:11px;color:var(--muted);flex:1;min-width:110px}.kx-notes-space{margin:10px 0 2px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}
+
+/* N2.6b – stabilizace ovládání: posouvání obsahu i menu, odepnuté menu = lišta ikon, obsah vždy ve svém sloupci */
+.app-shell:not(.layout-nav-top){grid-template-rows:minmax(0,100dvh)}
+.app-shell:not(.layout-nav-top)>.sidebar,.app-shell:not(.layout-nav-top)>.workspace{min-height:0;height:100dvh}
+.app-shell>.sidebar{overflow-y:auto;overscroll-behavior:contain}
+.app-shell>.workspace{display:flex;flex-direction:column;min-width:0}
+.app-shell>.workspace>.content{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.app-shell.tree-unpinned:not(.layout-nav-top)>.workspace{grid-column:2}
+.app-shell.tree-unpinned:not(.layout-nav-top){grid-template-columns:76px minmax(0,1fr) 0 !important}
+.app-shell.tree-unpinned:not(.layout-nav-top):has(.inspector.open){grid-template-columns:76px minmax(0,1fr) 370px !important}
+.app-shell.tree-unpinned.kx-rail>.sidebar{position:relative;transform:none;width:76px;box-shadow:none;z-index:auto}
+/* odepnuté menu = lišta ikon; najetím myší / fokusem se vysune celé menu přes obsah */
+.app-shell.kx-rail>.sidebar :is(.kx-ctx,.kx-pages,.kx-tree-head,.kx-tree-foot,footer){display:none}
+.app-shell.kx-rail>.sidebar .kx-tree,.app-shell.kx-rail>.sidebar .kx-tree *{font-size:0;line-height:0}
+.app-shell.kx-rail>.sidebar .kx-tree :is(svg,.kx-icon,img){font-size:16px;width:22px;height:22px;line-height:1}
+.app-shell.kx-rail>.sidebar header{flex-direction:column;align-items:center;gap:6px}
+.app-shell.kx-rail>.sidebar:is(:hover,:has(:focus-visible)){position:fixed;left:0;top:0;bottom:0;width:280px;z-index:70;box-shadow:0 0 40px #000a;overflow-y:auto}
+.app-shell.kx-rail>.sidebar:is(:hover,:has(:focus-visible)) :is(.kx-ctx,.kx-pages,.kx-tree-head,.kx-tree-foot,footer){display:revert}
+.app-shell.kx-rail>.sidebar:is(:hover,:has(:focus-visible)) .kx-tree,.app-shell.kx-rail>.sidebar:is(:hover,:has(:focus-visible)) .kx-tree *{font-size:revert;line-height:revert}
+.app-shell.kx-rail>.sidebar:is(:hover,:has(:focus-visible)) header{flex-direction:row}
+[data-action="tree-pin"].on{color:var(--accent)}
+@media (max-width:760px){.app-shell>.workspace>.content{padding-bottom:64px}}
+
+/* N2.6b – výchozí značka: logo Kaira „Royal Gold“ (žena jako duch) v menu a na úvodní obrazovce */
+.brand-mark{width:72px;height:72px;background:url(assets/brand/kx-logo-kaira.webp) center/contain no-repeat !important;border:0 !important;box-shadow:none !important;clip-path:none !important}
+.brand-mark>*{opacity:0 !important}
+.app-shell.kx-rail>.sidebar .brand-mark{width:56px;height:56px}
