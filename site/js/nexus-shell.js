@@ -601,7 +601,84 @@ var KXAPP;
     ${viewDock()}
   </div>`;
     }
-    function today() { const w = state.windows[state.activeWindow] || state.windows[0]; const l = layout(); const scopes = [['PERSONAL', 'Osobní'], ['FAMILY', 'Rodina'], ['COMPANY', 'Firma'], ['SHARED', 'Společné'], ['ALL', 'Vše']]; return `<div class="page-head"><div><span class="eyebrow">NEXUS · ${state.activeWindow + 1}/${state.windows.length}</span><h1>${esc(w.name)}</h1><p>${esc(personalGreeting())} · ${esc(l.description)} · ${esc(theme().name)}</p></div><div class="head-actions"><button class="btn" data-action="add-widget">＋ ${esc(TL('dash.addCard'))}</button><span class="kx-md-layouts" data-md-layouts>${MD_LAYOUTS.map(([k, ic]) => `<button type="button" class="icon-btn kx-md-lb ${mdLayout() === k ? 'active' : ''}" data-md-layout="${k}" title="${esc(TL('mdl.' + k))}" aria-label="${esc(TL('mdl.' + k))}">${ic}</button>`).join('')}</span><button class="btn ghost" data-action="window-menu">⋯</button></div></div><div class="myday-toolbar"><div class="myday-tabs">${scopes.map(([code, title]) => `<button class="${state.myDayScope === code ? 'active' : ''}" data-myday-scope="${code}">${title}</button>`).join('')}</div><div id="myDayRange" class="myday-range">${esc(TL('ws.loadingToday'))}</div></div><div class="kx-lbars" id="linkBars"></div><section data-md-group="WORK" class="personal-home kx-work" id="workPanel" aria-label="${esc(TL('ws.panel'))}"></section><section data-md-group="NOTIFY" class="personal-home kx-notify" id="notificationsPanel" aria-label="${esc(TL('ws.notifyAria'))}"></section><section data-md-group="NOTIFY" class="personal-home kx-notify kx-wip" id="pokePanel" aria-label="${esc(TL('pk.panel'))}"></section><section data-md-group="WORK" class="personal-home kx-recent" id="recentPanel" aria-label="${esc(TL('ws.recent'))}"></section><section data-md-group="CAL" class="personal-home kx-mdcal" id="myDayCalendar" aria-label="${esc(TL('mdc.title'))}"></section><section data-md-group="KAIRA" class="personal-home kx-kaira" id="kairaCard" aria-label="Kaira"></section><section data-md-group="CARDS" class="personal-home" id="personalHomeCards" aria-label="Personal Home"><div class="desk-card-loading">${esc(TL('ws.loadingHome'))}</div></section><div class="dashboard cols-${Math.min(4, l.columns)} density-${l.density.toLowerCase()}">${w.widgets.map(widget).join('')}</div>`; }
+    function today() { const w = state.windows[state.activeWindow] || state.windows[0]; const l = layout(); const scopes = [['PERSONAL', 'Osobní'], ['FAMILY', 'Rodina'], ['COMPANY', 'Firma'], ['SHARED', 'Společné'], ['ALL', 'Vše']]; return agDashHtml() + `<div class="page-head"><div><span class="eyebrow">NEXUS · ${state.activeWindow + 1}/${state.windows.length}</span><h1>${esc(w.name)}</h1><p>${esc(personalGreeting())} · ${esc(l.description)} · ${esc(theme().name)}</p></div><div class="head-actions"><button class="btn" data-action="add-widget">＋ ${esc(TL('dash.addCard'))}</button><span class="kx-md-layouts" data-md-layouts>${MD_LAYOUTS.map(([k, ic]) => `<button type="button" class="icon-btn kx-md-lb ${mdLayout() === k ? 'active' : ''}" data-md-layout="${k}" title="${esc(TL('mdl.' + k))}" aria-label="${esc(TL('mdl.' + k))}">${ic}</button>`).join('')}</span><button class="btn ghost" data-action="window-menu">⋯</button></div></div><div class="myday-toolbar"><div class="myday-tabs">${scopes.map(([code, title]) => `<button class="${state.myDayScope === code ? 'active' : ''}" data-myday-scope="${code}">${title}</button>`).join('')}</div><div id="myDayRange" class="myday-range">${esc(TL('ws.loadingToday'))}</div></div><div class="kx-lbars" id="linkBars"></div><section data-md-group="WORK" class="personal-home kx-work" id="workPanel" aria-label="${esc(TL('ws.panel'))}"></section><section data-md-group="NOTIFY" class="personal-home kx-notify" id="notificationsPanel" aria-label="${esc(TL('ws.notifyAria'))}"></section><section data-md-group="NOTIFY" class="personal-home kx-notify kx-wip" id="pokePanel" aria-label="${esc(TL('pk.panel'))}"></section><section data-md-group="WORK" class="personal-home kx-recent" id="recentPanel" aria-label="${esc(TL('ws.recent'))}"></section><section data-md-group="CAL" class="personal-home kx-mdcal" id="myDayCalendar" aria-label="${esc(TL('mdc.title'))}"></section><section data-md-group="KAIRA" class="personal-home kx-kaira" id="kairaCard" aria-label="Kaira"></section><section data-md-group="CARDS" class="personal-home" id="personalHomeCards" aria-label="Personal Home"><div class="desk-card-loading">${esc(TL('ws.loadingHome'))}</div></section><div class="dashboard cols-${Math.min(4, l.columns)} density-${l.density.toLowerCase()}">${w.widgets.map(widget).join('')}</div>`; }
+    /* ===== N2.6b · Alpine Gold v2 – Společný přehled (horní polovina podle NEXUS_NAVRH_DESIGN_ALPINE_V2) ===== */
+    const agUi = { scope: 'ALL', horizon: 7, tab: 'today' };
+    function agDashHtml() {
+        const sc = [['ALL', 'agd.scope.all', 'agd.scope.allSub', '👥'], ['FAMILY', 'agd.scope.family', 'agd.scope.familySub', '👨‍👩‍👧'], ['COMPANY', 'agd.scope.company', 'agd.scope.companySub', '💼']];
+        const kpi = (k, ic, cls) => `<button type="button" class="ag-kpi ag-${cls}" data-ag-kpi="${k}"><span class="ag-kpi-ic">${ic}</span><span class="ag-kpi-tx"><b>${esc(TL('agd.k.' + k))}</b><small>${esc(TL('agd.k.' + k + '.en'))}</small><strong data-ag-val="${k}">…</strong><em data-ag-sub="${k}"></em></span><span class="ag-kpi-go">›</span></button>`;
+        return `<section class="ag-dash" data-ag-dash>
+      <div class="ag-hero"><div><h1>👨‍👩‍👧 ${esc(TL('agd.title'))}</h1><b>${esc(TL('agd.subtitle'))}</b><small>${esc(TL('agd.subtitleEn'))}</small></div><div class="ag-motto"><i>${esc(TL('agd.motto1'))}</i><i>${esc(TL('agd.motto2'))}</i><small>${esc(TL('agd.mottoEn'))}</small></div></div>
+      <div class="ag-bar"><div class="ag-scope">${sc.map(([k, l, sub, ic]) => `<button type="button" class="${agUi.scope === k ? 'on' : ''}" data-ag-scope="${k}"><span>${ic}</span><b>${esc(TL(l))}</b><small>${esc(TL(sub))}</small></button>`).join('')}</div>
+      <div class="ag-hz"><small>${esc(TL('agd.horizon'))}<br>${esc(TL('agd.horizonEn'))}</small>${[7, 14, 21, 30, 60, 90].map(d => `<button type="button" class="${agUi.horizon === d ? 'on' : ''}" data-ag-hz="${d}">${d} ${esc(TL('agd.days'))}</button>`).join('')}</div></div>
+      <div class="ag-kpis">${kpi('payday', '👛', 'green')}${kpi('topay', '🧾', 'red')}${kpi('free', '🪙', 'blue')}${kpi('reserve', '🛡', 'orange')}${kpi('today', '📆', 'violet')}</div>
+      <div class="ag-row"><div class="ag-card ag-acts"><div class="ag-card-h"><b>☑ ${esc(TL('agd.acts'))}</b><small>${esc(TL('agd.actsEn'))}</small><button type="button" class="ag-mini" data-section-jump="calendar">${esc(TL('agd.showAll'))} ›</button></div>
+      <div class="ag-tabs">${[['today', 'agd.t.today'], ['week', 'agd.t.week'], ['late', 'agd.t.late']].map(([k, l]) => `<button type="button" class="${agUi.tab === k ? 'on' : ''}" data-ag-tab="${k}">${esc(TL(l))} <span data-ag-cnt="${k}"></span></button>`).join('')}</div><div class="ag-list" data-ag-list><small>…</small></div></div></div>
+      </section>`;
+    }
+    async function hydrateAgDash() {
+        const host = document.querySelector('[data-ag-dash]');
+        if (!host || !runtime)
+            return;
+        host.querySelectorAll('[data-ag-scope]').forEach(b => b.onclick = () => { agUi.scope = String(b.dataset.agScope); render(); });
+        host.querySelectorAll('[data-ag-hz]').forEach(b => b.onclick = () => { agUi.horizon = Number(b.dataset.agHz); render(); });
+        host.querySelectorAll('[data-ag-tab]').forEach(b => b.onclick = () => { agUi.tab = String(b.dataset.agTab); render(); });
+        host.querySelectorAll('[data-section-jump]').forEach(b => b.onclick = () => { state.activeSection = String(b.dataset.sectionJump); render(); });
+        const set = (k, v, sub = '') => { const a = host.querySelector(`[data-ag-val="${k}"]`); if (a)
+            a.textContent = v; const b = host.querySelector(`[data-ag-sub="${k}"]`); if (b)
+            b.textContent = sub; };
+        const D = 86400000, now = new Date(), day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        let items = [];
+        try {
+            const scope = agUi.scope === 'ALL' ? 'ALL' : agUi.scope;
+            const snap = await runtime.plannerAgenda.snapshot({ userId: CURRENT_USER_ID, scope, from: new Date(day0 - 60 * D).toISOString(), to: new Date(day0 + agUi.horizon * D).toISOString(), limit: 500 });
+            items = (snap?.items || []);
+        }
+        catch (e) {
+            console.warn('agDash agenda', e);
+        }
+        const at = (x) => Date.parse(x.dueAt || x.startsAt || x.at || x.date || '') || 0, open = (x) => !/DONE|COMPLETED|CANCEL/i.test(String(x.status || ''));
+        const todayItems = items.filter(x => { const t = at(x); return t >= day0 && t < day0 + D; }), week = items.filter(x => { const t = at(x); return t >= day0 && t < day0 + 7 * D; }), late = items.filter(x => x.kind === 'TASK' && open(x) && at(x) && at(x) < day0);
+        const pay = items.filter(x => open(x) && at(x) >= day0 && /plat|nájem|faktur|zaplat|pay/i.test(String(x.title || '')));
+        const amt = (x) => Number(x.amount || x.value || 0) || 0;
+        const sumPay = pay.reduce((a, x) => a + amt(x), 0);
+        const fmt = (n) => n.toLocaleString('cs-CZ', { maximumFractionDigits: 0 }) + ' Kč';
+        set('today', String(todayItems.length), `${todayItems.filter(x => x.kind === 'TASK').length} ${TL('agd.tasks')} · ${todayItems.filter(x => x.kind !== 'TASK').length} ${TL('agd.events')}`);
+        set('topay', sumPay ? fmt(sumPay) : String(pay.length), pay.length ? `❗ ${pay.length} ${TL('agd.items')}` : TL('agd.none'));
+        const payday = items.filter(x => /výplat|mzd|salary/i.test(String(x.title || '')) && at(x) >= day0).sort((a, b) => at(a) - at(b))[0];
+        set('payday', payday ? `${Math.ceil((at(payday) - day0) / D)} ${TL('agd.days')}` : '—', payday ? new Date(at(payday)).toLocaleDateString('cs-CZ') : TL('agd.setPayday'));
+        try {
+            const sp = (await runtime.memberships.listSpaces?.(CURRENT_USER_ID)) || [];
+            let free = 0, any = false;
+            for (const s of sp) {
+                try {
+                    const r = await runtime.actions.invoke('ACTION.FINANCE.ACCOUNT.BALANCES', { spaceId: s.id || s.spaceId }, lyCtx());
+                    for (const a of (r?.accounts || r || [])) {
+                        const v = Number(a.balance ?? a.amount ?? 0);
+                        if (Number.isFinite(v)) {
+                            free += v;
+                            any = true;
+                        }
+                    }
+                }
+                catch { }
+            }
+            set('free', any ? fmt(free) : '—', any ? TL('agd.allAccounts') : TL('agd.addAccounts'));
+        }
+        catch {
+            set('free', '—', TL('agd.addAccounts'));
+        }
+        set('reserve', '—', TL('agd.setReserve'));
+        for (const [k, arr] of [['today', todayItems], ['week', week], ['late', late]]) {
+            const c = host.querySelector(`[data-ag-cnt="${k}"]`);
+            if (c)
+                c.textContent = `(${arr.length})`;
+        }
+        const list = agUi.tab === 'week' ? week : agUi.tab === 'late' ? late : todayItems;
+        const L = host.querySelector('[data-ag-list]');
+        if (L)
+            L.innerHTML = list.length ? list.slice(0, 6).map((x) => { const isTask = x.kind === 'TASK'; const a = amt(x); return `<div class="ag-it"><span>${isTask ? '☑' : '📅'}</span><b>${esc(String(x.title || ''))}</b>${a ? `<em>${esc(fmt(a))}</em>` : ''}<i class="ag-tag ${isTask ? (open(x) ? 'red' : 'green') : 'blue'}">${esc(isTask ? (open(x) ? (at(x) < day0 ? TL('agd.late') : TL('agd.todo')) : TL('agd.done')) : TL('agd.event'))}</i></div>`; }).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
+    }
     function personalGreeting() { const h = new Date().getHours(); const part = h < 5 ? 'Dobrou noc' : h < 10 ? 'Dobré ráno' : h < 12 ? 'Dobré dopoledne' : h < 18 ? 'Dobré odpoledne' : 'Dobrý večer'; return `${part}, ${userGreetName}`; }
     function greetingBody() { const now = new Date(); return `<div class="greeting-card"><div class="greeting-mark">${iconSvg('today', 'Dnes')}</div><div><strong>${esc(personalGreeting())}</strong><span>${esc(now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</span><small>${esc(activeWorkspace?.name || 'KalinumX')} · data se ukládají průběžně</small></div></div>`; }
     function feedPref(code) { return state.feedPrefs?.[code] || defaultFeedPrefs()[code] || {}; }
@@ -723,6 +800,7 @@ var KXAPP;
         if (!runtime || state.activeSection !== 'today')
             return;
         void hydratePersonalHome();
+        void hydrateAgDash();
         void hydrateNotifications();
         const token = ++myDayHydration, range = myDayLocalRange();
         try {
