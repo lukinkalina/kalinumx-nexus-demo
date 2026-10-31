@@ -858,3 +858,26 @@ html[data-color-vision="ACHROMA"]{--line:#777}html[data-color-vision="ACHROMA"] 
 .brand-mark{width:72px;height:72px;background:url(assets/brand/kx-logo-kaira.webp) center/contain no-repeat !important;border:0 !important;box-shadow:none !important;clip-path:none !important}
 .brand-mark>*{opacity:0 !important}
 .app-shell.kx-rail>.sidebar .brand-mark{width:56px;height:56px}
+
+/* ===== N2.6b · Alpine Gold v2 – jednotný vzhled (hodnoty změřené z NEXUS_NAVRH_DESIGN_ALPINE_V2.html) ===== */
+:root{--ag-bg:#05080d;--ag-card:rgba(10,15,24,.78);--ag-gold:rgba(233,181,79,.55);--ag-gold-solid:#e9b54f;--ag-glow:0 0 0 1px rgba(233,181,79,.35),0 0 14px rgba(233,181,79,.28);--ag-text:#f4ecd8;--ag-muted:#b9ab8c;--ag-radius:14px}
+body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%,transparent 60%) fixed !important;color:var(--ag-text)}
+.app-shell,.app-shell>.workspace,.app-shell>.workspace>.content{background:transparent !important}
+.app-shell :is(h1,h2){font-family:Cinzel,"Trajan Pro",Georgia,"Times New Roman",serif;letter-spacing:.02em;color:#f6e7c2}
+.app-shell .page-head h1{font-size:30px}
+/* jeden styl všech karet a panelů */
+.workspace .content :is(.widget,.ph-card,.kx-tile,.feed-card,.settings-card,.myday-live-panel,.kx-notify,.kx-recent,.kx-wip,.kx-work,.kx-home-strip,.personal-home,.card,.panel){
+ background:var(--ag-card) linear-gradient(rgba(255,215,140,.05),transparent 40%) !important;border:1px solid var(--ag-gold) !important;border-radius:var(--ag-radius) !important;box-shadow:var(--ag-glow) !important;backdrop-filter:none !important}
+.workspace .content :is(.widget,.ph-card,.kx-tile,.feed-card,.settings-card,.myday-live-panel) :is(.widget,.ph-card,.kx-tile,.feed-card){box-shadow:none !important;border-color:rgba(233,181,79,.25) !important;background:rgba(255,255,255,.02) !important}
+.workspace .content :is(h3,.widget-title,.ph-head b){font-size:15px;font-weight:700;color:#f6e7c2}
+.workspace .content{font-size:13.5px}
+.workspace .content small,.workspace .content .muted{color:var(--ag-muted)}
+/* tlačítka a štítky v jednom stylu */
+.workspace .content :is(button,.btn,.chip,.pill):not(.icon-btn){border-radius:10px}
+.app-shell .topbar{background:rgba(5,8,13,.75);border-bottom:1px solid rgba(233,181,79,.25)}
+/* menu: klidnější, větší položky */
+.app-shell>.sidebar{background:linear-gradient(180deg,rgba(14,18,26,.96),rgba(5,8,13,.96)) !important;border-right:1px solid rgba(233,181,79,.25)}
+.app-shell>.sidebar .kx-tree-row{font-size:14px;padding-block:7px;border-radius:10px}
+.app-shell>.sidebar .kx-tree-row:hover{background:rgba(233,181,79,.08)}
+.app-shell>.sidebar .kx-tree-row.on{background:rgba(233,181,79,.14);box-shadow:inset 3px 0 0 var(--ag-gold-solid)}
+@media (max-width:760px){.workspace .content :is(.widget,.ph-card,.kx-tile,.feed-card){box-shadow:none !important}}
