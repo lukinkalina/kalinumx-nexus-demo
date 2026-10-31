@@ -1,0 +1,3 @@
+Vytvoř konzistentní sadu ikon pro KalinumX NEXUS: luxury futuristic, čisté prémiové 3D/SVG tvary odvozené od KalinumX droplet identity, graphite/black + champagne gold/silver/metal accents, jemné světelné hrany, žádný přehnaný neon. Každá ikona musí být okamžitě rozpoznatelná při 16/24/32/64 px, mít light/dark variantu, jednotnou perspektivu, stroke/weight a safe-area. Bez textu uvnitř ikony. Vytvoř zároveň OUTLINE, FILLED a PREMIUM variantu a transparentní SVG/PNG preview.
+
+Asset pravidlo: canonical identita je ICON.CODE. Velké PNG/3D balíky nejsou součást Core DB; připojují se jako verzovaný asset pack s manifestem.

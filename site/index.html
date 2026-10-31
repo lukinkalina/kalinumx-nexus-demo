@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07080a">
+<title>KalinumX NEXUS P0009 WIP.10</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<script src="./assets.js"></script>
+<script src="./js/implementation-registry.js"></script>
+<script src="./js/core-runtime.js"></script>
+<script src="./js/relation-lineage-panel.js"></script>
+<script src="./js/platform-adapters.js"></script>
+<script src="./js/recovery-settings-panel.js"></script>
+<script src="./js/ui-registry.js"></script>
+<script src="./js/settings-domain-profile.js"></script>
+<script src="./js/system-map.js"></script>
+<script src="./js/navigation-contract.js"></script>
+<script src="./js/navigation-context-contract.js"></script>
+<script src="./js/navigation-registry.js"></script>
+<script src="./js/personal-projection-contract.js"></script>
+<script src="./js/personal-projection.js"></script>
+<script src="./js/personal-projection-persistence.js"></script>
+<script src="./js/personal-projection-bridge.js"></script>
+<script src="./js/personal-runtime-bootstrap.js"></script>
+<script src="./js/personal-home-core-task-adapter.js"></script>
+<script src="./js/personal-planner-owner-adapter.js"></script>
+<script src="./js/hub-domain-kit.js"></script>
+<script src="./js/vehicles-domain.js"></script>
+<script src="./js/pets-domain.js"></script>
+<script src="./js/home-domain.js"></script>
+<script src="./js/school-domain.js"></script>
+<script src="./js/personal-home-composite-adapter.js"></script>
+<script src="./js/core-i18n.js"></script>
+<script src="./js/core-taxonomy.js"></script>
+<script src="./js/core-record-controls.js"></script>
+<script src="./js/core-identity.js"></script>
+<script src="./js/core-web-links.js"></script>
+<script src="./js/core-sync-merge.js"></script>
+<script src="./js/core-qr-vendor.js"></script>
+<script src="./js/core-handoff.js"></script>
+<script src="./js/core-record-codes.js"></script>
+<script src="./js/core-recorder.js"></script>
+<script src="./js/core-prompt-seed.js"></script>
+<script src="./js/core-prompts.js"></script>
+<script src="./js/core-bugs.js"></script>
+<script src="./js/core-a11y.js"></script>
+<script src="./js/core-currency.js"></script>
+<script src="./js/core-countries.js"></script>
+<script src="./js/core-reminders.js"></script>
+<script src="./js/core-namedays-cz.js"></script>
+<script src="./js/core-holidays.js"></script>
+<script src="./js/ads-occasions.js"></script>
+<script src="./js/ads-hub.js"></script>
+<script src="./js/core-home-tiles.js"></script>
+<script src="./js/finance-domain.js"></script>
+<script src="./js/gallery-hub.js"></script>
+<script src="./js/core-api.js"></script>
+<script src="./js/ai-providers.js"></script>
+<script src="./js/price-compare.js"></script>
+<script src="./js/core-demo-seed.js"></script>
+<script src="./js/core-guides.js"></script>
+<script src="./js/guides-manuals.js"></script>
+<script src="./js/core-mynamedays.js"></script>
+<script src="./js/core-inbox.js"></script>
+<script src="./js/core-access.js"></script>
+<script src="./js/core-recovery.js"></script>
+<script src="./js/core-org.js"></script>
+<script src="./js/core-smartfield.js"></script>
+<script src="./js/core-contacts.js"></script>
+<script src="./js/core-names.js"></script>
+<script src="./js/core-links.js"></script>
+<script src="./js/core-tags.js"></script>
+<script src="./js/core-kaira.js"></script>
+<script src="./js/core-import.js"></script>
+<script src="./js/core-camera.js"></script>
+<script src="./js/core-poke.js"></script>
+<script src="./js/core-guides-user.js"></script>
+<script src="./js/core-print3d-calc.js"></script>
+<script src="./js/core-asset-ident.js"></script>
+<script src="./js/core-blackbox.js"></script>
+<script src="./js/core-kaira-assist.js"></script>
+<script src="./js/core-workstate.js"></script>
+<script src="./js/core-finance-plan.js"></script>
+<script src="./js/core-calculator.js"></script>
+<script src="./js/core-laser-guard.js"></script>
+<script src="./js/core-ical.js"></script>
+<script src="./js/core-datapack.js"></script>
+<script src="./js/core-field-registry.js"></script>
+<script src="./js/core-timer.js"></script>
+<script src="./js/core-lists.js"></script>
+<script src="./js/core-layout.js"></script>
+<script src="./js/core-apps.js"></script>
+<script src="./js/core-insights.js"></script>
+<script src="./js/core-processes.js"></script>
+<script src="./js/core-brand.js"></script>
+<script src="./js/splash-render.js"></script>
+<script src="./js/core-appearance-packs.js"></script>
+<script src="./js/core-notes.js"></script>
+<script src="./js/core-propagate.js"></script>
+<script src="./js/core-issues.js"></script>
+<script src="./js/core-notifications.js"></script>
+<script src="./js/hub-domains-n2.js"></script>
+<script src="./js/print3d-reference.js"></script>
+<script src="./js/print3d-calc.js"></script>
+<script src="./js/print3d-domain.js"></script>
+<script src="./js/shop-domain.js"></script>
+<script src="./js/trackwork-elektro-cs.js"></script>
+<script src="./js/trackwork-trades-cs.js"></script>
+<script src="./js/trackwork-domain.js"></script>
+<script src="./js/hobby-detektory-cs.js"></script>
+<script src="./js/hobby-domain.js"></script>
+<script src="./js/laser-materials-seed.js"></script>
+<script src="./js/laser-hub.js"></script>
+<script src="./js/manual-cs.js"></script>
+<script src="./js/core-modules.js"></script>
+<script src="./js/navigation-profile.js"></script>
+<script src="./js/navigation-context-profile.js"></script>
+<script src="./js/navigation-visual-runtime.js"></script>
+<script src="./js/appearance-asset-contract.js"></script>
+<script src="./js/appearance-assets.js"></script>
+<script src="./js/appearance-brand-preset-contract.js"></script>
+<script src="./js/appearance-brand-presets.js"></script>
+<script src="./js/appearance-studio-contract.js"></script>
+<script src="./js/appearance-studio.js"></script>
+<script src="./js/appearance-asset-library-index-contract.js"></script>
+<script src="./js/appearance-asset-library-index.js"></script>
+<script src="./js/appearance-asset-ingestion-contract.js"></script>
+<script src="./js/appearance-asset-ingestion.js"></script>
+<script src="./js/appearance-woff2-decoder-contract.js"></script>
+<script src="./js/appearance-woff2-decoder.js"></script>
+<script src="./js/appearance-svg-font-safety-contract.js"></script>
+<script src="./js/appearance-svg-safety.js"></script>
+<script src="./js/appearance-font-safety.js"></script>
+<script src="./js/appearance-asset-safety.js"></script>
+<script src="./js/appearance-contrast-matrix-contract.js"></script>
+<script src="./js/appearance-contrast-matrix.js"></script>
+<script src="./js/appearance-live-binding-contract.js"></script>
+<script src="./js/appearance-live-binding.js"></script>
+<script src="./js/ai-agent-registry.js"></script>
+<script src="./js/ai-agent-context-host.js"></script>
+<script src="./js/ai-generation-approval-contract.js"></script>
+<script src="./js/ai-generation-approval.js"></script>
+<script src="./js/appearance-platform-export-contract.js"></script>
+<script src="./js/appearance-platform-export.js"></script>
+<script src="./js/window-minimize-runtime.js"></script>
+<script src="./js/shipping-food-hub-panel.js"></script>
+<script src="./js/nexus-shell.js"></script>
+<div id="kxDemoBar" style="position:fixed;left:0;right:0;bottom:0;z-index:2147483647;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;padding:6px 10px;background:#111;color:#f4d27a;font:13px system-ui,sans-serif;border-top:1px solid #d4af37">
+<b>KalinumX NEXUS – veřejné demo</b><span>Data jsou jen ve vašem prohlížeči (nic se neodesílá). Při prvním spuštění zvolte <b>DEMO 2025</b>.</span>
+<button type="button" id="kxDemoReset" style="background:#d4af37;color:#111;border:0;border-radius:6px;padding:3px 10px;cursor:pointer">Začít znovu</button>
+<button type="button" onclick="this.parentNode.remove()" style="background:none;color:#f4d27a;border:1px solid #f4d27a;border-radius:6px;padding:2px 8px;cursor:pointer" aria-label="Skrýt">×</button></div>
+<script>document.getElementById('kxDemoReset').onclick=async()=>{if(!confirm('Smazat ukázková data v tomto prohlížeči a začít znovu?'))return;try{localStorage.clear();sessionStorage.clear();const dbs=indexedDB.databases?await indexedDB.databases():[];for(const d of dbs)if(d.name)indexedDB.deleteDatabase(d.name);if(navigator.storage&&navigator.storage.getDirectory){try{const r=await navigator.storage.getDirectory();for await(const [n] of r.entries())await r.removeEntry(n,{recursive:true});}catch(e){}}}catch(e){}location.reload();};</script>
+</body>
+</html>
