@@ -1036,11 +1036,15 @@ var KXAPP;
         if (ins.lastElementChild !== adm)
             ins.appendChild(adm);
     }
+    function agSizeWindow() { const w = document.querySelector('#modal.open .modal'); if (!w || w.dataset.agSized)
+        return; w.dataset.agSized = '1'; if (w.querySelector('.kx-split,.kx-man,[data-prompt-cat],[data-manual-nav],.kx-insights,[data-insights],[data-settings-center],.settings-center'))
+        w.classList.add('ag-lg'); } /* class set once per window instead of a CSS :has() over the whole window content (re-ran on every change, slowed the app) */
     new MutationObserver(() => { try {
         decorateHubTabs();
         alpineHubTidy();
         alpineSectionTidy();
         alpineRecordTidy();
+        agSizeWindow();
     }
     catch { } }).observe(document.documentElement, { childList: true, subtree: true });
     function personalGreeting() { const h = new Date().getHours(); const part = h < 5 ? TL('greet.g0') : h < 10 ? TL('greet.g1') : h < 12 ? TL('greet.g2') : h < 18 ? TL('greet.g3') : TL('greet.g4'); return `${part}, ${userGreetName}`; }
@@ -1692,7 +1696,7 @@ var KXAPP;
     function agFilesGrid(root, rows) {
         agThumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
         root.closest('.file-table')?.classList.add('ag-grid-mode');
-        root.innerHTML = `<div class="ag-fgrid">${rows.map(({ file, pinned }, i) => { const k = agFileKind(file.mime || '', file.name || ''); return `<button type="button" class="ag-fcard" data-ag-fprev="${i}"><span class="ag-fthumb ag-k-${k}">${k === 'img' ? `<img alt="" data-ag-thumb="${esc(file.id)}">` : `<i>${AG_FILE_IC[k]}</i>`}</span><b>${pinned ? '★ ' : ''}${esc(file.name)}</b><small>${formatBytes(file.size)} · ${esc(new Date(file.updatedAt).toLocaleDateString())}</small></button>`; }).join('')}</div>`;
+        root.innerHTML = `<div class="ag-fgrid">${rows.map(({ file, pinned }, i) => { const k = agFileKind(file.mime || '', file.name || ''); const link = runtime.deepLinks.build({ kind: 'FILE', id: file.id }); return `<div class="ag-fcard"><button type="button" class="ag-fthumb ag-k-${k}" data-ag-fprev="${i}" title="${esc(TL('agd.pv.open'))}">${k === 'img' ? `<img alt="" data-ag-thumb="${esc(file.id)}">` : `<i>${AG_FILE_IC[k]}</i>`}</button><button type="button" class="ag-fname" data-file-link="${esc(link)}" title="${esc(TL('agd.pv.detail'))}"><b>${pinned ? '★ ' : ''}${esc(file.name)}</b><small>${formatBytes(file.size)} · ${esc(new Date(file.updatedAt).toLocaleDateString())}</small></button></div>`; }).join('')}</div>`;
         root.querySelectorAll('img[data-ag-thumb]').forEach(async (im) => { try {
             const b = await runtime.files.getBlob(String(im.dataset.agThumb));
             if (b) {
@@ -1703,6 +1707,7 @@ var KXAPP;
         }
         catch { } });
         root.querySelectorAll('[data-ag-fprev]').forEach(b => b.onclick = (e) => { e.stopPropagation(); agFilePreview(rows, Number(b.dataset.agFprev)); });
+        /* thumbnail = preview, name = file detail (as the table row before) */ root.querySelectorAll('[data-file-link]').forEach(b => b.onclick = (e) => { e.stopPropagation(); openRecordInspector(String(b.dataset.fileLink), { preserveSection: true }); });
     }
     async function agFilePreview(rows, i) {
         let ov = document.getElementById('agPreview');
@@ -9559,7 +9564,15 @@ var KXAPP;
     }
     function themeDrawerAfter(mode) { const d = document.querySelector('#drawer'); if (d && d.classList.contains('open') && themeDrawerModeNow === mode)
         themeDrawer(mode); }
-    function themeDrawer(mode = 'THEMES') { themeDrawerModeNow = mode; document.querySelectorAll('.kx-more-menu').forEach(x => x.remove()); const d = el('#drawer'); /* review fix: the Apply / Revert session starts whenever the panel opens from closed – however it was closed before (×, Esc, outside click, navigation) */ /* review fix: the Apply / Revert session starts whenever the panel opens from closed – however it was closed before (×, Esc, outside click, navigation) */ const openingFresh = !d.classList.contains('open'); d.className = 'drawer open'; const modes = [['STUDIO', 'Studio'], ['PRESETS', 'Brand Presety'], ['THEMES', 'Motivy'], ['CONTRAST', 'Čitelnost'], ['ICONS', 'Ikony'], ['FONTS', 'Písmo'], ['LIBRARY', 'Písma (40)'], ['IMPORT', 'Import / export'], ['ASSETS', 'Assety / logo / pozadí'], ['EXPORT', 'Platform export']]; d.innerHTML = `<div class="drawer-head"><div><b>Vzhled a identita</b><small>Theme mění charakter UI; ikony a písmo lze přepsat samostatně bez změny business dat.</small></div><button class="icon-btn" data-close>×</button></div>${wmBar('drawer')}<div class="studio-toolbar" data-appearance-defaults-bar><button class="btn ghost compact" data-appearance-defaults title="${esc(TL('appearance.defaultsTitle'))}">${esc(TL('appearance.defaults'))}</button>${state.appearanceBeforeReset ? `<button class="btn ghost compact" data-appearance-undo-defaults>${esc(TL('appearance.undoDefaults'))}</button>` : ''}</div>${appearanceDirty() ? `<div class="appearance-summary" data-appearance-dirty><b>${esc(TW('appearance.live'))}</b> <button class="btn compact" data-appearance-apply>${esc(TW('appearance.apply'))}</button> <button class="btn ghost compact" data-appearance-revert>${esc(TW('appearance.revert'))}</button></div>` : ''}<div class="appearance-mode-tabs">${modes.map(([c, n]) => `<button class="${mode === c ? 'active' : ''}" data-appearance-mode="${c}">${n}</button>`).join('')}</div><div id="appearanceContent">${appearanceContent(mode)}</div>`; /* the appearance session lives in JS (render() rebuilds the drawer element): it starts on opening and ends on closing */ /* the appearance session lives in JS (render() rebuilds the drawer element): it starts on opening and ends on closing */ if (openingFresh || !appearanceSession) {
+    let drawerClosedAt = 0;
+    document.addEventListener('click', (e) => { if (e.target?.closest?.('#drawer [data-close]'))
+        drawerClosedAt = Date.now(); }, true);
+    function themeDrawer(mode = 'THEMES') { /* N2.6b race fix: a late async re-render must not REOPEN the drawer the user just closed; only a real click may open it */ {
+        const dd = document.getElementById('drawer');
+        const ev = window.event;
+        if (dd && !dd.classList.contains('open') && Date.now() - drawerClosedAt < 4000 && !(ev && (ev.type === 'click' || ev.type === 'keydown' || ev.type === 'pointerup')))
+            return;
+    } themeDrawerModeNow = mode; document.querySelectorAll('.kx-more-menu').forEach(x => x.remove()); const d = el('#drawer'); /* review fix: the Apply / Revert session starts whenever the panel opens from closed – however it was closed before (×, Esc, outside click, navigation) */ /* review fix: the Apply / Revert session starts whenever the panel opens from closed – however it was closed before (×, Esc, outside click, navigation) */ const openingFresh = !d.classList.contains('open'); d.className = 'drawer open'; const modes = [['STUDIO', 'Studio'], ['PRESETS', 'Brand Presety'], ['THEMES', 'Motivy'], ['CONTRAST', 'Čitelnost'], ['ICONS', 'Ikony'], ['FONTS', 'Písmo'], ['LIBRARY', 'Písma (40)'], ['IMPORT', 'Import / export'], ['ASSETS', 'Assety / logo / pozadí'], ['EXPORT', 'Platform export']]; d.innerHTML = `<div class="drawer-head"><div><b>Vzhled a identita</b><small>Theme mění charakter UI; ikony a písmo lze přepsat samostatně bez změny business dat.</small></div><button class="icon-btn" data-close>×</button></div>${wmBar('drawer')}<div class="studio-toolbar" data-appearance-defaults-bar><button class="btn ghost compact" data-appearance-defaults title="${esc(TL('appearance.defaultsTitle'))}">${esc(TL('appearance.defaults'))}</button>${state.appearanceBeforeReset ? `<button class="btn ghost compact" data-appearance-undo-defaults>${esc(TL('appearance.undoDefaults'))}</button>` : ''}</div>${appearanceDirty() ? `<div class="appearance-summary" data-appearance-dirty><b>${esc(TW('appearance.live'))}</b> <button class="btn compact" data-appearance-apply>${esc(TW('appearance.apply'))}</button> <button class="btn ghost compact" data-appearance-revert>${esc(TW('appearance.revert'))}</button></div>` : ''}<div class="appearance-mode-tabs">${modes.map(([c, n]) => `<button class="${mode === c ? 'active' : ''}" data-appearance-mode="${c}">${n}</button>`).join('')}</div><div id="appearanceContent">${appearanceContent(mode)}</div>`; /* the appearance session lives in JS (render() rebuilds the drawer element): it starts on opening and ends on closing */ /* the appearance session lives in JS (render() rebuilds the drawer element): it starts on opening and ends on closing */ if (openingFresh || !appearanceSession) {
         appearanceSession = true;
         appearanceSnap = snapAppearance();
     } d.querySelector('[data-close]').addEventListener('click', () => { d.classList.remove('open'); appearanceSession = false; }); bindWm(d, 'drawer'); bindAppearanceDefaults(d, mode); d.querySelector('[data-appearance-apply]')?.addEventListener('click', () => { appearanceSnap = snapAppearance(); toast('Vzhled použit'); themeDrawer(mode); }); d.querySelector('[data-appearance-revert]')?.addEventListener('click', () => { Object.assign(state, structuredClone(appearanceSnap.state)); currentWindow().layout = appearanceSnap.layout; applyAppearance(); save(); render(); toast('Vráceno'); themeDrawer(themeDrawerModeNow || mode); }); d.querySelectorAll('[data-appearance-mode]').forEach(b => b.onclick = () => themeDrawer(b.getAttribute('data-appearance-mode') || 'THEMES')); bindAppearance(mode); }
