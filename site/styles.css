@@ -1009,3 +1009,10 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .hub-nav-context-bar .ag-fold{flex-basis:auto}
 .hub-nav-context-bar .ag-fold .kx-seg{display:inline-flex !important;flex-direction:row !important;position:static !important}
 .hub-nav-membership-edit .kx-seg{display:inline-flex !important;flex-direction:row !important;position:static !important}
+
+/* propojení: kroky a vztahy s vysvětlením */
+.ag-step{margin:12px 0 6px;font-size:13px;color:#f6e7c2;text-transform:none}
+.ag-rels{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-bottom:10px}
+.ag-rel{display:grid;gap:3px;text-align:left;padding:9px 11px;border-radius:10px;border:1px solid rgba(233,181,79,.3);background:rgba(10,15,24,.7);color:var(--ag-text);cursor:pointer}
+.ag-rel small{color:var(--ag-muted);font-size:11.5px;line-height:1.3}.ag-rel.on{border-color:var(--ag-gold-solid);background:rgba(233,181,79,.16);box-shadow:var(--ag-glow)}
+[data-link-picker]{max-width:760px}

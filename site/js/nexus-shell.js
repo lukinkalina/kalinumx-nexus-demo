@@ -863,7 +863,8 @@ var KXAPP;
             }
             for (const k of items)
                 adm.appendChild(k);
-            ins.appendChild(adm);
+            if (ins.lastElementChild !== adm)
+                ins.appendChild(adm);
         }
         const hasFn = !!ws && !ws.querySelector('[data-hub-locked]');
         let pl = ins.querySelector(':scope > [data-ag-place]');
@@ -973,10 +974,45 @@ var KXAPP;
             }
         }
     }
+    /* N2.6b: item detail – status, quick edit and links first; technical tools folded into "More options & technical data" */
+    function alpineRecordTidy() {
+        const ins = document.querySelector('#inspector.open:not(.hub-full)');
+        if (!ins || ins.querySelector(':scope > .kx-hub-head'))
+            return;
+        const quick = Array.from(ins.querySelectorAll(':scope > .kx-card-quick'));
+        const links = quick.find(x => x.querySelector('[data-lk-add],.kx-lk-list'));
+        const edit = quick.find(x => x !== links);
+        const who = ins.querySelector(':scope > .kx-card-who');
+        const st = ins.querySelector(':scope > .kx-ws-sec');
+        let anchor = st || ins.querySelector(':scope > .ins-head');
+        for (const x of [edit, links, who]) {
+            if (x && anchor) {
+                if (anchor.nextElementSibling !== x)
+                    anchor.insertAdjacentElement('afterend', x);
+                anchor = x;
+            }
+        }
+        const TECH = /^(Přidělit kód|Stopky|QR a sdílení|Weby|↗|🔖|🕘|Assign code|Stopwatch|QR and sharing|Websites)/;
+        const items = Array.from(ins.children).filter(x => x.matches('.kx-card-path,details.record-meta') || (!x.matches('.ins-head,.kx-ws-sec,.kx-card-quick,.kx-card-who,[data-ag-more]') && (!!x.querySelector('.record-counters') || TECH.test((x.textContent || '').trim()))));
+        if (!items.length)
+            return;
+        let adm = ins.querySelector(':scope > [data-ag-more]');
+        if (!adm) {
+            adm = document.createElement('details');
+            adm.className = 'ins-section ag-fold';
+            adm.dataset.agMore = '1';
+            adm.innerHTML = `<summary>⚙ ${esc(TL('agd.rec.more'))}</summary>`;
+        }
+        for (const k of items)
+            adm.appendChild(k);
+        if (ins.lastElementChild !== adm)
+            ins.appendChild(adm);
+    }
     new MutationObserver(() => { try {
         decorateHubTabs();
         alpineHubTidy();
         alpineSectionTidy();
+        alpineRecordTidy();
     }
     catch { } }).observe(document.documentElement, { childList: true, subtree: true });
     function personalGreeting() { const h = new Date().getHours(); const part = h < 5 ? TL('greet.g0') : h < 10 ? TL('greet.g1') : h < 12 ? TL('greet.g2') : h < 18 ? TL('greet.g3') : TL('greet.g4'); return `${part}, ${userGreetName}`; }
@@ -5497,11 +5533,11 @@ var KXAPP;
         const draw = () => {
             m.innerHTML = `<div class="modal" data-link-picker><div class="drawer-head"><div><b>📎 ${esc(TL('lk.add'))}</b><small>${esc(snapshot.title)}</small></div><button class="icon-btn" data-close>×</button></div>
         <div class="kx-sf-scope">${['ALL', 'FAMILY', 'COMPANY', 'MINE'].map(x => `<button type="button" class="${x === scope ? 'active' : ''}" data-lk-scope="${x}">${esc(TL('sf.scope.' + x))}</button>`).join('')}</div>
-        <input data-lk-q placeholder="${esc(TL('lk.search'))}" style="width:100%">
+        <h4 class="ag-step">1. ${esc(TL('lk.step1'))}</h4><input data-lk-q placeholder="${esc(TL('lk.search'))}" style="width:100%">
         <div class="kx-ct-list" data-lk-results>${items.map((x, i) => `<button type="button" class="kx-ct-row ${sel === x ? 'active' : ''}" data-lk-pick="${i}"><span>${LK_ICON[x.kind] || '•'}</span><span><b>${esc(x.title)}</b><small>${esc(x.kind === 'USER' ? TL('lk.member') : (x.sub || ''))}</small></span></button>`).join('') || `<p class="muted">${esc(TL('lk.typeToSearch'))}</p>`}</div>
-        <div class="kx-calc-grid"><label class="kx-lf"><span>${esc(TL('lk.meaning'))}</span><select data-lk-type>${KXLinks.TYPES.map((t) => `<option value="${t}" ${(sel?.kind === 'USER' ? t === 'ASSIGNED_TO' : t === 'LINKED') ? 'selected' : ''}>${esc(TL('lk.t.' + t))}</option>`).join('')}</select></label>
-          <label class="kx-lf"><span>${esc(TL('lk.due'))}</span><input type="datetime-local" data-lk-due></label><label class="kx-lf"><span>${esc(TL('lk.note'))}</span><input data-lk-note maxlength="300"></label></div>
-        <button class="btn" data-lk-go ${sel ? '' : 'disabled'}>📎 ${esc(TL('lk.go'))}${sel ? `: ${esc(sel.title)}` : ''}</button> <span class="kx-lf-help" data-lk-msg></span></div>`;
+        <h4 class="ag-step">2. ${esc(TL('lk.step2'))}</h4><input type="hidden" data-lk-type value="${m.__rel || (sel?.kind === 'USER' ? 'ASSIGNED_TO' : 'LINKED')}"><div class="ag-rels">${KXLinks.TYPES.map((t) => `<button type="button" class="ag-rel ${(m.__rel || (sel?.kind === 'USER' ? 'ASSIGNED_TO' : 'LINKED')) === t ? 'on' : ''}" data-lk-rel="${t}"><b>${esc(TL('lk.t.' + t))}</b><small>${esc(TL('lk.d.' + t))}</small></button>`).join('')}</div><div class="kx-calc-grid">
+          <label class="kx-lf" data-lk-duewrap ${(m.__rel || (sel?.kind === 'USER' ? 'ASSIGNED_TO' : 'LINKED')) === 'ASSIGNED_TO' ? '' : 'hidden'}><span>${esc(TL('lk.due'))}</span><input type="datetime-local" data-lk-due></label><label class="kx-lf"><span>${esc(TL('lk.note'))}</span><input data-lk-note maxlength="300"></label></div>
+        <button class="btn" data-lk-go ${sel ? '' : 'disabled'}>🔗 ${sel ? `${esc(TL('lk.go'))}: ${esc(sel.title)}` : esc(TL('lk.pickFirst'))}</button> <span class="kx-lf-help" data-lk-msg></span></div>`;
             m.className = 'modal-wrap open';
             m.querySelector('[data-close]').onclick = close;
             const q = m.querySelector('[data-lk-q]');
@@ -5511,6 +5547,7 @@ var KXAPP;
             q.oninput = () => { m.__q = q.value; clearTimeout(qt); qt = setTimeout(async () => { items = await runtime.actions.invoke('ACTION.CORE.LINK.PICK', { query: q.value, scope }, C).catch(() => []); items = items.filter((x) => x.ref !== snapshot.deepLink); sel = null; draw(); }, 200); };
             m.querySelectorAll('[data-lk-scope]').forEach(b => b.onclick = () => { scope = String(b.dataset.lkScope); q.dispatchEvent(new Event('input')); });
             m.querySelectorAll('[data-lk-pick]').forEach(b => b.onclick = () => { sel = items[Number(b.dataset.lkPick)]; draw(); });
+            m.querySelectorAll('[data-lk-rel]').forEach(b => b.onclick = () => { m.__rel = String(b.dataset.lkRel); draw(); });
             m.querySelector('[data-lk-go]').onclick = async () => {
                 if (!sel)
                     return;
