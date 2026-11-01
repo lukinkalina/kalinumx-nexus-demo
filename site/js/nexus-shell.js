@@ -394,6 +394,13 @@ var KXAPP;
                                 catch (e) {
                                     console.warn('DEMO seed v3', e);
                                 }
+                                try {
+                                    const r4 = await KXDemoSeed.seed4?.(runtime, CURRENT_USER_ID);
+                                    console.info('DEMO seed v4', JSON.stringify({ s: r4?.subjects, i: r4?.items, h: r4?.hubs, e: (r4?.errors || []).length }));
+                                }
+                                catch (e) {
+                                    console.warn('DEMO seed v4', e);
+                                }
                                 if (r2?.seeded && !r.seeded) {
                                     toast(TL('demo.seeded'));
                                     try {
@@ -3399,7 +3406,14 @@ var KXAPP;
     document.addEventListener('focusin', (e) => { const el = e.target?.closest?.('[data-kx-help-long]'); if (el && e.target.matches?.(':focus-visible'))
         helpTimer = setTimeout(() => showTip(el), 400); }, true);
     document.addEventListener('focusout', hideTip, true);
-    document.addEventListener('pointerdown', () => { clearTimeout(helpTimer); hideTip(); }, true); /* N2.6b: napoveda nezustane viset, kdyz se prvek po kliknuti prekresli */
+    document.addEventListener('pointerdown', () => { clearTimeout(helpTimer); hideTip(); }, true);
+    document.addEventListener('click', (e) => { const x = e.target?.closest?.('#modal.open [data-close],#drawer.open [data-close]'); if (!x)
+        return; setTimeout(() => { const m = document.querySelector('#modal.open'), d = document.querySelector('#drawer.open'); if (m && m.contains(x)) {
+        m.className = 'modal-wrap';
+        m.innerHTML = '';
+    } if (d && d.contains(x)) {
+        d.classList.remove('open');
+    } }, 120); }, true); /* N2.6b: close fallback - if a window's own x handler failed, the window manager closes it (user had to reload) */ /* N2.6b: napoveda nezustane viset, kdyz se prvek po kliknuti prekresli */
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape')
         hideTip(); }, true);
     document.addEventListener('scroll', hideTip, true);

@@ -81,7 +81,7 @@ const PROP_T = () => globalThis.KXI18n?.UI?.['propagate.title']?.cs || 'Propagat
     KXHubKit.domains = KXHubKit.domains || [];
     function createScheduleDomain(cfg) {
         if (!KXHubKit.domains.some((d) => d.type === cfg.type))
-            KXHubKit.domains.push({ owner: cfg.owner, type: cfg.type, label: cfg.label, permission: cfg.permission, createAction: cfg.actions?.create, subjectFields: cfg.subjectFields, nameKey: cfg.subjectNameKey || 'name' });
+            KXHubKit.domains.push({ owner: cfg.owner, type: cfg.type, label: cfg.label, permission: cfg.permission, createAction: cfg.actions?.create, addItemAction: cfg.actions?.addItem, itemPayloadKey: cfg.itemPayloadKey, itemKinds: cfg.itemKinds, maxItems: cfg.maxItems, subjectFields: cfg.subjectFields, nameKey: cfg.subjectNameKey || 'name' });
         const OWNER = cfg.owner, TYPE = cfg.type, PERM = cfg.permission, ITEMS = cfg.itemsKey, M = cfg.msg, PROVIDER_KIND = 'HUB_DOMAIN_SERVICE';
         const FIELDS = Object.keys(cfg.subjectFields);
         function normalizeSubject(input, old) {

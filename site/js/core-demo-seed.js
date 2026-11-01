@@ -60,7 +60,7 @@ var KXDemoSeed;
         const out = { tasks: 0, events: 0, accounts: 0, goals: 0 };
         const T = [['Nájem bytu – 12 000 Kč', 0, family], ['Elektřina ČEZ – 2 480 Kč', 0, family], ['Nákup potravin – 2 500 Kč', 0, family], ['Příprava daňového přiznání', 0, company], ['Internet O2 – 599 Kč', 1, family],
             ['Faktura materiál (dřevo, plexi) – 6 300 Kč', 4, company], ['Pojištění auta – 1 450 Kč', 5, family], ['Záloha ZP MV ČR – 3 143 Kč', 8, personal], ['Hypotéka – 18 900 Kč', 9, family], ['Objednat vánoční dárky', 10, family],
-            ['Telefony Vodafone – 890 Kč', 12, family], ['Leasing laseru MOPA – 7 900 Kč', 15, company], ['Kontrolní hlášení DPH', 20, company], ['Školné – kroužky dětí – 1 800 Kč', 24, family], ['Platba za vodu – 1 120 Kč', -3, family], ['Vrátit knihy do knihovny', -1, family]];
+            ['Telefony Vodafone – 890 Kč', 12, family], ['Leasing laseru MOPA – 7 900 Kč', 15, company], ['Kontrolní hlášení DPH', 20, company], ['Školné – kroužky dětí – 1 800 Kč', 24, family], ['Platba za vodu – 1 120 Kč', -3, family], ['Vrátit knihy do knihovny', -1, family]].map(([a, b, c]) => ['DEMO · ' + a, b, c]);
         for (const [t, d, s] of T)
             try {
                 await core.actions.invoke('ACTION.CORE.TASK.SAVE', { title: t, ownerApp: 'APP.NEXUS', spaceIds: [s], dueAt: day(d) }, C);
@@ -68,7 +68,7 @@ var KXDemoSeed;
             }
             catch { }
         const E = [['Výplata (mzda)', 3, 8, family], ['Výplata (mzda)', 33, 8, family], ['Kontrola Lukáška – ortopedie', 0, 15, family], ['Sport – fotbal (děti)', 1, 17, family], ['Schůzka s účetní', 6, 10, company],
-            ['Rodinná oslava – narozeniny', 13, 16, family], ['Servis auta', 18, 8, family], ['Veletrh dárků Brno', 22, 9, company], ['Dovoz materiálu', 27, 11, company]];
+            ['Rodinná oslava – narozeniny', 13, 16, family], ['Servis auta', 18, 8, family], ['Veletrh dárků Brno', 22, 9, company], ['Dovoz materiálu', 27, 11, company]].map(([a, b, c, d]) => ['DEMO · ' + a, b, c, d]);
         for (const [t, d, h, s] of E)
             try {
                 await core.actions.invoke('ACTION.CORE.CALENDAR.SAVE', { title: t, ownerApp: 'APP.NEXUS', spaceIds: [s], startsAt: day(d, h), allDay: false, attendeeIds: [], status: 'CONFIRMED' }, C);
@@ -138,6 +138,113 @@ var KXDemoSeed;
         await core.entities.save({ id: MARK3, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), movements: n } }, { actorId, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true });
         return { seeded: true, movements: n };
     }
-    KXDemoSeed = { seed, seed2, seed3, isDemo, MARK, MARK2, MARK3 };
+    /* N2.6b · DEMO data v4 (user: "demo everywhere, marked DEMO, covering the whole range of functions and values"):
+       EVERY hub built on the hub kit gets 3 records with ALL fields filled (each enum option used in turn) and items of EVERY kind
+       spread over overdue / soon / later / recurring – generic, so hubs added later are covered too; through the same actions as the user */
+    const MARK4 = 'CORE.DEMO_SEED.MARKER.V4';
+    const NAMES = { 'APP.KX.PETS': ['Rex (pes)', 'Micka (kočka)', 'Kuba (papoušek)'], 'APP.KX.HOME': ['Kotel a topení', 'Střecha a okapy', 'Zahradní technika'], 'APP.KX.HOBBY': ['RC model Buggy', 'Dron DJI', 'Kolo Specialized'],
+        'APP.KX.SCHOOL': ['Lukášek – 3. třída', 'Veronika – gymnázium', 'Kroužek angličtiny'], 'APP.KX.HEALTH': ['Lukáš', 'Helena', 'Lukášek'], 'APP.KX.GARDEN': ['Rajčata', 'Jabloň', 'Levandule'], 'APP.KX.VEHICLES': ['Škoda Octavia', 'Dodávka Transit', 'Vozík'],
+        'APP.KX.CERTIFY': ['Revize elektro dílna', 'Hasicí přístroje', 'Kalibrace laseru'], 'APP.KX.CONTRACTS': ['Nájem dílny', 'Smlouva s dodavatelem dřeva', 'Pojištění firmy'], 'APP.KX.SUBSCRIPTIONS': ['Adobe CC', 'Shopify', 'LightBurn'],
+        'APP.KX.WARRANTY': ['Laser MOPA 60 W', 'Notebook Dell', 'Pračka Bosch'], 'APP.KX.PRINT3D': ['Prusa MK4', 'Bambu X1C', 'Filament PETG'], 'APP.KX.SHOP': ['Dřevěná krabička', 'Gravírovaná deska', 'Svícen'] };
+    const COMPANY_OWNERS = new Set(['APP.KX.CERTIFY', 'APP.KX.CONTRACTS', 'APP.KX.SUBSCRIPTIONS', 'APP.KX.WARRANTY', 'APP.KX.SHOP', 'APP.KX.PRINT3D', 'APP.KX.LASER', 'APP.KX.ADS', 'APP.KX.PURCHASE']);
+    async function seed4(core, actorId) {
+        if (!isDemo(core))
+            return { seeded: false };
+        if (await core.entities.get(MARK4).catch(() => null))
+            return { seeded: false, reason: 'ALREADY' };
+        const K = globalThis.KXHubKit;
+        const doms = (K?.domains || []).filter((d) => d.createAction);
+        if (!doms.length)
+            throw new Error('DEMO_SEED_NOT_READY');
+        const sp = await core.propagate.spaces(actorId);
+        const id = (k) => sp.find((x) => x.kind === k)?.id;
+        const fam = id('FAMILY') || id('PERSONAL'), com = id('COMPANY') || fam;
+        const day = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+        const out = { subjects: 0, items: 0, hubs: 0, errors: [] };
+        for (const d of doms) {
+            const C = { actorId, appCode: d.owner, permissions: d.permission ? [d.permission] : [], confirmed: true };
+            const space = COMPANY_OWNERS.has(d.owner) ? com : fam;
+            let made = 0;
+            const SF = d.subjectFields || {};
+            const nameField = SF[d.nameKey] ? d.nameKey : (SF.name ? 'name' : SF.title ? 'title' : (Object.keys(SF).find(k => SF[k].kind === 'text' && SF[k].required) || d.nameKey));
+            for (let i = 0; i < 3; i++) {
+                const f = { spaceIds: [space] };
+                for (const [key, def] of Object.entries(SF)) {
+                    if (key === nameField) {
+                        f[key] = ('DEMO · ' + ((NAMES[d.owner] || [])[i] || `${d.label} ${i + 1}`)).slice(0, def.max || 80);
+                        continue;
+                    }
+                    if (def.kind === 'enum') {
+                        const o = Object.keys(def.options || {});
+                        if (o.length)
+                            f[key] = o[(i + o.indexOf(o[i % o.length])) % o.length];
+                        continue;
+                    }
+                    if (def.kind === 'date') {
+                        f[key] = day(-400 * (i + 1));
+                        continue;
+                    }
+                    if (def.kind === 'number' || def.kind === 'int' || def.kind === 'money') {
+                        const mn = Number(def.min ?? 1), mx = Number(def.max ?? 1000);
+                        f[key] = Math.min(mx, Math.max(mn, Math.round(mn + (mx - mn) * (i + 1) / 4)));
+                        continue;
+                    }
+                    if (def.kind === 'bool' || def.kind === 'boolean') {
+                        f[key] = i % 2 === 0;
+                        continue;
+                    }
+                    if (def.kind === 'text') {
+                        let v = `DEMO ${def.label || key} ${i + 1}`;
+                        if (def.pattern) {
+                            v = `DEMO-${100 + i}`;
+                            if (!new RegExp(def.pattern).test(v))
+                                continue;
+                        }
+                        f[key] = v.slice(0, def.max || 80);
+                    }
+                }
+                try {
+                    const r = await core.actions.invoke(d.createAction, f, C);
+                    made++;
+                    out.subjects++;
+                    const rid = r?.id || r?.entity?.id;
+                    let rev = r?.revision ?? r?.entity?.revision;
+                    if (rid && d.addItemAction && d.itemKinds) {
+                        const kinds = Object.keys(d.itemKinds).slice(0, Math.min(d.maxItems || 8, 8));
+                        let j = 0;
+                        for (const kd of kinds) {
+                            const due = [-3, 5, 40, 12, 90, -10, 25, 60][(j + i) % 8];
+                            const item = { kind: kd, label: `DEMO · ${d.itemKinds[kd]}` };
+                            if (j % 3 === 2)
+                                item.intervalDays = [30, 90, 365][i % 3];
+                            else
+                                item.dueAt = day(due);
+                            try {
+                                const r2 = await core.actions.invoke(d.addItemAction, { id: rid, expectedRevision: rev, [d.itemPayloadKey]: item }, C);
+                                rev = r2?.revision ?? r2?.entity?.revision ?? rev;
+                                out.items++;
+                            }
+                            catch (e) {
+                                out.errors.push(d.owner + ' item ' + String(e?.message || e).slice(0, 60));
+                            }
+                            j++;
+                        }
+                    }
+                }
+                catch (e) {
+                    out.errors.push(d.owner + ' ' + String(e?.message || e).slice(0, 80));
+                }
+            }
+            if (made)
+                out.hubs++;
+        }
+        if (!out.subjects)
+            throw new Error('DEMO_SEED_EMPTY');
+        if (out.errors.length)
+            console.warn('DEMO seed v4', out.errors.slice(0, 12));
+        await core.entities.save({ id: MARK4, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), subjects: out.subjects, items: out.items, hubs: out.hubs } }, { actorId, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true });
+        return { seeded: true, ...out };
+    }
+    KXDemoSeed = { seed, seed2, seed3, seed4, isDemo, MARK, MARK2, MARK3, MARK4 };
     globalThis.KXDemoSeed = KXDemoSeed;
 })();

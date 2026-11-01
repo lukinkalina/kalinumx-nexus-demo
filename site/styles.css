@@ -1016,3 +1016,14 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .ag-rel{display:grid;gap:3px;text-align:left;padding:9px 11px;border-radius:10px;border:1px solid rgba(233,181,79,.3);background:rgba(10,15,24,.7);color:var(--ag-text);cursor:pointer}
 .ag-rel small{color:var(--ag-muted);font-size:11.5px;line-height:1.3}.ag-rel.on{border-color:var(--ag-gold-solid);background:rgba(233,181,79,.16);box-shadow:var(--ag-glow)}
 [data-link-picker]{max-width:760px}
+
+/* Poznámky: velké okno, levý sloupec 300 px, Prostor a Řazení jako přehledné výběry */
+#modal .modal:has(.kx-split){width:min(1400px,94vw) !important;max-width:none !important;height:min(88vh,920px) !important;display:flex;flex-direction:column}
+#modal .modal:has(.kx-split) .kx-split{flex:1;min-height:0;display:grid !important;grid-template-columns:300px minmax(0,1fr) !important;gap:16px}
+#modal .modal:has(.kx-split) .kx-split-nav{min-width:0;overflow:auto;padding-right:6px}
+.kx-notes-filters{display:grid !important;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+.kx-notes-filters .kx-seg{display:none !important}
+.kx-notes-filters select.kx-seg-src{position:static !important;opacity:1 !important;pointer-events:auto !important;clip:auto !important;clip-path:none !important;width:100% !important;height:36px !important;overflow:visible !important;background:#0b1018;border:1px solid rgba(233,181,79,.3);border-radius:9px;color:#f4ecd8;padding:4px 8px}
+.kx-notes-filters label,.kx-notes-filters>div>span{font-size:11px;color:var(--ag-muted);text-transform:uppercase;letter-spacing:.05em}
+
+#modal .modal:has(.kx-split) .kx-split-nav > .btn,#modal .modal:has(.kx-split) .kx-split-nav .btn.compact:not(.ghost){padding:8px 16px !important;font-size:13.5px !important;margin:6px 0}
