@@ -806,6 +806,40 @@ var KXAPP;
             host.querySelectorAll('[data-ag-svg]').forEach(x => { x.innerHTML = `<small class="ag-empty">🔒 ${esc(TL('agd.locked'))}</small>`; });
         }
     }
+    /* N2.6b · Alpine Gold v2 – záložky podhubů v záhlaví hubu (ze stromu; pro každý hub, který podhuby má) */
+    function decorateHubTabs() {
+        const ins = document.querySelector('#inspector.open.hub-full');
+        if (!ins)
+            return;
+        const head = ins.querySelector('.kx-hub-head');
+        if (!head)
+            return;
+        const cur = document.querySelector('.kx-tree-hub.on');
+        const code = String(cur?.dataset.treeHub || '');
+        if (!code)
+            return;
+        const tabs = Array.from(document.querySelectorAll(`[data-tree-hub="${CSS.escape(code)}"][data-tree-tab]`));
+        let bar = ins.querySelector('.ag-hubtabs');
+        if (!tabs.length) {
+            bar?.remove();
+            return;
+        }
+        const sig = code + ':' + tabs.map(x => x.dataset.treeTab + (x.classList.contains('on') ? '*' : '')).join(',');
+        if (bar && bar.dataset.sig === sig)
+            return;
+        if (!bar) {
+            bar = document.createElement('nav');
+            bar.className = 'ag-hubtabs';
+            head.insertAdjacentElement('afterend', bar);
+        }
+        bar.dataset.sig = sig;
+        bar.innerHTML = `<button type="button" class="${tabs.some(x => x.classList.contains('on')) ? '' : 'on'}" data-ag-hubtab="">${esc(TL('agd.hub.overview'))}</button>` + tabs.map(x => `<button type="button" class="${x.classList.contains('on') ? 'on' : ''}" data-ag-hubtab="${esc(String(x.dataset.treeTab))}">${esc((x.textContent || '').trim())}</button>`).join('');
+        bar.querySelectorAll('[data-ag-hubtab]').forEach(b => b.onclick = (e) => { e.stopPropagation(); const tb = String(b.dataset.agHubtab || ''); openHubAt(code, tb || undefined); });
+    }
+    new MutationObserver(() => { try {
+        decorateHubTabs();
+    }
+    catch { } }).observe(document.documentElement, { childList: true, subtree: true });
     function personalGreeting() { const h = new Date().getHours(); const part = h < 5 ? 'Dobrou noc' : h < 10 ? 'Dobré ráno' : h < 12 ? 'Dobré dopoledne' : h < 18 ? 'Dobré odpoledne' : 'Dobrý večer'; return `${part}, ${userGreetName}`; }
     function greetingBody() { const now = new Date(); return `<div class="greeting-card"><div class="greeting-mark">${iconSvg('today', 'Dnes')}</div><div><strong>${esc(personalGreeting())}</strong><span>${esc(now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</span><small>${esc(activeWorkspace?.name || 'KalinumX')} · data se ukládají průběžně</small></div></div>`; }
     function feedPref(code) { return state.feedPrefs?.[code] || defaultFeedPrefs()[code] || {}; }
@@ -3169,7 +3203,7 @@ var KXAPP;
     let helpTip = null, helpTimer = null;
     const hideTip = () => { clearTimeout(helpTimer); helpTip?.remove(); helpTip = null; };
     const showTip = (el) => {
-        if (helpMode !== 'FULL' || !el.dataset.kxHelpLong)
+        if (helpMode !== 'FULL' || !el.dataset.kxHelpLong || !el.isConnected || !el.matches(':hover'))
             return;
         hideTip();
         helpTip = document.createElement('div');
@@ -3190,6 +3224,7 @@ var KXAPP;
     document.addEventListener('focusin', (e) => { const el = e.target?.closest?.('[data-kx-help-long]'); if (el && e.target.matches?.(':focus-visible'))
         helpTimer = setTimeout(() => showTip(el), 400); }, true);
     document.addEventListener('focusout', hideTip, true);
+    document.addEventListener('pointerdown', () => { clearTimeout(helpTimer); hideTip(); }, true); /* N2.6b: nápověda nezůstane viset, když se prvek po kliknutí překreslí */
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape')
         hideTip(); }, true);
     document.addEventListener('scroll', hideTip, true);
@@ -9854,7 +9889,8 @@ var KXAPP;
         } });
     }
     // N2.1f: protected (sensitive) hubs open only with a verified session of the current user; the Core guard enforces the same for every action.
-    async function hubLocked(hubCode) { const id = runtime?.identity; if (!id?.isProtected?.(hubCode))
+    async function hubLocked(hubCode) { /* N2.6b: DEMO prostor – chráněné huby bez přihlášení */ if (String(runtime?.workspaceProfile?.mode || '') === 'DEMO')
+        return false; const id = runtime?.identity; if (!id?.isProtected?.(hubCode))
         return false; try {
         return (await id.validate()) !== CURRENT_USER_ID;
     }
