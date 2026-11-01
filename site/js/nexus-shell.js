@@ -3415,12 +3415,13 @@ var KXAPP;
     document.addEventListener('focusout', hideTip, true);
     document.addEventListener('pointerdown', () => { clearTimeout(helpTimer); hideTip(); }, true);
     document.addEventListener('click', (e) => { const x = e.target?.closest?.('#modal.open [data-close],#drawer.open [data-close]'); if (!x)
-        return; setTimeout(() => { const m = document.querySelector('#modal.open'), d = document.querySelector('#drawer.open'); if (m && m.contains(x)) {
-        m.className = 'modal-wrap';
-        m.innerHTML = '';
-    } if (d && d.contains(x)) {
-        d.classList.remove('open');
-    } }, 120); }, true); /* N2.6b: close fallback - if a window's own x handler failed, the window manager closes it (user had to reload) */ /* N2.6b: napoveda nezustane viset, kdyz se prvek po kliknuti prekresli */
+        return; const host = x.closest('#modal,#drawer'); const sig = host.textContent || ''; setTimeout(() => { /* act ONLY if nothing happened: still open with exactly the same content (a window opened meanwhile reuses the frame but has other content) */ if (!x.isConnected || !host.classList.contains('open') || (host.textContent || '') !== sig)
+        return; if (host.id === 'modal') {
+        host.className = 'modal-wrap';
+        host.innerHTML = '';
+    }
+    else
+        host.classList.remove('open'); }, 250); }, true); /* N2.6b: close fallback - only when the window's own x handler did nothing; never touches a window opened meanwhile */ /* N2.6b: napoveda nezustane viset, kdyz se prvek po kliknuti prekresli */
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape')
         hideTip(); }, true);
     document.addEventListener('scroll', hideTip, true);
