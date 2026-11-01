@@ -950,6 +950,13 @@ var KXAPP;
                 it.querySelector('[data-ag-sec]').onclick = () => { state.activeSection = 'today'; render(); };
             }
         }
+        if (sec === 'apps') {
+            const ed = c.querySelector('.hub-nav-context-bar > .hub-nav-membership-edit');
+            if (ed) {
+                const bar = ed.parentElement;
+                fold(bar, [ed], 'membership', 'agd.sec.membership');
+            }
+        }
         if (sec === 'desk') {
             const g = c.querySelector('.desk-grid');
             if (g)
@@ -6847,7 +6854,7 @@ var KXAPP;
         const z = await readZip(await r.arrayBuffer());
         const m = JSON.parse(new TextDecoder().decode(z['manifest.json']));
         const icons = {}, small = {};
-        const url = (b) => URL.createObjectURL(new Blob([b], { type: 'image/webp' }));
+        const url = (b) => `data:image/webp;base64,${b64(b)}`; /* data URL: decoratePackIcons accepts only data:image (security check) */
         let n = 0;
         for (const e of (m.icons || [])) {
             if (z[e.file])

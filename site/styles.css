@@ -1000,3 +1000,12 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .ag-drop{border-style:dashed !important;text-align:center;padding:28px}
 .desk-grid.ag-desk{grid-template-columns:repeat(auto-fill,minmax(260px,1fr)) !important;gap:12px}
 .desk-grid.ag-desk .folder-card{min-height:0 !important;height:auto !important}
+
+/* katalog hubů: větší čitelné dlaždice, editor zařazení sbalený a vodorovný */
+.workspace :has(> .hub-nav-item.hub-nav-row){display:grid !important;grid-template-columns:repeat(auto-fill,minmax(240px,1fr)) !important;gap:10px !important}
+.workspace .hub-nav-item.hub-nav-row{min-height:74px;padding:12px 14px !important;border-radius:12px !important;border:1px solid rgba(233,181,79,.3) !important;background:var(--ag-card) !important;font-size:14px;text-align:left;align-items:center}
+.workspace .hub-nav-item.hub-nav-row:hover{border-color:var(--ag-gold-solid) !important;box-shadow:var(--ag-glow)}
+.workspace .hub-nav-item.hub-nav-row > :first-child{min-width:44px;height:44px;font-size:15px;border-radius:11px}
+.hub-nav-context-bar .ag-fold{flex-basis:auto}
+.hub-nav-context-bar .ag-fold .kx-seg{display:inline-flex !important;flex-direction:row !important;position:static !important}
+.hub-nav-membership-edit .kx-seg{display:inline-flex !important;flex-direction:row !important;position:static !important}
