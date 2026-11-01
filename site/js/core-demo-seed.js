@@ -246,6 +246,27 @@ var KXDemoSeed;
         return { seeded: true, ...out };
     }
     /* N2.6b · DEMO data v5: hubs outside the hub kit – Vehicles (all deadlines in every state) and Notes (notebooks, sections, pages) */
+    /* DEMO page bodies – every block type of the editor (headings, paragraph, numbered / bullet / checklist, callouts, table) */
+    const R = (text) => [{ text }];
+    const P = (t, x) => ({ t, runs: R(x) });
+    const L = (t, xs) => ({ t, items: xs.map(x => Array.isArray(x) ? { runs: R(x[0]), checked: x[1] } : { runs: R(x) }) });
+    const C = (kind, x) => ({ t: 'callout', kind, runs: R(x) });
+    const TB = (rows) => ({ t: 'table', head: true, rows: rows.map(r => r.map(c => ({ runs: R(c) }))) });
+    function demoDoc(title) {
+        const D = {
+            'Postup gravírování dřeva': [P('h2', 'DEMO · Postup'), L('ol', ['Přebrousit povrch zrnitostí 240', 'Zakrýt maskovací páskou', 'Nastavit fokus a výkon podle tabulky', 'Gravírovat ve dvou průchodech', 'Odstranit pásku a ošetřit olejem']), C('warn', 'Odsávání musí běžet po celou dobu gravírování.'), P('p', 'Doba na kus cca 12 minut.')],
+            'Nastavení laseru MOPA pro kov': [P('h2', 'DEMO · Parametry'), TB([['Materiál', 'Výkon %', 'Rychlost mm/s', 'Frekvence kHz'], ['Nerez – černá', '40', '300', '200'], ['Hliník elox', '70', '1500', '30'], ['Mosaz', '85', '800', '40']]), C('info', 'Hodnoty jsou výchozí – před zakázkou udělejte zkušební čtverec.')],
+            'Ceník gravírování': [P('h2', 'DEMO · Ceník'), TB([['Položka', 'Cena bez DPH'], ['Gravírování do 5×5 cm', '150 Kč'], ['Gravírování do 10×10 cm', '290 Kč'], ['Příprava grafiky', '350 Kč / hod']]), C('tip', 'Firemní zakázky nad 50 ks – sleva 15 %.')],
+            'Seznam oprav na jaro': [P('h2', 'DEMO · Co opravit'), L('todo', [['Vyčistit okapy', true], ['Natřít plot', false], ['Opravit kohoutek v koupelně', false], ['Servis sekačky', true]]), C('info', 'Řemeslníky najdete na stránce Kontakty na řemeslníky.')],
+            'Nápady na terasu': [P('h2', 'DEMO · Nápady'), L('ul', ['Dřevěná pergola s popínavou rostlinou', 'Solární světla podél zábradlí', 'Vyvýšené záhony na bylinky']), C('tip', 'Rozpočet zhruba 25 000 Kč.')],
+            'Kontakty na řemeslníky': [P('h2', 'DEMO · Řemeslníci'), TB([['Řemeslo', 'Jméno', 'Telefon'], ['Instalatér', 'DEMO Novák', '+420 600 000 001'], ['Elektrikář', 'DEMO Svoboda', '+420 600 000 002']])],
+            'Co zabalit': [P('h2', 'DEMO · Balení'), L('todo', [['Pasy a doklady', true], ['Nabíječky', false], ['Opalovací krém', false], ['Lékárnička', true]])],
+            'Rozpočet dovolené': [P('h2', 'DEMO · Rozpočet'), TB([['Položka', 'Kč'], ['Ubytování', '28 000'], ['Doprava', '9 500'], ['Jídlo a výlety', '15 000']]), P('p', 'Celkem 52 500 Kč.')],
+            'Vánoční kolekce': [P('h2', 'DEMO · Vánoce 2026'), L('ul', ['Gravírované ozdoby s monogramem', 'Dřevěné krabičky na dárky', 'Svícny s věnováním']), C('warn', 'Objednávky přijímat do 10. 12.')],
+            'Svícny a krabičky': [P('h2', 'DEMO · Svícny a krabičky'), P('p', 'Varianty z dubu a ořechu, gravírování jména nebo loga.'), L('ul', ['Svícen dub – 490 Kč', 'Krabička ořech – 690 Kč'])]
+        };
+        return { schema: 'KX.RICHTEXT/1', blocks: D[title] || [P('p', 'DEMO · ukázková stránka')] };
+    }
     const MARK5 = 'CORE.DEMO_SEED.MARKER.V5';
     async function seed5(core, actorId) {
         if (!isDemo(core))
@@ -286,7 +307,7 @@ var KXDemoSeed;
                     const sid = s?.id || s?.entity?.id;
                     for (const pt of pages) {
                         try {
-                            await core.actions.invoke('ACTION.CORE.NOTES.PAGE_CREATE', { sectionId: sid, title: 'DEMO · ' + pt }, NC);
+                            await core.actions.invoke('ACTION.CORE.NOTES.PAGE_CREATE', { sectionId: sid, title: 'DEMO · ' + pt, doc: demoDoc(pt) }, NC);
                             out.pages++;
                         }
                         catch (e) {
