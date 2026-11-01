@@ -101,6 +101,43 @@ var KXDemoSeed;
         await core.entities.save({ id: MARK2, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), ...out } }, C);
         return { seeded: true, ...out };
     }
-    KXDemoSeed = { seed, seed2, isDemo, MARK, MARK2 };
+    /* N2.6b · DEMO data v3: příjmy a výdaje za posledních 31 dní (grafy přehledu) – vlastní značka V3, jen DEMO */
+    const MARK3 = 'CORE.DEMO_SEED.MARKER.V3';
+    async function seed3(core, actorId) {
+        if (!isDemo(core))
+            return { seeded: false };
+        if (await core.entities.get(MARK3).catch(() => null))
+            return { seeded: false, reason: 'ALREADY' };
+        const C = { actorId, appCode: 'APP.KX.FINANCE', permissions: [], confirmed: true };
+        const sp = await core.propagate.spaces(actorId);
+        const id = (k) => sp.find((x) => x.kind === k)?.id;
+        const fam = id('FAMILY') || id('PERSONAL'), com = id('COMPANY');
+        const D = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+        let n = 0;
+        const mv = async (space, kind, day, amount, category, counterparty) => { try {
+            await core.actions.invoke('ACTION.FINANCE.MOVEMENT.SAVE', { spaceId: space, data: { kind, date: D(day), amount, currency: 'CZK', category, counterparty, note: 'DEMO' } }, C);
+            n++;
+        }
+        catch (e) {
+            console.warn('DEMO movement', e);
+        } };
+        const F = [['INCOME', 27, 42500, 'SALARY', 'Zaměstnavatel'], ['INCOME', 12, 3200, 'OTHER_INCOME', 'Prodej na bazaru'], ['EXPENSE', 29, 12000, 'HOUSING', 'Nájem'], ['EXPENSE', 26, 2480, 'ENERGY', 'ČEZ'],
+            ['EXPENSE', 24, 1890, 'FOOD', 'Albert'], ['EXPENSE', 21, 1450, 'INSURANCE', 'Kooperativa'], ['EXPENSE', 19, 2310, 'FOOD', 'Lidl'], ['EXPENSE', 17, 1200, 'TRANSPORT', 'Benzina'], ['EXPENSE', 15, 990, 'KIDS_SCHOOL', 'Kroužky'],
+            ['EXPENSE', 13, 2650, 'FOOD', 'Kaufland'], ['EXPENSE', 10, 599, 'SUBSCRIPTIONS', 'O2'], ['EXPENSE', 8, 1750, 'CAR', 'Servis'], ['EXPENSE', 6, 2120, 'FOOD', 'Albert'], ['EXPENSE', 4, 890, 'HEALTH', 'Lékárna'], ['EXPENSE', 2, 1980, 'FOOD', 'Lidl'], ['INCOME', 1, 1500, 'OTHER_INCOME', 'Vrácení přeplatku']];
+        for (const [k, d, a, c, cp] of F)
+            await mv(fam, k, d, a, c, cp);
+        if (com) {
+            const Cm = [['INCOME', 28, 8900, 'SALES', 'E-shop'], ['INCOME', 25, 12400, 'SALES', 'Zakázka gravírování'], ['EXPENSE', 23, 6300, 'MATERIAL', 'Dřevo, plexi'], ['INCOME', 20, 5600, 'SALES', 'E-shop'],
+                ['EXPENSE', 18, 1200, 'SHIPPING', 'Zásilkovna'], ['INCOME', 16, 15800, 'SALES', 'Firemní dárky'], ['EXPENSE', 14, 7900, 'TOOLS_MACHINES', 'Leasing laseru'], ['INCOME', 11, 7300, 'SALES', 'E-shop'], ['EXPENSE', 9, 2400, 'MARKETING', 'Reklama'],
+                ['INCOME', 7, 9900, 'SALES', 'Zakázka'], ['EXPENSE', 5, 980, 'SOFTWARE', 'Licence'], ['INCOME', 3, 11200, 'SALES', 'E-shop'], ['EXPENSE', 2, 1650, 'SHIPPING', 'PPL']];
+            for (const [k, d, a, c, cp] of Cm)
+                await mv(com, k, d, a, c, cp);
+        }
+        if (!n)
+            throw new Error('DEMO_SEED_EMPTY');
+        await core.entities.save({ id: MARK3, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), movements: n } }, { actorId, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true });
+        return { seeded: true, movements: n };
+    }
+    KXDemoSeed = { seed, seed2, seed3, isDemo, MARK, MARK2, MARK3 };
     globalThis.KXDemoSeed = KXDemoSeed;
 })();

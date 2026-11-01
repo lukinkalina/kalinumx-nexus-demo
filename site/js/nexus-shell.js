@@ -388,6 +388,12 @@ var KXAPP;
                             const r = await KXDemoSeed.seed(runtime, CURRENT_USER_ID);
                             try {
                                 const r2 = await KXDemoSeed.seed2?.(runtime, CURRENT_USER_ID);
+                                try {
+                                    await KXDemoSeed.seed3?.(runtime, CURRENT_USER_ID);
+                                }
+                                catch (e) {
+                                    console.warn('DEMO seed v3', e);
+                                }
                                 if (r2?.seeded && !r.seeded) {
                                     toast(TL('demo.seeded'));
                                     try {
@@ -616,7 +622,7 @@ var KXAPP;
     }
     function today() { const w = state.windows[state.activeWindow] || state.windows[0]; const l = layout(); const scopes = [['PERSONAL', 'Osobní'], ['FAMILY', 'Rodina'], ['COMPANY', 'Firma'], ['SHARED', 'Společné'], ['ALL', 'Vše']]; return agDashHtml() + `<div class="page-head"><div><span class="eyebrow">NEXUS · ${state.activeWindow + 1}/${state.windows.length}</span><h1>${esc(w.name)}</h1><p>${esc(personalGreeting())} · ${esc(l.description)} · ${esc(theme().name)}</p></div><div class="head-actions"><button class="btn" data-action="add-widget">＋ ${esc(TL('dash.addCard'))}</button><span class="kx-md-layouts" data-md-layouts>${MD_LAYOUTS.map(([k, ic]) => `<button type="button" class="icon-btn kx-md-lb ${mdLayout() === k ? 'active' : ''}" data-md-layout="${k}" title="${esc(TL('mdl.' + k))}" aria-label="${esc(TL('mdl.' + k))}">${ic}</button>`).join('')}</span><button class="btn ghost" data-action="window-menu">⋯</button></div></div><div class="myday-toolbar"><div class="myday-tabs">${scopes.map(([code, title]) => `<button class="${state.myDayScope === code ? 'active' : ''}" data-myday-scope="${code}">${title}</button>`).join('')}</div><div id="myDayRange" class="myday-range">${esc(TL('ws.loadingToday'))}</div></div><div class="kx-lbars" id="linkBars"></div><section data-md-group="WORK" class="personal-home kx-work" id="workPanel" aria-label="${esc(TL('ws.panel'))}"></section><section data-md-group="NOTIFY" class="personal-home kx-notify" id="notificationsPanel" aria-label="${esc(TL('ws.notifyAria'))}"></section><section data-md-group="NOTIFY" class="personal-home kx-notify kx-wip" id="pokePanel" aria-label="${esc(TL('pk.panel'))}"></section><section data-md-group="WORK" class="personal-home kx-recent" id="recentPanel" aria-label="${esc(TL('ws.recent'))}"></section><section data-md-group="CAL" class="personal-home kx-mdcal" id="myDayCalendar" aria-label="${esc(TL('mdc.title'))}"></section><section data-md-group="KAIRA" class="personal-home kx-kaira" id="kairaCard" aria-label="Kaira"></section><section data-md-group="CARDS" class="personal-home" id="personalHomeCards" aria-label="Personal Home"><div class="desk-card-loading">${esc(TL('ws.loadingHome'))}</div></section><div class="dashboard cols-${Math.min(4, l.columns)} density-${l.density.toLowerCase()}">${w.widgets.map(widget).join('')}</div>`; }
     /* ===== N2.6b · Alpine Gold v2 – Společný přehled (horní polovina podle NEXUS_NAVRH_DESIGN_ALPINE_V2) ===== */
-    const agUi = { scope: 'ALL', horizon: 7, tab: 'today' };
+    const agUi = { scope: 'ALL', horizon: 7, tab: 'today', filter: 'all' };
     function agDashHtml() {
         const sc = [['ALL', 'agd.scope.all', 'agd.scope.allSub', '👥'], ['FAMILY', 'agd.scope.family', 'agd.scope.familySub', '👨‍👩‍👧'], ['COMPANY', 'agd.scope.company', 'agd.scope.companySub', '💼']];
         const kpi = (k, ic, cls) => `<button type="button" class="ag-kpi ag-${cls}" data-ag-kpi="${k}"><span class="ag-kpi-ic">${ic}</span><span class="ag-kpi-tx"><b>${esc(TL('agd.k.' + k))}</b><small>${esc(TL('agd.k.' + k + '.en'))}</small><strong data-ag-val="${k}">…</strong><em data-ag-sub="${k}"></em></span><span class="ag-kpi-go">›</span></button>`;
@@ -625,9 +631,12 @@ var KXAPP;
       <div class="ag-bar"><div class="ag-scope">${sc.map(([k, l, sub, ic]) => `<button type="button" class="${agUi.scope === k ? 'on' : ''}" data-ag-scope="${k}"><span>${ic}</span><b>${esc(TL(l))}</b><small>${esc(TL(sub))}</small></button>`).join('')}</div>
       <div class="ag-hz"><small>${esc(TL('agd.horizon'))}<br>${esc(TL('agd.horizonEn'))}</small>${[7, 14, 21, 30, 60, 90].map(d => `<button type="button" class="${agUi.horizon === d ? 'on' : ''}" data-ag-hz="${d}">${d} ${esc(TL('agd.days'))}</button>`).join('')}</div></div>
       <div class="ag-kpis">${kpi('payday', '👛', 'green')}${kpi('topay', '🧾', 'red')}${kpi('free', '🪙', 'blue')}${kpi('reserve', '🛡', 'orange')}${kpi('today', '📆', 'violet')}</div>
-      <div class="ag-row"><div class="ag-card ag-acts"><div class="ag-card-h"><b>☑ ${esc(TL('agd.acts'))}</b><small>${esc(TL('agd.actsEn'))}</small><button type="button" class="ag-mini" data-section-jump="calendar">${esc(TL('agd.showAll'))} ›</button></div>
+      <div class="ag-row">${["fam", "com", "all"].map(k => `<div class="ag-card ag-chart" data-ag-chart="${k}"><div class="ag-card-h"><b>${k === "all" ? "◔" : k === "fam" ? "👨‍👩‍👧" : "💼"} ${esc(TL("agd.ch." + k))}</b><small>${esc(TL("agd.ch." + k + ".en"))}</small><span class="ag-delta" data-ag-delta="${k}"></span></div><div class="ag-svg" data-ag-svg="${k}"></div></div>`).join("")}<div class="ag-card ag-acts"><div class="ag-card-h"><b>☑ ${esc(TL('agd.acts'))}</b><small>${esc(TL('agd.actsEn'))}</small><button type="button" class="ag-mini" data-section-jump="calendar">${esc(TL('agd.showAll'))} ›</button></div>
       <div class="ag-tabs">${[['today', 'agd.t.today'], ['week', 'agd.t.week'], ['late', 'agd.t.late']].map(([k, l]) => `<button type="button" class="${agUi.tab === k ? 'on' : ''}" data-ag-tab="${k}">${esc(TL(l))} <span data-ag-cnt="${k}"></span></button>`).join('')}</div><div class="ag-list" data-ag-list><small>…</small></div></div></div>
-      </section>`;
+      </div>
+      <div class="ag-card ag-cal"><div class="ag-cal-h"><b>📅 ${esc(TL('agd.cal'))}</b><small>${esc(TL('agd.calEn'))}</small></div><div class="ag-cal-days" data-ag-cal></div></div>
+      <div class="ag-row2"><div class="ag-card ag-plan"><div class="ag-card-h"><b>📋 ${esc(TL('agd.plan'))}</b><small>${esc(TL('agd.planEn'))}</small></div><div class="ag-filters">${[['all', 'agd.f.all'], ['pay', 'agd.f.pay'], ['task', 'agd.f.task'], ['event', 'agd.f.event']].map(([k, l]) => `<button type="button" class="${agUi.filter === k ? 'on' : ''}" data-ag-filter="${k}">${esc(TL(l))} <span data-ag-fcnt="${k}"></span></button>`).join('')}</div><div data-ag-plan><small>…</small></div></div>
+      <div class="ag-card ag-quick"><div class="ag-card-h"><b>⚡ ${esc(TL('agd.quick'))}</b><small>Quick actions</small></div><div class="ag-qgrid">${[['💳', 'agd.q.pay', 'APP.KX.FINANCE', 'green'], ['☑', 'agd.q.task', 'APP.KX.TASKS', 'blue'], ['📅', 'agd.q.event', 'APP.KX.CALENDAR', 'violet'], ['⇄', 'agd.q.transfer', 'APP.KX.FINANCE', 'orange'], ['⌗', 'agd.q.scan', 'APP.KX.DOCUMENTS', 'teal'], ['👤', 'agd.q.contact', 'APP.KX.CONTACTS', 'indigo']].map(([ic, l, hub, c]) => `<button type="button" class="ag-q ag-q-${c}" data-ag-open="${hub}"><span>${ic}</span><b>${esc(TL(l))}</b></button>`).join('')}</div></div></div></section>`;
     }
     async function hydrateAgDash() {
         const host = document.querySelector('[data-ag-dash]');
@@ -704,6 +713,98 @@ var KXAPP;
         const L = host.querySelector('[data-ag-list]');
         if (L)
             L.innerHTML = list.length ? list.slice(0, 6).map((x) => { const isTask = x.kind === 'TASK'; const a = amt(x); return `<div class="ag-it"><span>${isTask ? '☑' : '📅'}</span><b>${esc(String(x.title || ''))}</b>${a ? `<em>${esc(fmt(a))}</em>` : ''}<i class="ag-tag ${isTask ? (open(x) ? 'red' : 'green') : 'blue'}">${esc(isTask ? (open(x) ? (at(x) < day0 ? TL('agd.late') : TL('agd.todo')) : TL('agd.done')) : TL('agd.event'))}</i></div>`; }).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
+        host.querySelectorAll('[data-ag-filter]').forEach(b => b.onclick = () => { agUi.filter = String(b.dataset.agFilter); render(); });
+        host.querySelectorAll('[data-ag-open]').forEach(b => b.onclick = (e) => { e.stopPropagation(); openHubAt(String(b.dataset.agOpen)); });
+        /* pás kalendáře 31 dní */
+        const cal = host.querySelector('[data-ag-cal]');
+        if (cal) {
+            const wd = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So'];
+            let h = '';
+            for (let i = 0; i < 31; i++) {
+                const d = new Date(day0 + i * D);
+                const its = items.filter(x => { const t = at(x); return t >= d.getTime() && t < d.getTime() + D; });
+                const we = d.getDay() === 0 || d.getDay() === 6;
+                h += `<div class="ag-day ${i === 0 ? 'today' : ''} ${we ? 'we' : ''}"><small>${wd[d.getDay()]}</small><b>${d.getDate()}</b><i>${its.slice(0, 3).map(x => `<em class="${x.kind === 'TASK' ? (amt(x) ? 'red' : 'blue') : 'violet'}"></em>`).join('')}</i></div>`;
+            }
+            cal.innerHTML = h;
+        }
+        /* plán plateb a úkolů po dnech */
+        const kindOf = (x) => x.kind !== 'TASK' ? 'event' : amt(x) ? 'pay' : 'task';
+        const up = items.filter(x => at(x) >= day0 && at(x) < day0 + agUi.horizon * D && (x.kind !== 'TASK' || open(x))).sort((a, b) => at(a) - at(b));
+        for (const f of ['all', 'pay', 'task', 'event']) {
+            const c = host.querySelector(`[data-ag-fcnt="${f}"]`);
+            if (c)
+                c.textContent = `(${f === 'all' ? up.length : up.filter(x => kindOf(x) === f).length})`;
+        }
+        const pl = host.querySelector('[data-ag-plan]');
+        if (pl) {
+            const rows = up.filter(x => agUi.filter === 'all' || kindOf(x) === agUi.filter);
+            const by = new Map();
+            for (const x of rows) {
+                const d = new Date(at(x));
+                const k = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+                if (!by.has(k))
+                    by.set(k, []);
+                by.get(k).push(x);
+            }
+            const lbl = (k) => k === day0 ? TL('agd.t.today') : k === day0 + D ? TL('agd.tomorrow') : new Date(k).toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'numeric' });
+            pl.innerHTML = rows.length ? [...by.entries()].slice(0, 6).map(([k, arr]) => `<div class="ag-pday"><div class="ag-pdate"><b>${esc(lbl(k))}</b><small>${new Date(k).toLocaleDateString('cs-CZ')}</small><em>● ${arr.length} ${esc(TL('agd.items'))}</em></div><div class="ag-prows">${arr.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow"><span>${kd === 'pay' ? '💳' : kd === 'task' ? '☑' : '📅'}</span><b>${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*Kč\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : kd === 'task' ? 'blue' : 'teal'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em>${x.kind === 'TASK' ? `<button type="button" class="ag-done" data-ag-done="${esc(String(x.id || x.entityId || ''))}">✓ ${esc(TL(kd === 'pay' ? 'agd.paid' : 'agd.done'))}</button>` : '<span></span>'}</div>`; }).join('')}</div></div>`).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
+            pl.querySelectorAll('[data-ag-done]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); const id = String(b.dataset.agDone || ''); if (!id)
+                return; try {
+                await runtime.actions.invoke('ACTION.CORE.TASK.COMPLETE', { id }, { actorId: CURRENT_USER_ID, appCode: 'APP.KX.NEXUS', permissions: ['CORE.TASK.EDIT'], confirmed: true });
+                toast(TL('agd.doneToast'));
+                render();
+            }
+            catch (err) {
+                toast(String(err?.message || err).slice(0, 120));
+            } });
+        }
+        /* grafy: příjmy / výdaje za 31 dní po 3 dnech */
+        try {
+            const sp = await runtime.propagate?.spaces?.(CURRENT_USER_ID) || [];
+            const kindById = new Map(sp.map((x) => [x.id, x.kind]));
+            const mv = await runtime.actions.invoke('ACTION.FINANCE.MOVEMENT.LIST', {}, lyCtx());
+            const rows = (Array.isArray(mv) ? mv : []).map((r) => ({ ...r.data, space: kindById.get(r.spaceIds?.[0]) }));
+            const bucket = (rs, k) => { const B = Array.from({ length: 11 }, () => ({ inc: 0, exp: 0 })); for (const r of rs) {
+                const d = Math.floor((day0 + D - Date.parse(r.date)) / D);
+                if (d < 0 || d > 32)
+                    continue;
+                const b = B[Math.min(10, 10 - Math.floor(d / 3))];
+                if (r.kind === 'INCOME')
+                    b.inc += r.amount;
+                else if (r.kind === 'EXPENSE')
+                    b.exp += r.amount;
+            } return B; };
+            for (const [k, f] of [['fam', (r) => r.space !== 'COMPANY'], ['com', (r) => r.space === 'COMPANY'], ['all', () => true]]) {
+                const B = bucket(rows.filter(f), k);
+                const mx = Math.max(1, ...B.map(b => Math.max(b.inc, b.exp)));
+                const W = 300, H = 110, bw = W / B.length;
+                let svg = `<svg viewBox="0 0 ${W} ${H + 16}" preserveAspectRatio="none">`;
+                let line = '';
+                let cum = 0;
+                const cums = B.map(b => (cum += b.inc - b.exp));
+                const cmx = Math.max(1, ...cums.map(Math.abs));
+                B.forEach((b, i) => { const x = i * bw + bw * 0.15, w = bw * 0.32; const sc = (v) => Math.sqrt(v / mx) * H; const hi = sc(b.inc), he = sc(b.exp); svg += `<rect x="${x}" y="${H - hi}" width="${w}" height="${hi}" rx="2" fill="${k === 'com' ? '#3aa0ff' : '#3aa0ff'}"/><rect x="${x + w + 1}" y="${H - he}" width="${w}" height="${he}" rx="2" fill="${k === 'com' ? '#ffa62b' : '#ff5c72'}"/>`; line += `${i ? 'L' : 'M'}${i * bw + bw / 2},${H / 2 - cums[i] / cmx * (H / 2 - 6)} `; });
+                if (k === 'all')
+                    svg += `<path d="${line}" fill="none" stroke="#ffd34d" stroke-width="2"/>`;
+                svg += `</svg><div class="ag-leg"><span class="b">● ${esc(TL('agd.inc'))}</span><span class="${k === 'com' ? 'o' : 'r'}">● ${esc(TL('agd.exp'))}</span>${k === 'all' ? `<span class="y">● ${esc(TL('agd.bal'))}</span>` : ''}</div>`;
+                const el2 = host.querySelector(`[data-ag-svg="${k}"]`);
+                if (el2)
+                    el2.innerHTML = svg;
+                const inc = B.reduce((a, b) => a + b.inc, 0), exp = B.reduce((a, b) => a + b.exp, 0);
+                const dl = host.querySelector(`[data-ag-delta="${k}"]`);
+                if (dl && inc) {
+                    const pc = Math.round((inc - exp) / inc * 100);
+                    dl.textContent = `${pc >= 0 ? '+' : ''}${pc} % ${pc >= 0 ? '▲' : '▼'}`;
+                    dl.className = 'ag-delta ' + (pc >= 0 ? 'up' : 'down');
+                }
+            }
+        }
+        catch (e) {
+            if (!/AUTH_SESSION/.test(String(e)))
+                console.warn('agDash charts', String(e));
+            host.querySelectorAll('[data-ag-svg]').forEach(x => { x.innerHTML = `<small class="ag-empty">🔒 ${esc(TL('agd.locked'))}</small>`; });
+        }
     }
     function personalGreeting() { const h = new Date().getHours(); const part = h < 5 ? 'Dobrou noc' : h < 10 ? 'Dobré ráno' : h < 12 ? 'Dobré dopoledne' : h < 18 ? 'Dobré odpoledne' : 'Dobrý večer'; return `${part}, ${userGreetName}`; }
     function greetingBody() { const now = new Date(); return `<div class="greeting-card"><div class="greeting-mark">${iconSvg('today', 'Dnes')}</div><div><strong>${esc(personalGreeting())}</strong><span>${esc(now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</span><small>${esc(activeWorkspace?.name || 'KalinumX')} · data se ukládají průběžně</small></div></div>`; }
