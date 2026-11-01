@@ -947,3 +947,34 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .inspector.hub-full :is(h3,h4){color:#f6e7c2}
 .inspector.hub-full .desk-empty{padding:28px;text-align:center;color:var(--ag-muted)}
 @media (max-width:760px){.inspector.hub-full .kx-hub-head{min-height:96px}.inspector.hub-full .kx-hub-head h2{font-size:24px}.inspector.hub-full :is(.kx-hub-bar,.ins-section){box-shadow:none !important}}
+
+/* ===== Alpine Gold v2 – rozložení funkcí v hubech a podhubech (formuláře, tlačítka, tabulky) ===== */
+:is(.inspector.hub-full,.workspace .content) .btn:not(.ghost):not(.icon-btn){background:linear-gradient(180deg,#f2c869,#c9922e) !important;color:#1a1205 !important;border:1px solid #f6d58a !important;font-weight:800;border-radius:10px;padding:8px 18px;box-shadow:0 2px 12px rgba(233,181,79,.35);text-shadow:none}
+:is(.inspector.hub-full,.workspace .content) .btn:not(.ghost):not(.icon-btn):hover{filter:brightness(1.08)}
+:is(.inspector.hub-full,.workspace .content) .btn.ghost{background:rgba(10,15,24,.6) !important;border:1px solid rgba(233,181,79,.45) !important;color:#f4ecd8 !important;border-radius:10px;padding:7px 14px;font-weight:600}
+:is(.inspector.hub-full,.workspace .content) .btn.compact{padding:5px 12px;font-size:12.5px}
+:is(.inspector.hub-full,.workspace .content) .btn.ghost:hover{border-color:var(--ag-gold-solid) !important;background:rgba(233,181,79,.1) !important}
+/* štítky a přepínače */
+:is(.inspector.hub-full,.workspace .content) :is(.chip,.kx-sf-chip){background:rgba(10,15,24,.7);border:1px solid rgba(233,181,79,.3);color:var(--ag-text);border-radius:999px;padding:4px 12px}
+:is(.inspector.hub-full,.workspace .content) :is(.chip.active,.chip.on,button.on,button.active):not(.btn):not(.icon-btn){background:linear-gradient(180deg,rgba(233,181,79,.35),rgba(233,181,79,.15)) !important;border-color:var(--ag-gold-solid) !important;color:#fff3d6 !important;font-weight:700}
+/* pole formulářů */
+.inspector.hub-full :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),select,textarea){background:#0b1018 !important;border:1px solid rgba(233,181,79,.28) !important;border-radius:9px !important;color:#f4ecd8 !important;min-height:36px;padding:6px 10px}
+.inspector.hub-full :is(input,select,textarea):focus-visible{outline:2px solid var(--ag-gold-solid);outline-offset:1px;border-color:var(--ag-gold-solid) !important}
+.inspector.hub-full label.kx-lf{display:grid;gap:4px;font-size:11px;color:var(--ag-muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+.inspector.hub-full label.kx-lf :is(input,select,textarea){text-transform:none;letter-spacing:0;font-size:13.5px;font-weight:400}
+/* formuláře v mřížce s rozumnou šířkou místo roztažení */
+.inspector.hub-full :is(div,form,section,fieldset):has(> label.kx-lf ~ label.kx-lf){display:grid !important;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px 16px;align-items:end;max-width:1180px}
+.inspector.hub-full :is(div,form,section,fieldset):has(> label.kx-lf ~ label.kx-lf) > :is(textarea,.wide){grid-column:1/-1}
+/* nadpisy sekcí a rozbalovací části */
+.inspector.hub-full summary{font-weight:800;color:#f6e7c2;cursor:pointer;padding:4px 0}
+.inspector.hub-full :is(h3,h4,.ins-title){font-size:15px;font-weight:800;color:#f6e7c2;margin:2px 0 8px}
+/* tabulky */
+.inspector.hub-full table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+.inspector.hub-full thead th{position:sticky;top:0;z-index:1;background:#121824;color:#f6e7c2;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;padding:9px 10px;border-bottom:1px solid var(--ag-gold);text-align:left}
+.inspector.hub-full tbody td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.05)}
+.inspector.hub-full tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
+.inspector.hub-full tbody tr:hover{background:rgba(233,181,79,.08)}
+/* lišta hubu: hlavní akce vpravo výrazně, filtry klidně */
+.inspector.hub-full .kx-hub-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.inspector.hub-full .kx-hub-bar input[type=search],.inspector.hub-full .kx-hub-bar input:not([type]){flex:1 1 320px;max-width:560px}
+@media (max-width:760px){.inspector.hub-full :is(div,form,section,fieldset):has(> label.kx-lf ~ label.kx-lf){grid-template-columns:1fr 1fr}}
