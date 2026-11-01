@@ -857,6 +857,19 @@ var KXAPP;
         const ins = document.querySelector('#inspector.open.hub-full');
         if (!ins)
             return;
+        /* picture header: the hub's own icon from the active / built-in icon set instead of letters (DA, ZA…) */
+        try {
+            const ws0 = ins.querySelector('#hubWorkspace');
+            const hc = String(ins.querySelector('.kx-hub-head')?.dataset.hubHead || ws0?.dataset.hubRoot || (((ins.querySelector('#hubRename')?.textContent || ins.textContent || '').match(/APP\.KX\.[A-Z0-9_]+/) || [])[0]) || '');
+            const av = ins.querySelector('.kx-hub-head .kx-hub-ic');
+            const url = hc ? packIcons[KXAppearanceAssets.iconCodeForItem(hc)] : '';
+            if (av && url && av.dataset.agIcon !== hc) {
+                av.dataset.agIcon = hc;
+                av.textContent = '';
+                av.style.background = `center/78% no-repeat url("${url}"), radial-gradient(circle at 50% 35%, rgba(233,181,79,.25), rgba(10,15,24,.9))`;
+            }
+        }
+        catch { }
         const ws = ins.querySelector('#hubWorkspace');
         const code = String(ws?.dataset.hubRoot || (((ins.querySelector('#hubRename')?.textContent || ins.textContent || '').match(/APP\.KX\.[A-Z0-9_]+/) || [])[0]) || '');
         /* ONLY clearly administrative parts go to the fold – the hub bar and the hub function (#hubWorkspace) always stay */
@@ -7100,6 +7113,7 @@ var KXAPP;
     }
     /* the hub navigation survives re-rendering: the original glyph is kept and restored when the pack is switched off / changed */
     function decoratePackIcons(root = document) {
+        document.documentElement.dataset.kxIconPack = builtinReady && packIcons === builtinReady.icons ? 'builtin' : Object.keys(packIcons || {}).length ? 'custom' : 'none';
         root.querySelectorAll('[data-nav-item]').forEach(row => {
             const glyph = row.querySelector('.hub-nav-glyph');
             if (!glyph || glyph.dataset.liveIcon)
@@ -7169,9 +7183,9 @@ var KXAPP;
             state.appearanceBeforeReset = { theme: state.theme, iconStyle: state.iconStyle, fontProfile: state.fontProfile, fontOverride: state.fontOverride || null, shellPreset: state.shellPreset, layout: currentWindow().layout, iconPack: active, at: new Date().toISOString() };
             Object.assign(state, { theme: f.theme, iconStyle: f.iconStyle, fontProfile: f.fontProfile, fontOverride: null, shellPreset: f.shellPreset });
             currentWindow().layout = f.layout;
-            if (active)
-                await runtime.actions.invoke('ACTION.CORE.APPEARANCE.ICONS.ACTIVATE', { id: null }, C).catch(() => { });
+            /* N2.6b: always switch the own icon pack off on reset (was skipped when the active-pack lookup failed, so own icons stayed) */ await runtime.actions.invoke('ACTION.CORE.APPEARANCE.ICONS.ACTIVATE', { id: null }, C).catch((e) => console.warn('icon pack off', e));
             await refreshIconPack();
+            decoratePackIcons(document);
             appearanceSnap = snapAppearance();
             applyAppearance();
             save();

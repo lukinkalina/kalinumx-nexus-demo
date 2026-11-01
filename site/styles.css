@@ -1056,3 +1056,20 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .app-shell.kx-rail [data-action="tree-pin"]{left:76px !important}
 .app-shell.kx-rail [data-action="tree-pin"]::after{content:'›'}
 @media (max-width:760px){.app-shell [data-action="tree-pin"]{display:none !important}}
+
+/* ===== Alpine Gold v2 – kompaktní a obrazový vzhled pro všechny huby a podvrstvy (i budoucí) ===== */
+:is(.inspector,.workspace .content,#modal,#drawer) .btn:not(.icon-btn){min-height:32px;padding:5px 14px !important;font-size:13px !important;line-height:1.2;border-radius:9px !important}
+:is(.inspector,.workspace .content,#modal,#drawer) .btn.compact{min-height:28px;padding:3px 10px !important;font-size:12px !important}
+:is(.inspector,.workspace .content,#modal,#drawer) .icon-btn{width:30px;height:30px;min-height:30px;padding:0 !important;display:inline-grid;place-items:center;border-radius:8px}
+:is(.inspector,.workspace .content,#modal,#drawer) :is(.chip,.kx-sf-chip){min-height:26px;padding:2px 11px !important;font-size:12px !important}
+.inspector.hub-full :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),select){min-height:34px !important;padding:4px 10px !important}
+.inspector.hub-full :is(.kx-hub-bar,.kx-card-path,.kx-card-quick,.ins-section,details.kx-hub-admin){padding:10px 12px !important;margin:0 0 8px !important}
+.inspector.hub-full .kx-hub-head{min-height:104px !important;padding:12px 18px !important}
+.inspector.hub-full .kx-hub-head h2{font-size:28px !important}
+.inspector.hub-full .kx-hub-head .kx-hub-ic{width:68px !important;height:68px !important;min-width:68px;border-radius:16px !important;border:1px solid var(--ag-gold-solid);box-shadow:var(--ag-glow);display:grid;place-items:center;font-size:22px}
+.inspector.hub-full :is(h3,h4,.ins-title,summary){position:relative}
+.inspector.hub-full .ins-section > :is(h3,h4):first-child,.inspector.hub-full .ins-section > header:first-child{padding-left:10px;border-left:3px solid var(--ag-gold-solid)}
+.inspector.hub-full :is(ul,ol)>li{min-height:0}
+.inspector.hub-full img:not(.kx-hub-head img):not([data-pack-icon]){border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.45)}
+.workspace .content{padding-top:10px}
+.ag-dash{gap:10px}.ag-kpi{padding:10px 12px}.ag-kpi-ic{flex-basis:46px;height:46px;font-size:22px}
