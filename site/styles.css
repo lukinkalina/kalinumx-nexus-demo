@@ -1018,15 +1018,15 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 [data-link-picker]{max-width:760px}
 
 /* Poznámky: velké okno, levý sloupec 300 px, Prostor a Řazení jako přehledné výběry */
-#modal .modal:has(.kx-split){width:min(1400px,94vw) !important;max-width:none !important;height:min(88vh,920px) !important;display:flex;flex-direction:column}
-#modal .modal:has(.kx-split) .kx-split{flex:1;min-height:0;display:grid !important;grid-template-columns:300px minmax(0,1fr) !important;gap:16px}
-#modal .modal:has(.kx-split) .kx-split-nav{min-width:0;overflow:auto;padding-right:6px}
+#modal.open .modal:has(.kx-split){width:min(1400px,94vw) !important;max-width:none !important;height:min(88vh,920px) !important;display:flex;flex-direction:column}
+#modal.open .modal:has(.kx-split) .kx-split{flex:1;min-height:0;display:grid !important;grid-template-columns:300px minmax(0,1fr) !important;gap:16px}
+#modal.open .modal:has(.kx-split) .kx-split-nav{min-width:0;overflow:auto;padding-right:6px}
 .kx-notes-filters{display:grid !important;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
 .kx-notes-filters .kx-seg{display:none !important}
 .kx-notes-filters select.kx-seg-src{position:static !important;opacity:1 !important;pointer-events:auto !important;clip:auto !important;clip-path:none !important;width:100% !important;height:36px !important;overflow:visible !important;background:#0b1018;border:1px solid rgba(233,181,79,.3);border-radius:9px;color:#f4ecd8;padding:4px 8px}
 .kx-notes-filters label,.kx-notes-filters>div>span{font-size:11px;color:var(--ag-muted);text-transform:uppercase;letter-spacing:.05em}
 
-#modal .modal:has(.kx-split) .kx-split-nav > .btn,#modal .modal:has(.kx-split) .kx-split-nav .btn.compact:not(.ghost){padding:8px 16px !important;font-size:13.5px !important;margin:6px 0}
+#modal.open .modal:has(.kx-split) .kx-split-nav > .btn,#modal.open .modal:has(.kx-split) .kx-split-nav .btn.compact:not(.ghost){padding:8px 16px !important;font-size:13.5px !important;margin:6px 0}
 
 /* karty záznamů v hubech ze stavebnice: přehledné, kompaktní, dvě vedle sebe */
 .veh-list{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(600px,1fr));gap:12px}
@@ -1043,3 +1043,7 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .veh-card ul>li :is(button,.btn){padding:4px 9px !important;font-size:12px !important;min-height:28px}
 .veh-card ul>li>:last-child{display:flex;flex-wrap:wrap;gap:4px;align-items:center;justify-content:flex-end}
 @media (max-width:760px){.veh-list{grid-template-columns:1fr}.veh-card ul>li{grid-template-columns:1fr}}
+
+/* N2.6b safety: a closed window is never visible (a visible but click-through 'ghost' window appeared after closing) */
+#modal.modal-wrap:not(.open){visibility:hidden !important}
+#modal.modal-wrap:not(.open) .modal{display:none !important}
