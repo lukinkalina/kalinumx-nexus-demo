@@ -394,6 +394,7 @@ var KXAPP;
                                 catch (e) {
                                     console.warn('DEMO seed v3', e);
                                 }
+                                void seedDemoFiles();
                                 try {
                                     const r4 = await KXDemoSeed.seed4?.(runtime, CURRENT_USER_ID);
                                     console.info('DEMO seed v4', JSON.stringify({ s: r4?.subjects, i: r4?.items, h: r4?.hubs, e: (r4?.errors || []).length }));
@@ -1684,6 +1685,130 @@ var KXAPP;
             continue;
         }
     } return out.sort((a, b) => (a.parentId ? 1 : 0) - (b.parentId ? 1 : 0) || a.name.localeCompare(b.name, 'cs')); }
+    /* N2.6b (user: files with thumbnails, click opens a preview window that can be closed) – thumbnail grid + preview overlay; works for every space, images get real thumbnails */
+    const agThumbUrls = [];
+    const agFileKind = (m, n) => /^image\//.test(m) ? 'img' : /pdf/.test(m) || /\.pdf$/i.test(n) ? 'pdf' : /^text\/|json|csv|xml/.test(m) || /\.(txt|md|csv|json)$/i.test(n) ? 'txt' : /sheet|excel|\.xlsx?$/i.test(m + n) ? 'xls' : /word|document|\.docx?$/i.test(m + n) ? 'doc' : /zip|rar|7z|tar/.test(m) ? 'zip' : /^video\//.test(m) ? 'vid' : /^audio\//.test(m) ? 'aud' : 'file';
+    const AG_FILE_IC = { pdf: '📕', txt: '📄', xls: '📊', doc: '📝', zip: '🗜', vid: '🎬', aud: '🎵', file: '📎', img: '🖼' };
+    function agFilesGrid(root, rows) {
+        agThumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
+        root.closest('.file-table')?.classList.add('ag-grid-mode');
+        root.innerHTML = `<div class="ag-fgrid">${rows.map(({ file, pinned }, i) => { const k = agFileKind(file.mime || '', file.name || ''); return `<button type="button" class="ag-fcard" data-ag-fprev="${i}"><span class="ag-fthumb ag-k-${k}">${k === 'img' ? `<img alt="" data-ag-thumb="${esc(file.id)}">` : `<i>${AG_FILE_IC[k]}</i>`}</span><b>${pinned ? '★ ' : ''}${esc(file.name)}</b><small>${formatBytes(file.size)} · ${esc(new Date(file.updatedAt).toLocaleDateString())}</small></button>`; }).join('')}</div>`;
+        root.querySelectorAll('img[data-ag-thumb]').forEach(async (im) => { try {
+            const b = await runtime.files.getBlob(String(im.dataset.agThumb));
+            if (b) {
+                const u = URL.createObjectURL(b);
+                agThumbUrls.push(u);
+                im.src = u;
+            }
+        }
+        catch { } });
+        root.querySelectorAll('[data-ag-fprev]').forEach(b => b.onclick = (e) => { e.stopPropagation(); agFilePreview(rows, Number(b.dataset.agFprev)); });
+    }
+    async function agFilePreview(rows, i) {
+        let ov = document.getElementById('agPreview');
+        if (!ov) {
+            ov = document.createElement('div');
+            ov.id = 'agPreview';
+            document.body.appendChild(ov);
+        }
+        const close = () => { ov.remove(); document.removeEventListener('keydown', key, true); if (ov.__u)
+            URL.revokeObjectURL(ov.__u); };
+        const key = (e) => { if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            close();
+        }
+        else if (e.key === 'ArrowRight' && i < rows.length - 1) {
+            close();
+            void agFilePreview(rows, i + 1);
+        }
+        else if (e.key === 'ArrowLeft' && i > 0) {
+            close();
+            void agFilePreview(rows, i - 1);
+        } };
+        document.addEventListener('keydown', key, true);
+        const f = rows[i].file;
+        const k = agFileKind(f.mime || '', f.name || '');
+        ov.innerHTML = `<div class="ag-pv-box" role="dialog" aria-label="${esc(f.name)}"><header><b>${esc(f.name)}</b><small>${esc(f.mime || '')} · ${formatBytes(f.size)}</small><span><button type="button" class="btn ghost compact" data-ag-pv="detail">${esc(TL('agd.pv.detail'))}</button><button type="button" class="icon-btn" data-ag-pv="close" title="${esc(TL('agd.pv.close'))}">×</button></span></header><div class="ag-pv-body"><div class="empty">…</div></div>${i > 0 ? '<button type="button" class="ag-pv-nav l" data-ag-pv="prev">‹</button>' : ''}${i < rows.length - 1 ? '<button type="button" class="ag-pv-nav r" data-ag-pv="next">›</button>' : ''}</div>`;
+        ov.onclick = (e) => { if (e.target === ov)
+            close(); };
+        ov.querySelectorAll('[data-ag-pv]').forEach(b => b.onclick = (e) => { e.stopPropagation(); const a = b.dataset.agPv; if (a === 'close')
+            close();
+        else if (a === 'prev') {
+            close();
+            void agFilePreview(rows, i - 1);
+        }
+        else if (a === 'next') {
+            close();
+            void agFilePreview(rows, i + 1);
+        }
+        else {
+            close();
+            openRecordInspector(runtime.deepLinks.build({ kind: 'FILE', id: f.id }), { preserveSection: true });
+        } });
+        const body = ov.querySelector('.ag-pv-body');
+        try {
+            const blob = await runtime.files.getBlob(f.id);
+            if (!blob) {
+                body.innerHTML = `<div class="empty">${esc(TL('agd.pv.none'))}</div>`;
+                return;
+            }
+            const u = URL.createObjectURL(blob);
+            ov.__u = u;
+            if (k === 'img')
+                body.innerHTML = `<img src="${u}" alt="">`;
+            else if (k === 'pdf')
+                body.innerHTML = `<iframe src="${u}" title="PDF"></iframe>`;
+            else if (k === 'vid')
+                body.innerHTML = `<video src="${u}" controls></video>`;
+            else if (k === 'aud')
+                body.innerHTML = `<audio src="${u}" controls></audio>`;
+            else if (k === 'txt') {
+                const tx = (await blob.text()).slice(0, 200000);
+                body.innerHTML = `<pre>${esc(tx)}</pre>`;
+            }
+            else
+                body.innerHTML = `<div class="ag-pv-file"><i>${AG_FILE_IC[k]}</i><p>${esc(TL('agd.pv.noPreview'))}</p><a class="btn" href="${u}" download="${esc(f.name)}">⬇ ${esc(TL('agd.pv.download'))}</a></div>`;
+        }
+        catch (e) {
+            body.innerHTML = `<div class="empty">${esc(String(e?.message || e).slice(0, 120))}</div>`;
+        }
+    }
+    /* DEMO files (only in the DEMO workspace, once): pictures drawn in the browser + PDF / CSV / text */
+    async function seedDemoFiles() {
+        try {
+            if (String(runtime?.workspaceProfile?.mode || '') !== 'DEMO')
+                return;
+            const KEY = 'kx.demo.files.v1.' + String(activeWorkspace?.id || '');
+            if (localStorage.getItem(KEY))
+                return;
+            const have = await runtime.fileExplorer.searchAccessible({ text: 'DEMO' }, CURRENT_USER_ID);
+            if (have.length) {
+                localStorage.setItem(KEY, '1');
+                return;
+            }
+            const sp = await runtime.memberships.listSpaces();
+            const space = (sp.find((s) => s.kind === 'COMPANY') || sp[0])?.id;
+            if (!space)
+                return;
+            const pic = (title, a, b) => new Promise(res => { const c = document.createElement('canvas'); c.width = 1200; c.height = 800; const g = c.getContext('2d'); const gr = g.createLinearGradient(0, 0, 1200, 800); gr.addColorStop(0, a); gr.addColorStop(1, b); g.fillStyle = gr; g.fillRect(0, 0, 1200, 800); g.strokeStyle = '#e9b54f'; g.lineWidth = 14; g.strokeRect(40, 40, 1120, 720); g.fillStyle = '#fff3d6'; g.font = 'bold 64px Georgia'; g.textAlign = 'center'; g.fillText('DEMO', 600, 330); g.font = '48px Georgia'; g.fillText(title, 600, 430); c.toBlob(bb => res(bb), 'image/png'); });
+            const pdf = `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n4 0 obj<</Length 120>>stream\nBT /F1 28 Tf 60 760 Td (DEMO - Cenik gravirovani) Tj 0 -50 Td /F1 16 Tf (Gravirovani do 5x5 cm .... 150 Kc) Tj ET\nendstream endobj\n5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF`;
+            const files = [['DEMO – gravírovaná krabička.png', await pic('Gravírovaná krabička', '#3b2410', '#0b0e14')], ['DEMO – svícen z dubu.png', await pic('Svícen z dubu', '#1c3b2b', '#0b0e14')], ['DEMO – laserové pole.png', await pic('Laserové pole MOPA', '#102a3b', '#0b0e14')], ['DEMO – zahrada.png', await pic('Zahrada na jaře', '#2c3b10', '#0b0e14')],
+                ['DEMO – ceník gravírování.pdf', new Blob([pdf], { type: 'application/pdf' })], ['DEMO – inventura materiálu.csv', new Blob(['Materiál;Množství;Jednotka\nDub 4 mm;12;deska\nPlexi čiré 3 mm;8;deska\nPETG filament;3;cívka\n'], { type: 'text/csv' })], ['DEMO – postup gravírování.txt', new Blob(['DEMO – postup gravírování dřeva\n1. Přebrousit povrch\n2. Zakrýt páskou\n3. Gravírovat ve dvou průchodech\n'], { type: 'text/plain' })]];
+            for (const [name, blob] of files) {
+                try {
+                    await runtime.actions.invoke('ACTION.CORE.FILE.IMPORT', { blob, name, mime: blob.type || 'application/octet-stream', ownerApp: 'APP.NEXUS', spaceIds: [space] }, { actorId: CURRENT_USER_ID, appCode: 'APP.NEXUS', deviceId: activeDevice?.id, permissions: ['CORE.FILE.IMPORT'], confirmed: true });
+                }
+                catch (e) {
+                    console.warn('DEMO file', e);
+                }
+            }
+            localStorage.setItem(KEY, '1');
+        }
+        catch (e) {
+            console.warn('DEMO files', e);
+        }
+    }
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -1708,6 +1833,10 @@ var KXAPP;
             const summary = el('#fileExplorerSummary');
             if (summary)
                 summary.innerHTML = `<span><b>${rows.length}</b> oprávněných souborů</span><span><b>${collections.length}</b> dostupných kolekcí</span>${fileExplorerUi.createdByNot ? '<span>filtr <b>Sdílené se mnou</b></span>' : ''}<span>Workspace <b>${esc(activeWorkspace?.name || '')}</b></span>`;
+            if (fileExplorerUi.view !== 'list' && rows.length) {
+                agFilesGrid(root, rows);
+                return;
+            }
             root.innerHTML = rows.length ? rows.map(({ file, pinned, collections: fileCollections }) => { const link = runtime.deepLinks.build({ kind: 'FILE', id: file.id }); const spacesText = file.spaceIds.map(id => spaceNames.get(id) || id).join(', ') || 'Bez prostoru'; return `<button class="tr file-row" data-file-link="${esc(link)}"><span><b>${pinned ? '★ ' : ''}${esc(file.name)}</b><small>${esc(file.mime)} · ${formatBytes(file.size)} · rev ${file.revision}/${file.contentRevision}</small></span><span>${fileCollections.length ? `${fileCollections.length} vazeb` : '—'}</span><span>${esc(spacesText)}</span><span>${esc(new Date(file.updatedAt).toLocaleString())}</span></button>`; }).join('') : '<div class="empty">Žádné oprávněné soubory pro aktuální filtr.</div>';
             root.querySelectorAll('[data-file-link]').forEach(b => b.onclick = e => { e.stopPropagation(); openRecordInspector(b.dataset.fileLink, { preserveSection: true }); });
             const search = el('#fileSearch');
