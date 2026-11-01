@@ -42,6 +42,65 @@ var KXDemoSeed;
         await core.entities.save({ id: MARK, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), ...out } }, C);
         return { seeded: true, ...out };
     }
-    KXDemoSeed = { seed, isDemo, MARK };
+    /* N2.6b · DEMO data v2 (rozhodnutí uživatele „ukázková data nastav všechna“): platby se splatností, výplata, úkoly a události na celý měsíc,
+       účty se zůstatky a rodinná rezerva – vlastní značka V2, doplní se i do existujícího DEMO prostoru, nic nezdvojí; jen v DEMO workspace */
+    const MARK2 = 'CORE.DEMO_SEED.MARKER.V2';
+    async function seed2(core, actorId) {
+        if (!isDemo(core))
+            return { seeded: false, reason: 'NOT_DEMO' };
+        if (await core.entities.get(MARK2).catch(() => null))
+            return { seeded: false, reason: 'ALREADY' };
+        const C = { actorId, appCode: 'APP.KX.NEXUS', permissions: ['CORE.TASK.EDIT', 'CORE.CALENDAR.EDIT'], confirmed: true };
+        const sp = await core.propagate.spaces(actorId);
+        if (!sp?.length)
+            throw new Error('DEMO_SEED_NOT_READY');
+        const id = (k) => sp.find((s) => s.kind === k)?.id;
+        const personal = id('PERSONAL'), family = id('FAMILY') || personal, company = id('COMPANY') || personal;
+        const day = (n, h = 9) => { const d = new Date(); d.setHours(h, 0, 0, 0); return new Date(d.getTime() + n * 86400000).toISOString(); };
+        const out = { tasks: 0, events: 0, accounts: 0, goals: 0 };
+        const T = [['Nájem bytu – 12 000 Kč', 0, family], ['Elektřina ČEZ – 2 480 Kč', 0, family], ['Nákup potravin – 2 500 Kč', 0, family], ['Příprava daňového přiznání', 0, company], ['Internet O2 – 599 Kč', 1, family],
+            ['Faktura materiál (dřevo, plexi) – 6 300 Kč', 4, company], ['Pojištění auta – 1 450 Kč', 5, family], ['Záloha ZP MV ČR – 3 143 Kč', 8, personal], ['Hypotéka – 18 900 Kč', 9, family], ['Objednat vánoční dárky', 10, family],
+            ['Telefony Vodafone – 890 Kč', 12, family], ['Leasing laseru MOPA – 7 900 Kč', 15, company], ['Kontrolní hlášení DPH', 20, company], ['Školné – kroužky dětí – 1 800 Kč', 24, family], ['Platba za vodu – 1 120 Kč', -3, family], ['Vrátit knihy do knihovny', -1, family]];
+        for (const [t, d, s] of T)
+            try {
+                await core.actions.invoke('ACTION.CORE.TASK.SAVE', { title: t, ownerApp: 'APP.NEXUS', spaceIds: [s], dueAt: day(d) }, C);
+                out.tasks++;
+            }
+            catch { }
+        const E = [['Výplata (mzda)', 3, 8, family], ['Výplata (mzda)', 33, 8, family], ['Kontrola Lukáška – ortopedie', 0, 15, family], ['Sport – fotbal (děti)', 1, 17, family], ['Schůzka s účetní', 6, 10, company],
+            ['Rodinná oslava – narozeniny', 13, 16, family], ['Servis auta', 18, 8, family], ['Veletrh dárků Brno', 22, 9, company], ['Dovoz materiálu', 27, 11, company]];
+        for (const [t, d, h, s] of E)
+            try {
+                await core.actions.invoke('ACTION.CORE.CALENDAR.SAVE', { title: t, ownerApp: 'APP.NEXUS', spaceIds: [s], startsAt: day(d, h), allDay: false, attendeeIds: [], status: 'CONFIRMED' }, C);
+                out.events++;
+            }
+            catch { }
+        const CF = { ...C, appCode: 'APP.KX.FINANCE' };
+        const today = new Date().toISOString().slice(0, 10);
+        for (const [name, kind, space, amount] of [['Běžný účet – rodina', 'BANK', family, 54300], ['Firemní účet KalinumX', 'BANK', company, 32120]])
+            try {
+                const a = await core.actions.invoke('ACTION.FINANCE.ACCOUNT.SAVE', { spaceId: space, data: { name, kind, currency: 'CZK', note: 'DEMO' } }, CF);
+                const accId = a?.id || a?.entity?.id;
+                if (accId) {
+                    await core.actions.invoke('ACTION.FINANCE.BALANCE.SAVE', { data: { account: accId, date: today, amount } }, CF);
+                }
+                out.accounts++;
+            }
+            catch (e) {
+                console.warn('DEMO account', e);
+            }
+        try {
+            await core.actions.invoke('ACTION.FINANCE.GOAL.SAVE', { spaceId: family, data: { name: 'Rodinná rezerva', target: 500000, currency: 'CZK', start: 412000 } }, CF);
+            out.goals++;
+        }
+        catch (e) {
+            console.warn('DEMO goal', e);
+        }
+        if (out.tasks + out.events === 0)
+            throw new Error('DEMO_SEED_EMPTY');
+        await core.entities.save({ id: MARK2, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), ...out } }, C);
+        return { seeded: true, ...out };
+    }
+    KXDemoSeed = { seed, seed2, isDemo, MARK, MARK2 };
     globalThis.KXDemoSeed = KXDemoSeed;
 })();

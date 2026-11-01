@@ -149,6 +149,8 @@ var KXIdentity;
             this.core.actions.addGuard('CORE.IDENTITY.SESSION_GUARD', async (def, ctx) => {
                 if (!set.has(def.ownerApp))
                     return;
+                /* N2.6b: DEMO prostor = jen vymyšlená, oddělená data → chráněné huby bez přihlášení (ostrý prostor beze změny) */ if (String(this.core?.workspaceProfile?.mode || '') === 'DEMO')
+                    return;
                 let subject;
                 try {
                     subject = await this.validate();
@@ -161,6 +163,7 @@ var KXIdentity;
             });
             if (this.core.ownerReadGate?.set)
                 this.core.ownerReadGate.set(async (owner, actor) => { if (!set.has(owner))
+                    return true; /* N2.6b: DEMO prostor = jen vymyšlená, oddělená data → chráněné huby bez přihlášení (ostrý prostor beze změny) */ /* N2.6b: DEMO prostor = jen vymyšlená, oddělená data → chráněné huby bez přihlášení (ostrý prostor beze změny) */ if (String(this.core?.workspaceProfile?.mode || '') === 'DEMO')
                     return true; try {
                     return (await this.validate()) === actor;
                 }

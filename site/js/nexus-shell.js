@@ -386,6 +386,19 @@ var KXAPP;
                                 continue;
                             }
                             const r = await KXDemoSeed.seed(runtime, CURRENT_USER_ID);
+                            try {
+                                const r2 = await KXDemoSeed.seed2?.(runtime, CURRENT_USER_ID);
+                                if (r2?.seeded && !r.seeded) {
+                                    toast(TL('demo.seeded'));
+                                    try {
+                                        render();
+                                    }
+                                    catch { }
+                                }
+                            }
+                            catch (e) {
+                                console.warn('DEMO seed v2', e);
+                            }
                             if (r.seeded) {
                                 toast(TL('demo.seeded'));
                                 try {
@@ -640,7 +653,8 @@ var KXAPP;
         const at = (x) => Date.parse(x.dueAt || x.startsAt || x.at || x.date || '') || 0, open = (x) => !/DONE|COMPLETED|CANCEL/i.test(String(x.status || ''));
         const todayItems = items.filter(x => { const t = at(x); return t >= day0 && t < day0 + D; }), week = items.filter(x => { const t = at(x); return t >= day0 && t < day0 + 7 * D; }), late = items.filter(x => x.kind === 'TASK' && open(x) && at(x) && at(x) < day0);
         const pay = items.filter(x => open(x) && at(x) >= day0 && /plat|nájem|faktur|zaplat|pay/i.test(String(x.title || '')));
-        const amt = (x) => Number(x.amount || x.value || 0) || 0;
+        const amt = (x) => { const n = Number(x.amount || x.value || 0); if (n)
+            return n; const m = String(x.title || '').match(/(\d[\d\s ]*)\s*Kč/); return m ? Number(m[1].replace(/[\s ]/g, '')) : 0; };
         const sumPay = pay.reduce((a, x) => a + amt(x), 0);
         const fmt = (n) => n.toLocaleString('cs-CZ', { maximumFractionDigits: 0 }) + ' Kč';
         set('today', String(todayItems.length), `${todayItems.filter(x => x.kind === 'TASK').length} ${TL('agd.tasks')} · ${todayItems.filter(x => x.kind !== 'TASK').length} ${TL('agd.events')}`);
@@ -648,27 +662,39 @@ var KXAPP;
         const payday = items.filter(x => /výplat|mzd|salary/i.test(String(x.title || '')) && at(x) >= day0).sort((a, b) => at(a) - at(b))[0];
         set('payday', payday ? `${Math.ceil((at(payday) - day0) / D)} ${TL('agd.days')}` : '—', payday ? new Date(at(payday)).toLocaleDateString('cs-CZ') : TL('agd.setPayday'));
         try {
-            const sp = (await runtime.memberships.listSpaces?.(CURRENT_USER_ID)) || [];
-            let free = 0, any = false;
-            for (const s of sp) {
-                try {
-                    const r = await runtime.actions.invoke('ACTION.FINANCE.ACCOUNT.BALANCES', { spaceId: s.id || s.spaceId }, lyCtx());
-                    for (const a of (r?.accounts || r || [])) {
-                        const v = Number(a.balance ?? a.amount ?? 0);
-                        if (Number.isFinite(v)) {
-                            free += v;
-                            any = true;
-                        }
-                    }
-                }
-                catch { }
+            const r = await runtime.actions.invoke('ACTION.FINANCE.ACCOUNT.BALANCES', {}, lyCtx());
+            const accs = (Array.isArray(r) ? r : (r?.accounts || [])).filter((a) => (a.kind || a.data?.kind) !== 'SAVINGS' && (a.kind || a.data?.kind) !== 'LOAN');
+            let free = 0;
+            for (const a of accs) {
+                const v = Number(a.balance ?? a.amount ?? a.data?.balance ?? 0);
+                if (Number.isFinite(v))
+                    free += v;
             }
-            set('free', any ? fmt(free) : '—', any ? TL('agd.allAccounts') : TL('agd.addAccounts'));
+            set('free', accs.length ? fmt(free) : '—', accs.length ? `🏦 ${TL('agd.allAccounts')}` : TL('agd.addAccounts'));
         }
-        catch {
-            set('free', '—', TL('agd.addAccounts'));
+        catch (e) {
+            const locked = /AUTH_SESSION/.test(String(e));
+            if (!locked)
+                console.warn('agDash balances', String(e));
+            set('free', locked ? '🔒' : '—', locked ? TL('agd.locked') : TL('agd.addAccounts'));
         }
-        set('reserve', '—', TL('agd.setReserve'));
+        try {
+            const g = await runtime.actions.invoke('ACTION.FINANCE.GOALS', {}, lyCtx());
+            const res = (Array.isArray(g) ? g : (g?.goals || [])).find((x) => /rezerv|reserve/i.test(String(x.name || x.data?.name || '')));
+            if (res) {
+                const v = Number(res.saved ?? res.data?.saved ?? res.data?.start ?? 0);
+                const monthly = items.filter(x => open(x) && at(x) >= day0 && at(x) < day0 + 30 * D).reduce((a, x) => a + amt(x), 0);
+                set('reserve', fmt(v), monthly ? `💰 ${(v / monthly).toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} ${TL('agd.months')}` : '');
+            }
+            else
+                set('reserve', '—', TL('agd.setReserve'));
+        }
+        catch (e) {
+            const locked = /AUTH_SESSION/.test(String(e));
+            if (!locked)
+                console.warn('agDash goals', String(e));
+            set('reserve', locked ? '🔒' : '—', locked ? TL('agd.locked') : TL('agd.setReserve'));
+        }
         for (const [k, arr] of [['today', todayItems], ['week', week], ['late', late]]) {
             const c = host.querySelector(`[data-ag-cnt="${k}"]`);
             if (c)

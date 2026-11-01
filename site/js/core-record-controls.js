@@ -169,7 +169,7 @@ var KXRecordControls;
             core.actions.register({ code: 'ACTION.CORE.RECORD.SHARE', ownerApp: 'APP.KX.NEXUS', risk: 'SENSITIVE_WRITE', handler: (p, c) => svc.share(p, c) });
             reg.push('ACTION.CORE.RECORD.SHARE');
             // export runs under the owning hub's code so hub-level guards (verified session for sensitive hubs) apply to it too
-            core.actions.register({ code: 'ACTION.CORE.RECORD.EXPORT', ownerApp: 'APP.KX.NEXUS', risk: 'READ', handler: async (p, c) => { if (core.identity?.isProtected?.(p?.ownerApp)) {
+            core.actions.register({ code: 'ACTION.CORE.RECORD.EXPORT', ownerApp: 'APP.KX.NEXUS', risk: 'READ', handler: async (p, c) => { if (core.identity?.isProtected?.(p?.ownerApp) && String(core?.workspaceProfile?.mode || '') !== 'DEMO') {
                     let s;
                     try {
                         s = await core.identity.validate();
