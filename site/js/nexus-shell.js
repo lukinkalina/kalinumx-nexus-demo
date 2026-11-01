@@ -3413,15 +3413,7 @@ var KXAPP;
     document.addEventListener('focusin', (e) => { const el = e.target?.closest?.('[data-kx-help-long]'); if (el && e.target.matches?.(':focus-visible'))
         helpTimer = setTimeout(() => showTip(el), 400); }, true);
     document.addEventListener('focusout', hideTip, true);
-    document.addEventListener('pointerdown', () => { clearTimeout(helpTimer); hideTip(); }, true);
-    document.addEventListener('click', (e) => { const x = e.target?.closest?.('#modal.open [data-close],#drawer.open [data-close]'); if (!x)
-        return; const host = x.closest('#modal,#drawer'); const sig = host.textContent || ''; setTimeout(() => { /* act ONLY if nothing happened: still open with exactly the same content (a window opened meanwhile reuses the frame but has other content) */ if (!x.isConnected || !host.classList.contains('open') || (host.textContent || '') !== sig)
-        return; if (host.id === 'modal') {
-        host.className = 'modal-wrap';
-        host.innerHTML = '';
-    }
-    else
-        host.classList.remove('open'); }, 250); }, true); /* N2.6b: close fallback - only when the window's own x handler did nothing; never touches a window opened meanwhile */ /* N2.6b: napoveda nezustane viset, kdyz se prvek po kliknuti prekresli */
+    document.addEventListener('pointerdown', () => { clearTimeout(helpTimer); hideTip(); }, true); /* N2.6b: the x close fallback was removed - inner panels also use data-close and close by hiding, so it closed whole windows (prompt library); the ghost-window cause is fixed in CSS */ /* N2.6b: napoveda nezustane viset, kdyz se prvek po kliknuti prekresli */
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape')
         hideTip(); }, true);
     document.addEventListener('scroll', hideTip, true);
@@ -6932,7 +6924,7 @@ var KXAPP;
     } })(); return builtinIcons; }
     async function ensureDefaultIconPack() { if (Object.keys(packIcons || {}).length)
         return false; const b = await loadBuiltinIcons(); if (Object.keys(packIcons || {}).length || !Object.keys(b.icons).length)
-        return false; packIcons = b.icons; packSmall = b.small; return true; }
+        return false; packIcons = b.icons; packSmall = b.small; document.documentElement.dataset.kxIconPack = 'builtin'; return true; }
     /* N2.6b: vychozi znacka  logo Kaira Royal Gold jako ikona v prohlizeci (index.html se nemeni) */
     function applyDefaultBrandIcon() { try {
         if (document.querySelector('link[data-kx-brand-icon]'))
@@ -6961,7 +6953,7 @@ var KXAPP;
     } if (!Object.keys(packIcons).length && builtinReady) {
         packIcons = builtinReady.icons;
         packSmall = builtinReady.small;
-    } }
+    } document.documentElement.dataset.kxIconPack = builtinReady && packIcons === builtinReady.icons ? 'builtin' : Object.keys(packIcons).length ? 'custom' : 'none'; }
     // minimal ZIP reader (stored + deflate) with limits and path safety — nothing leaves the browser
     async function readZip(buf) {
         const dv = new DataView(buf), u8 = new Uint8Array(buf);
