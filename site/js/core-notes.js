@@ -84,7 +84,7 @@ var KXNotes;
                 const cols = Math.min(MAX_COLS, Math.max(...b.rows.map((r) => Array.isArray(r) ? r.length : 0)));
                 if (!cols)
                     throw new Error('RICHTEXT_TABLE_INVALID');
-                return { t, head: b.head === true, rows: b.rows.map((r) => Array.from({ length: cols }, (_, i) => ({ runs: cleanRuns(Array.isArray(r) ? r[i]?.runs : []) }))) };
+                return { t, head: b.head === true, ...([50, 75, 100].includes(Number(b.w)) ? { w: Number(b.w) } : {}), rows: b.rows.map((r) => Array.from({ length: cols }, (_, i) => ({ runs: cleanRuns(Array.isArray(r) ? r[i]?.runs : []) }))) };
             }
             if (LISTS.includes(t)) {
                 if (!Array.isArray(b.items) || b.items.length > MAX_ITEMS)
@@ -171,7 +171,7 @@ var KXNotes;
             if (b.t === 'file')
                 return `<div data-block="file" data-file-id="${esc(b.fileId)}" data-name="${esc(b.name)}" data-size="${b.size}" contenteditable="false" class="kx-note-file">📎 <b>${esc(b.name)}</b> <small>${b.size >= 1048576 ? (b.size / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b.size / 1024)) + ' kB'}</small></div>`;
             if (b.t === 'table')
-                return `<table data-block="table" class="kx-note-table"${b.head ? ' data-head="1"' : ''}><tbody>${b.rows.map((r, ri) => `<tr>${r.map((c) => `<${b.head && ri === 0 ? 'th' : 'td'}>${runsHtml(c.runs) || '<br>'}</${b.head && ri === 0 ? 'th' : 'td'}>`).join('')}</tr>`).join('')}</tbody></table>`;
+                return `<table data-block="table" class="kx-note-table"${b.head ? ' data-head="1"' : ''}${b.w ? ` data-w="${b.w}"` : ''}><tbody>${b.rows.map((r, ri) => `<tr>${r.map((c) => `<${b.head && ri === 0 ? 'th' : 'td'}>${runsHtml(c.runs) || '<br>'}</${b.head && ri === 0 ? 'th' : 'td'}>`).join('')}</tr>`).join('')}</tbody></table>`;
             if (LISTS.includes(b.t)) {
                 const tag = b.t === 'ol' ? 'ol' : 'ul';
                 return `<${tag}${b.t === 'todo' ? ' data-todo="1"' : ''}>${b.items.map((i) => `<li${i.id ? ` data-id="${esc(i.id)}"` : ''}${i.links ? ` data-links="${esc(i.links.map((l) => l.kind + ':' + l.id).join(';'))}"` : ''}${b.t === 'todo' ? ` data-checked="${i.checked ? '1' : '0'}"` : ''}${i.level ? ` data-level="${i.level}"` : ''}>${runsHtml(i.runs)}${(i.links || []).map((l) => `<span class="kx-linkmark" data-linkmark="${esc(l.kind)}" contenteditable="false">↗ ${esc(TXT('notes.link.' + l.kind, l.kind))}</span>`).join('')}</li>`).join('')}</${tag}>`;
@@ -298,7 +298,7 @@ var KXNotes;
                 const trs = Array.from(n.querySelectorAll('tr')).slice(0, MAX_ROWS);
                 const rows = trs.map((tr) => Array.from(tr.children).filter((c) => /^(TD|TH)$/.test(c.tagName)).slice(0, MAX_COLS).map((c) => ({ runs: runsOf(c) })));
                 if (rows.length && rows.some((r) => r.length)) {
-                    blocks.push({ t: 'table', head: !!trs[0]?.querySelector('th') || n.dataset?.head === '1', rows: rows.map((r) => r.length ? r : [{ runs: [] }]) });
+                    blocks.push({ t: 'table', ...([50, 75, 100].includes(Number(n.dataset?.w)) ? { w: Number(n.dataset.w) } : {}), head: !!trs[0]?.querySelector('th') || n.dataset?.head === '1', rows: rows.map((r) => r.length ? r : [{ runs: [] }]) });
                     return;
                 }
             }

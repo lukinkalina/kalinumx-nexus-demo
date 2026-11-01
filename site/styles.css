@@ -1112,3 +1112,5 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 #drawer.open{max-height:calc(100vh - var(--kx-topbar-offset,28px)) !important;overflow:auto !important}
 
 .ag-fcard{cursor:default}.ag-fcard .ag-fthumb{border:0;width:100%;cursor:zoom-in;padding:0}.ag-fname{display:grid;gap:2px;text-align:left;background:none;border:0;color:var(--ag-text);padding:2px;cursor:pointer;min-width:0}.ag-fname:hover b{color:var(--ag-gold-solid)}
+
+.kx-note-table[data-w="50"]{width:50%}.kx-note-table[data-w="75"]{width:75%}.kx-note-table[data-w="100"]{width:100%}

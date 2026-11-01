@@ -1854,6 +1854,38 @@ var KXAPP;
         document.getElementById('agImgBar')?.remove(); }, true);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape')
         document.getElementById('agImgBar')?.remove(); }, true);
+    /* N2.6b: table width in notes – click into a table -> small bar Auto / 50 / 75 / 100 % (typing in cells unchanged); saved with the page */
+    function agTableBar(tb) {
+        const old = document.getElementById('agTblBar');
+        if (old && old.__tb === tb)
+            return;
+        old?.remove();
+        const ed = tb.closest('[data-notes-editor]');
+        if (!ed)
+            return;
+        const r = tb.getBoundingClientRect();
+        const bar = document.createElement('div');
+        bar.id = 'agTblBar';
+        bar.className = 'ag-imgbar';
+        bar.__tb = tb;
+        const idx = Array.from(ed.querySelectorAll('table.kx-note-table')).indexOf(tb);
+        const w = String(tb.dataset.w || '');
+        bar.innerHTML = [['', 'agd.tbl.auto'], ['50', ''], ['75', ''], ['100', '']].map(([n, l]) => `<button type="button" class="${n === w ? 'on' : ''}" data-ag-tblw="${n}">${l ? esc(TL(l)) : n + ' %'}</button>`).join('');
+        bar.style.left = Math.max(8, Math.min(innerWidth - 260, r.left)) + 'px';
+        bar.style.top = Math.max(8, r.top - 42) + 'px';
+        document.body.appendChild(bar);
+        bar.querySelectorAll('[data-ag-tblw]').forEach(b => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); const e2 = document.querySelector('[data-notes-editor]') || ed; const cur = e2.querySelectorAll('table.kx-note-table')[idx] || tb; const n = String(b.dataset.agTblw); if (n)
+            cur.dataset.w = n;
+        else
+            delete cur.dataset.w; bar.querySelectorAll('[data-ag-tblw]').forEach(x => x.classList.toggle('on', x === b)); e2.dispatchEvent(new Event('input', { bubbles: true })); });
+    }
+    document.addEventListener('click', (e) => { const tb = e.target?.closest?.('[data-notes-editor] table.kx-note-table'); if (tb) {
+        agTableBar(tb);
+        return;
+    } if (!e.target?.closest?.('#agTblBar'))
+        document.getElementById('agTblBar')?.remove(); }, true);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape')
+        document.getElementById('agTblBar')?.remove(); }, true);
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -13379,7 +13411,7 @@ var KXAPP;
         return true;
     } return false; }
     document.addEventListener('pointerdown', (e) => { const t = e.target; if (!t || !t.closest)
-        return; if (t.closest('.topbar,[data-action],.toast,[role=menu],.kx-more-menu,.menu,.kxs-root,.startup-picker,#kxDemoBar,.kx-popover,[data-keep-open],#agImgBar,#agPreview'))
+        return; if (t.closest('.topbar,[data-action],.toast,[role=menu],.kx-more-menu,.menu,.kxs-root,.startup-picker,#kxDemoBar,.kx-popover,[data-keep-open],#agImgBar,#agPreview,#agTblBar'))
         return; const m = el('#modal'); if (m?.classList.contains('open')) {
         const box = m.querySelector('.modal');
         if (box && !box.contains(t)) {
