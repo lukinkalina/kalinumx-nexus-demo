@@ -240,7 +240,7 @@ var KXAPP;
     async function firstRunWorkspacePicker(service) {
         return await new Promise((resolve, reject) => {
             const overlay = el('#startup');
-            /* N2.6b fix: the splash layer (z-index 99999) covered the first-run picker – nobody could click a choice and start-up waited forever */
+            /* N2.6b fix: the splash layer (z-index 99999) covered the first-run picker  nobody could click a choice and start-up waited forever */
             overlay?.classList.add('kxs-choosing');
             const box = document.createElement('div');
             box.className = 'startup-picker';
@@ -544,13 +544,12 @@ var KXAPP;
                 catch { } setTimeout(() => { try {
                     void runtime.actions.invoke('ACTION.CORE.REMINDERS.REARM', {}, lyCtx()).catch(() => { });
                 }
-                catch { } }, 4000); KXFieldRegistry.install(runtime); KXTimer.install(runtime, { deviceId: () => activeDevice?.id }); KXLists.install(runtime); KXLayout.install(runtime); KXAppStates.install(runtime); await runtime.appStates.ready; KXInsights.install(runtime); KXProcesses.install(runtime); KXBrand.install(runtime, { version: NEXUS_VERSION }); cacheSplash(); KXAppearancePacks.install(runtime); void refreshCustomThemes(); await refreshIconPack(); applyDefaultBrandIcon(); /* N2.6b: import výchozích ikon až po zobrazení aplikace, na pozadí (dříve blokoval start ~1,5 s a zamrzl telefon) */ /* N2.6b: import výchozích ikon až po zobrazení aplikace, na pozadí (dříve blokoval start ~1,5 s a zamrzl telefon) */ setTimeout(() => { void ensureDefaultIconPack().then((done) => { if (done) {
+                catch { } }, 4000); KXFieldRegistry.install(runtime); KXTimer.install(runtime, { deviceId: () => activeDevice?.id }); KXLists.install(runtime); KXLayout.install(runtime); KXAppStates.install(runtime); await runtime.appStates.ready; KXInsights.install(runtime); KXProcesses.install(runtime); KXBrand.install(runtime, { version: NEXUS_VERSION }); cacheSplash(); KXAppearancePacks.install(runtime); void refreshCustomThemes(); await refreshIconPack(); applyDefaultBrandIcon(); /* N2.6b: import vychozich ikon az po zobrazeni aplikace, na pozadi (drive blokoval start ~1,5 s a zamrzl telefon) */ /* N2.6b: import vychozich ikon az po zobrazeni aplikace, na pozadi (drive blokoval start ~1,5 s a zamrzl telefon) */ setTimeout(() => { void ensureDefaultIconPack().then((done) => { if (done) {
                     try {
-                        render();
                         decoratePackIcons(document);
                     }
                     catch { }
-                } }); }, 2500); registerLayoutViews(); await registerWidgetViews(); runtime.lists.registerList('PROMPT.KIND', KXPrompts.KIND_LIST); registerShellSettings(); runtime.fields.registerDefaults(KXPrompts.TABLE_SCOPE, KXPrompts.TABLE_FIELDS); runtime.fields.registerViewPresets(KXPrompts.TABLE_SCOPE, KXPrompts.TABLE_VIEWS); runtime.identity.protectOwners(globalThis.KXNotifications?.SENSITIVE || ['APP.KX.HEALTH', 'APP.KX.FINANCE', 'APP.KX.HR', 'APP.KX.SUBSCRIPTIONS', 'APP.KX.VAULT']); homeInstall = KXPersonalHomeComposite.install(runtime, personalRuntime, { includeHomeMaintenance: true, includeCoreTasks: true /* N2.1e: Core Tasks part enabled, bound to the verified local session; without a session it fails closed (AUTH_SESSION_REQUIRED) and the card says so. */, identityProvider: { getAuthenticatedSubjectId: () => { const id = runtime.identity; if (!id)
+                } }); /* N2.6b: swap icons in place - a full render() here removed elements under the user's (and tests') clicks */ }, 2500); registerLayoutViews(); await registerWidgetViews(); runtime.lists.registerList('PROMPT.KIND', KXPrompts.KIND_LIST); registerShellSettings(); runtime.fields.registerDefaults(KXPrompts.TABLE_SCOPE, KXPrompts.TABLE_FIELDS); runtime.fields.registerViewPresets(KXPrompts.TABLE_SCOPE, KXPrompts.TABLE_VIEWS); runtime.identity.protectOwners(globalThis.KXNotifications?.SENSITIVE || ['APP.KX.HEALTH', 'APP.KX.FINANCE', 'APP.KX.HR', 'APP.KX.SUBSCRIPTIONS', 'APP.KX.VAULT']); homeInstall = KXPersonalHomeComposite.install(runtime, personalRuntime, { includeHomeMaintenance: true, includeCoreTasks: true /* N2.1e: Core Tasks part enabled, bound to the verified local session; without a session it fails closed (AUTH_SESSION_REQUIRED) and the card says so. */, identityProvider: { getAuthenticatedSubjectId: () => { const id = runtime.identity; if (!id)
                             throw new Error('AUTH_IDENTITY_UNAVAILABLE'); return id.validate(); } } }); schoolInstall = KXSchool.install(runtime, personalRuntime); personalOwnerInstall = KXPersonalPlannerOwner.install(personalRuntime, runtime); {
                     const savedModules = (await runtime.settings.list('modules.enabled')).find((r) => r.scopeType === 'WORKSPACE' && r.scopeId === activeWorkspace.id)?.value;
                     n2Modules = KXModules.install({ core: runtime, personal: personalRuntime, preinstalled: ['CORE', 'CORE.IDENTITY', 'CORE.HANDOFF', 'CORE.RECORD_CODES', 'CORE.RECORDER', 'CORE.PROMPTS', 'CORE.FIELDS', 'CORE.TIMER', 'CORE.LISTS', 'CORE.LAYOUT', 'CORE.APP_STATES', 'CORE.INSIGHTS', 'CORE.PROCESSES', 'CORE.BRAND', 'CORE.APPEARANCE_PACKS', 'APP.KX.VEHICLES', 'APP.KX.PETS', 'APP.KX.HOME', 'APP.KX.SCHOOL', 'SERVICE.PLANNER_OWNER'] }, Array.isArray(savedModules) && savedModules.length ? savedModules : 'FULL');
@@ -627,7 +626,7 @@ var KXAPP;
         const sc = [['ALL', 'agd.scope.all', 'agd.scope.allSub', '👥'], ['FAMILY', 'agd.scope.family', 'agd.scope.familySub', '👨‍👩‍👧'], ['COMPANY', 'agd.scope.company', 'agd.scope.companySub', '💼']];
         const kpi = (k, ic, cls) => `<button type="button" class="ag-kpi ag-${cls}" data-ag-kpi="${k}"><span class="ag-kpi-ic">${ic}</span><span class="ag-kpi-tx"><b>${esc(TL('agd.k.' + k))}</b><small>${esc(TL('agd.k.' + k + '.en'))}</small><strong data-ag-val="${k}">…</strong><em data-ag-sub="${k}"></em></span><span class="ag-kpi-go">›</span></button>`;
         return `<section class="ag-dash" data-ag-dash>
-      <div class="ag-hero"><div><h1>👨‍👩‍👧 ${esc(TL('agd.title'))}</h1><b>${esc(TL('agd.subtitle'))}</b><small>${esc(TL('agd.subtitleEn'))}</small></div><div class="ag-motto"><i>${esc(TL('agd.motto1'))}</i><i>${esc(TL('agd.motto2'))}</i><small>${esc(TL('agd.mottoEn'))}</small></div></div>
+      <div class="ag-hero"><div><h2 class="ag-hero-title">👨‍👩‍👧 ${esc(TL('agd.title'))}</h2><b>${esc(TL('agd.subtitle'))}</b><small>${esc(TL('agd.subtitleEn'))}</small></div><div class="ag-motto"><i>${esc(TL('agd.motto1'))}</i><i>${esc(TL('agd.motto2'))}</i><small>${esc(TL('agd.mottoEn'))}</small></div></div>
       <div class="ag-bar"><div class="ag-scope">${sc.map(([k, l, sub, ic]) => `<button type="button" class="${agUi.scope === k ? 'on' : ''}" data-ag-scope="${k}"><span>${ic}</span><b>${esc(TL(l))}</b><small>${esc(TL(sub))}</small></button>`).join('')}</div>
       <div class="ag-hz"><small>${esc(TL('agd.horizon'))}<br>${esc(TL('agd.horizonEn'))}</small>${[7, 14, 21, 30, 60, 90].map(d => `<button type="button" class="${agUi.horizon === d ? 'on' : ''}" data-ag-hz="${d}">${d} ${esc(TL('agd.days'))}</button>`).join('')}</div></div>
       <div class="ag-kpis">${kpi('payday', '👛', 'green')}${kpi('topay', '🧾', 'red')}${kpi('free', '🪙', 'blue')}${kpi('reserve', '🛡', 'orange')}${kpi('today', '📆', 'violet')}</div>
@@ -663,9 +662,9 @@ var KXAPP;
         const todayItems = items.filter(x => { const t = at(x); return t >= day0 && t < day0 + D; }), week = items.filter(x => { const t = at(x); return t >= day0 && t < day0 + 7 * D; }), late = items.filter(x => x.kind === 'TASK' && open(x) && at(x) && at(x) < day0);
         const pay = items.filter(x => open(x) && at(x) >= day0 && /plat|nájem|faktur|zaplat|pay/i.test(String(x.title || '')));
         const amt = (x) => { const n = Number(x.amount || x.value || 0); if (n)
-            return n; const m = String(x.title || '').match(/(\d[\d\s ]*)\s*Kč/); return m ? Number(m[1].replace(/[\s ]/g, '')) : 0; };
+            return n; const m = String(x.title || '').match(/(\d[\d\s ]*)\s*K\u010d/); return m ? Number(m[1].replace(/[\s ]/g, '')) : 0; };
         const sumPay = pay.reduce((a, x) => a + amt(x), 0);
-        const fmt = (n) => n.toLocaleString('cs-CZ', { maximumFractionDigits: 0 }) + ' Kč';
+        const fmt = (n) => n.toLocaleString('cs-CZ', { style: 'currency', currency: 'CZK', maximumFractionDigits: 0 });
         set('today', String(todayItems.length), `${todayItems.filter(x => x.kind === 'TASK').length} ${TL('agd.tasks')} · ${todayItems.filter(x => x.kind !== 'TASK').length} ${TL('agd.events')}`);
         set('topay', sumPay ? fmt(sumPay) : String(pay.length), pay.length ? `❗ ${pay.length} ${TL('agd.items')}` : TL('agd.none'));
         const payday = items.filter(x => /výplat|mzd|salary/i.test(String(x.title || '')) && at(x) >= day0).sort((a, b) => at(a) - at(b))[0];
@@ -715,16 +714,17 @@ var KXAPP;
             L.innerHTML = list.length ? list.slice(0, 6).map((x) => { const isTask = x.kind === 'TASK'; const a = amt(x); return `<div class="ag-it"><span>${isTask ? '☑' : '📅'}</span><b>${esc(String(x.title || ''))}</b>${a ? `<em>${esc(fmt(a))}</em>` : ''}<i class="ag-tag ${isTask ? (open(x) ? 'red' : 'green') : 'blue'}">${esc(isTask ? (open(x) ? (at(x) < day0 ? TL('agd.late') : TL('agd.todo')) : TL('agd.done')) : TL('agd.event'))}</i></div>`; }).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
         host.querySelectorAll('[data-ag-filter]').forEach(b => b.onclick = () => { agUi.filter = String(b.dataset.agFilter); render(); });
         host.querySelectorAll('[data-ag-open]').forEach(b => b.onclick = (e) => { e.stopPropagation(); openHubAt(String(b.dataset.agOpen)); });
+        host.querySelectorAll('[data-ag-kpi]').forEach(b => b.onclick = (e) => { e.stopPropagation(); const k = String(b.dataset.agKpi); openHubAt(k === 'free' || k === 'reserve' ? 'APP.KX.FINANCE' : 'APP.KX.CALENDAR'); });
         /* pás kalendáře 31 dní */
         const cal = host.querySelector('[data-ag-cal]');
         if (cal) {
-            const wd = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So'];
+            const wdLang = (document.documentElement.lang || 'cs');
             let h = '';
             for (let i = 0; i < 31; i++) {
                 const d = new Date(day0 + i * D);
                 const its = items.filter(x => { const t = at(x); return t >= d.getTime() && t < d.getTime() + D; });
                 const we = d.getDay() === 0 || d.getDay() === 6;
-                h += `<div class="ag-day ${i === 0 ? 'today' : ''} ${we ? 'we' : ''}"><small>${wd[d.getDay()]}</small><b>${d.getDate()}</b><i>${its.slice(0, 3).map(x => `<em class="${x.kind === 'TASK' ? (amt(x) ? 'red' : 'blue') : 'violet'}"></em>`).join('')}</i></div>`;
+                h += `<div class="ag-day ${i === 0 ? 'today' : ''} ${we ? 'we' : ''}"><small>${d.toLocaleDateString(wdLang, { weekday: 'short' })}</small><b>${d.getDate()}</b><i>${its.slice(0, 3).map(x => `<em class="${x.kind === 'TASK' ? (amt(x) ? 'red' : 'blue') : 'violet'}"></em>`).join('')}</i></div>`;
             }
             cal.innerHTML = h;
         }
@@ -748,7 +748,7 @@ var KXAPP;
                 by.get(k).push(x);
             }
             const lbl = (k) => k === day0 ? TL('agd.t.today') : k === day0 + D ? TL('agd.tomorrow') : new Date(k).toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'numeric' });
-            pl.innerHTML = rows.length ? [...by.entries()].slice(0, 6).map(([k, arr]) => `<div class="ag-pday"><div class="ag-pdate"><b>${esc(lbl(k))}</b><small>${new Date(k).toLocaleDateString('cs-CZ')}</small><em>● ${arr.length} ${esc(TL('agd.items'))}</em></div><div class="ag-prows">${arr.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow"><span>${kd === 'pay' ? '💳' : kd === 'task' ? '☑' : '📅'}</span><b>${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*Kč\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : kd === 'task' ? 'blue' : 'teal'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em>${x.kind === 'TASK' ? `<button type="button" class="ag-done" data-ag-done="${esc(String(x.id || x.entityId || ''))}">✓ ${esc(TL(kd === 'pay' ? 'agd.paid' : 'agd.done'))}</button>` : '<span></span>'}</div>`; }).join('')}</div></div>`).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
+            pl.innerHTML = rows.length ? [...by.entries()].slice(0, 6).map(([k, arr]) => `<div class="ag-pday"><div class="ag-pdate"><b>${esc(lbl(k))}</b><small>${new Date(k).toLocaleDateString('cs-CZ')}</small><em>● ${arr.length} ${esc(TL('agd.items'))}</em></div><div class="ag-prows">${arr.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow"><span>${kd === 'pay' ? '💳' : kd === 'task' ? '☑' : '📅'}</span><b>${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : kd === 'task' ? 'blue' : 'teal'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em>${x.kind === 'TASK' ? `<button type="button" class="ag-done" data-ag-done="${esc(String(x.id || x.entityId || ''))}">✓ ${esc(TL(kd === 'pay' ? 'agd.paid' : 'agd.done'))}</button>` : '<span></span>'}</div>`; }).join('')}</div></div>`).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
             pl.querySelectorAll('[data-ag-done]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); const id = String(b.dataset.agDone || ''); if (!id)
                 return; try {
                 await runtime.actions.invoke('ACTION.CORE.TASK.COMPLETE', { id }, { actorId: CURRENT_USER_ID, appCode: 'APP.KX.NEXUS', permissions: ['CORE.TASK.EDIT'], confirmed: true });
@@ -806,7 +806,7 @@ var KXAPP;
             host.querySelectorAll('[data-ag-svg]').forEach(x => { x.innerHTML = `<small class="ag-empty">🔒 ${esc(TL('agd.locked'))}</small>`; });
         }
     }
-    /* N2.6b · Alpine Gold v2 – záložky podhubů v záhlaví hubu (ze stromu; pro každý hub, který podhuby má) */
+    /* N2.6b  Alpine Gold v2  zalozky podhubu v zahlavi hubu (ze stromu; pro kazdy hub, ktery podhuby ma) */
     function decorateHubTabs() {
         const ins = document.querySelector('#inspector.open.hub-full');
         if (!ins)
@@ -820,7 +820,8 @@ var KXAPP;
             return;
         const tabs = Array.from(document.querySelectorAll(`[data-tree-hub="${CSS.escape(code)}"][data-tree-tab]`));
         let bar = ins.querySelector('.ag-hubtabs');
-        if (!tabs.length) {
+        const wsT = (ins.querySelector('#hubWorkspace')?.textContent || ''); /* the hub already shows its own tabs -> no duplicate bar */
+        if (!tabs.length || tabs.every(x => wsT.includes((x.textContent || '').trim()))) {
             bar?.remove();
             return;
         }
@@ -833,14 +834,82 @@ var KXAPP;
             head.insertAdjacentElement('afterend', bar);
         }
         bar.dataset.sig = sig;
-        bar.innerHTML = `<button type="button" class="${tabs.some(x => x.classList.contains('on')) ? '' : 'on'}" data-ag-hubtab="">${esc(TL('agd.hub.overview'))}</button>` + tabs.map(x => `<button type="button" class="${x.classList.contains('on') ? 'on' : ''}" data-ag-hubtab="${esc(String(x.dataset.treeTab))}">${esc((x.textContent || '').trim())}</button>`).join('');
+        const firstOn = tabs.some(x => x.classList.contains('on')) ? '' : 'on';
+        bar.innerHTML = `<button type="button" class="${firstOn}" data-ag-hubtab="">${esc(TL('agd.hub.overview'))}</button>` + tabs.map(x => `<button type="button" class="${x.classList.contains('on') ? 'on' : ''}" data-ag-hubtab="${esc(String(x.dataset.treeTab))}">${esc((x.textContent || '').trim())}</button>`).join('');
         bar.querySelectorAll('[data-ag-hubtab]').forEach(b => b.onclick = (e) => { e.stopPropagation(); const tb = String(b.dataset.agHubtab || ''); openHubAt(code, tb || undefined); });
+    }
+    /* N2.6b (user: "a hub feels like settings"): every hub shows its FUNCTION first; links, technical data, counters, renaming and hub notices go into ONE folded "Hub administration" at the bottom; a hub without its own screen gets an honest "What you find here" card with real actions */
+    function alpineHubTidy() {
+        const ins = document.querySelector('#inspector.open.hub-full');
+        if (!ins)
+            return;
+        const ws = ins.querySelector('#hubWorkspace');
+        const code = String(ws?.dataset.hubRoot || (((ins.querySelector('#hubRename')?.textContent || ins.textContent || '').match(/APP\.KX\.[A-Z0-9_]+/) || [])[0]) || '');
+        /* ONLY clearly administrative parts go to the fold – the hub bar and the hub function (#hubWorkspace) always stay */
+        const ADMIN = ':scope > :is(.kx-card-path,.kx-card-quick,details.record-meta,#hubRename,#hubIssues,#recordShare,.ins-section:has(> .record-counters),.ins-section:has(#recordRelations))';
+        const guides = Array.from(ins.querySelectorAll(':scope > .ins-section')).filter(e => /^📘/.test((e.textContent || '').trim()));
+        const items = [...Array.from(ins.querySelectorAll(ADMIN)), ...guides];
+        const tabs = ins.querySelector('.ag-hubtabs');
+        const head = ins.querySelector(':scope > .kx-hub-head');
+        if (tabs && head && tabs.parentElement !== ins)
+            head.insertAdjacentElement('afterend', tabs);
+        if (items.length) {
+            let adm = (ins.querySelector(':scope > [data-ag-admin]') || ins.querySelector(':scope > details[data-hub-admin]'));
+            if (!adm) {
+                adm = document.createElement('details');
+                adm.className = 'ins-section kx-hub-admin';
+                adm.dataset.agAdmin = '1';
+                adm.innerHTML = `<summary>⚙ ${esc(TL('agd.hub.admin'))}</summary>`;
+            }
+            for (const k of items)
+                adm.appendChild(k);
+            ins.appendChild(adm);
+        }
+        const hasFn = !!ws && !ws.querySelector('[data-hub-locked]');
+        let pl = ins.querySelector(':scope > [data-ag-place]');
+        if (hasFn) {
+            pl?.remove();
+            return;
+        }
+        if (pl && pl.dataset.code === code)
+            return;
+        pl?.remove();
+        const sub = (head?.querySelector('h2')?.nextElementSibling?.textContent || '').trim();
+        const acts = [];
+        if (code === 'APP.KX.NOTES')
+            acts.push(['agd.hp.notes', 'action', 'kx-notes']);
+        if (code === 'APP.KX.DOCUMENTS')
+            acts.push(['agd.hp.files', 'section', 'files']);
+        if (code === 'APP.KX.CONNECT' || code === 'APP.KX.AI')
+            acts.push(['agd.hp.kaira', 'section', 'ai']);
+        pl = document.createElement('section');
+        pl.className = 'ins-section ag-place';
+        pl.dataset.agPlace = '1';
+        pl.dataset.code = code;
+        pl.innerHTML = `<h3>✨ ${esc(TL('agd.hp.title'))}</h3>${sub ? `<p>${esc(sub)}</p>` : ''}<p class="muted">${esc(TL(acts.length ? 'agd.hp.textTool' : 'agd.hp.text'))}</p><div class="ag-place-acts">${acts.map(([l, k, v]) => `<button type="button" class="btn" data-ag-place-go="${k}:${v}">${esc(TL(l))}</button>`).join('')}<button type="button" class="${acts.length ? 'btn ghost' : 'btn'}" data-ag-place-go="new:">＋ ${esc(TL('agd.hp.new'))}</button><button type="button" class="btn ghost" data-ag-place-go="guide:">📖 ${esc(TL('agd.hp.guide'))}</button></div>`;
+        const bar = ins.querySelector(':scope > .kx-hub-bar');
+        if (bar)
+            bar.insertAdjacentElement('afterend', pl);
+        else
+            head?.insertAdjacentElement('afterend', pl);
+        pl.querySelectorAll('[data-ag-place-go]').forEach(b => b.onclick = (e) => { e.stopPropagation(); const [k, v] = String(b.dataset.agPlaceGo).split(':'); if (k === 'action')
+            (Array.from(document.querySelectorAll('[data-action]')).find(x => x.dataset.action === v))?.click();
+        else if (k === 'section') {
+            state.inspector = false;
+            state.activeSection = v;
+            render();
+        }
+        else if (k === 'new')
+            ins.querySelector('.kx-hub-bar .btn:not(.ghost)')?.click();
+        else
+            ins.querySelector('.kx-hub-bar-tools button')?.click(); });
     }
     new MutationObserver(() => { try {
         decorateHubTabs();
+        alpineHubTidy();
     }
     catch { } }).observe(document.documentElement, { childList: true, subtree: true });
-    function personalGreeting() { const h = new Date().getHours(); const part = h < 5 ? 'Dobrou noc' : h < 10 ? 'Dobré ráno' : h < 12 ? 'Dobré dopoledne' : h < 18 ? 'Dobré odpoledne' : 'Dobrý večer'; return `${part}, ${userGreetName}`; }
+    function personalGreeting() { const h = new Date().getHours(); const part = h < 5 ? TL('greet.g0') : h < 10 ? TL('greet.g1') : h < 12 ? TL('greet.g2') : h < 18 ? TL('greet.g3') : TL('greet.g4'); return `${part}, ${userGreetName}`; }
     function greetingBody() { const now = new Date(); return `<div class="greeting-card"><div class="greeting-mark">${iconSvg('today', 'Dnes')}</div><div><strong>${esc(personalGreeting())}</strong><span>${esc(now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</span><small>${esc(activeWorkspace?.name || 'KalinumX')} · data se ukládají průběžně</small></div></div>`; }
     function feedPref(code) { return state.feedPrefs?.[code] || defaultFeedPrefs()[code] || {}; }
     function feedBody(w) { const d = KXUI.DATA_FEEDS?.find(x => x.code === w.feedCode), p = feedPref(w.feedCode); if (!d)
@@ -3224,7 +3293,7 @@ var KXAPP;
     document.addEventListener('focusin', (e) => { const el = e.target?.closest?.('[data-kx-help-long]'); if (el && e.target.matches?.(':focus-visible'))
         helpTimer = setTimeout(() => showTip(el), 400); }, true);
     document.addEventListener('focusout', hideTip, true);
-    document.addEventListener('pointerdown', () => { clearTimeout(helpTimer); hideTip(); }, true); /* N2.6b: nápověda nezůstane viset, když se prvek po kliknutí překreslí */
+    document.addEventListener('pointerdown', () => { clearTimeout(helpTimer); hideTip(); }, true); /* N2.6b: napoveda nezustane viset, kdyz se prvek po kliknuti prekresli */
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape')
         hideTip(); }, true);
     document.addEventListener('scroll', hideTip, true);
@@ -6333,7 +6402,7 @@ var KXAPP;
         document.querySelectorAll('[data-viz]').forEach(x => x.onclick = () => addVisualization(x.dataset.viz));
         const inspector = el('#inspector');
         inspector?.addEventListener('click', e => e.stopPropagation());
-        /* N2.6b fix: a click that OPENS a hub (tree, icon rail, hub card, menu, top bar) bubbled up here and closed the hub at once –
+        /* N2.6b fix: a click that OPENS a hub (tree, icon rail, hub card, menu, top bar) bubbled up here and closed the hub at once
            the hub never stayed open from the menu (only the Aplikace catalogue remained); also ignore the click that is still being handled */
         document.body.onclick = (e) => {
             if (!state.inspector)
@@ -6704,42 +6773,38 @@ var KXAPP;
     }
     // ---------------- N2.2g: icon packs (*.kxicons.zip) ----------------
     let packIcons = {}, packSmall = {}, iconPacksCache = [];
-    /* N2.6b (rozhodnutí uživatele): výchozí sada ikon „Tyrkys a zlato“ – jednou při prvním spuštění, jen když uživatel žádnou sadu nemá; ruční volbu nikdy nepřepíše */
-    async function ensureDefaultIconPack() {
-        try {
-            const KEY = 'kx.iconpack.default.v1';
-            if (localStorage.getItem(KEY))
-                return;
-            const C = lyCtx();
-            const list = await runtime.actions.invoke('ACTION.CORE.APPEARANCE.ICONS.PACKS', {}, C);
-            localStorage.setItem(KEY, '1');
-            if ((list || []).length)
-                return;
-            const r = await fetch('assets/icons/kx-default-teal-gold.kxicons.zip');
-            if (!r.ok)
-                return;
-            const z = await readZip(await r.arrayBuffer());
-            const manifest = JSON.parse(new TextDecoder().decode(z['manifest.json']));
-            const mime = { webp: 'image/webp', png: 'image/png', svg: 'image/svg+xml' };
-            const files = {};
-            let n = 0;
-            for (const [k, v] of Object.entries(z)) {
-                const ext = k.split('.').pop().toLowerCase();
-                if ((k.startsWith('icons/') || k.startsWith('small/')) && mime[ext])
-                    files[k] = `data:${mime[ext]};base64,${b64(v)}`;
-                if (++n % 12 === 0)
-                    await new Promise(r => setTimeout(r, 0));
-            }
-            await runtime.actions.invoke('ACTION.CORE.APPEARANCE.ICONS.IMPORT', { manifest, files, name: manifest.name, activate: true }, C);
-            await refreshIconPack();
-            return true;
+    /* N2.6b (rozhodnuti uzivatele): vychozi sada ikon Tyrkys a zlato  jednou pri prvnim spusteni, jen kdyz uzivatel zadnou sadu nema; rucni volbu nikdy neprepise */
+    /* N2.6b (user decision): default icon set "Tyrkys a zlato" is BUILT IN - loaded into memory only when no own pack is active; nothing is imported or activated in the user's data (no effect on the appearance studio) */
+    let builtinIcons = null;
+    let builtinReady = null;
+    function loadBuiltinIcons() { builtinIcons = builtinIcons || (async () => { try {
+        const r = await fetch('assets/icons/kx-default-teal-gold.kxicons.zip');
+        if (!r.ok)
+            return { icons: {}, small: {} };
+        const z = await readZip(await r.arrayBuffer());
+        const m = JSON.parse(new TextDecoder().decode(z['manifest.json']));
+        const icons = {}, small = {};
+        const url = (b) => URL.createObjectURL(new Blob([b], { type: 'image/webp' }));
+        let n = 0;
+        for (const e of (m.icons || [])) {
+            if (z[e.file])
+                icons[e.role] = url(z[e.file]);
+            if (e.small && z[e.small.file])
+                small[e.role] = url(z[e.small.file]);
+            if (++n % 20 === 0)
+                await new Promise(r2 => setTimeout(r2, 0));
         }
-        catch (e) {
-            console.warn('KX default icon pack', e);
-        }
-        return false;
+        builtinReady = { icons, small };
+        return builtinReady;
     }
-    /* N2.6b: výchozí značka – logo Kaira „Royal Gold“ jako ikona v prohlížeči (index.html se nemění) */
+    catch (e) {
+        console.warn('KX default icon pack', e);
+        return { icons: {}, small: {} };
+    } })(); return builtinIcons; }
+    async function ensureDefaultIconPack() { if (Object.keys(packIcons || {}).length)
+        return false; const b = await loadBuiltinIcons(); if (Object.keys(packIcons || {}).length || !Object.keys(b.icons).length)
+        return false; packIcons = b.icons; packSmall = b.small; return true; }
+    /* N2.6b: vychozi znacka  logo Kaira Royal Gold jako ikona v prohlizeci (index.html se nemeni) */
     function applyDefaultBrandIcon() { try {
         if (document.querySelector('link[data-kx-brand-icon]'))
             return;
@@ -6764,6 +6829,9 @@ var KXAPP;
         packIcons = {};
         packSmall = {};
         iconPacksCache = [];
+    } if (!Object.keys(packIcons).length && builtinReady) {
+        packIcons = builtinReady.icons;
+        packSmall = builtinReady.small;
     } }
     // minimal ZIP reader (stored + deflate) with limits and path safety — nothing leaves the browser
     async function readZip(buf) {
@@ -9889,7 +9957,7 @@ var KXAPP;
         } });
     }
     // N2.1f: protected (sensitive) hubs open only with a verified session of the current user; the Core guard enforces the same for every action.
-    async function hubLocked(hubCode) { /* N2.6b: DEMO prostor – chráněné huby bez přihlášení */ if (String(runtime?.workspaceProfile?.mode || '') === 'DEMO')
+    async function hubLocked(hubCode) { /* N2.6b: DEMO prostor  chranene huby bez prihlaseni */ if (String(runtime?.workspaceProfile?.mode || '') === 'DEMO')
         return false; const id = runtime?.identity; if (!id?.isProtected?.(hubCode))
         return false; try {
         return (await id.validate()) !== CURRENT_USER_ID;
@@ -10950,12 +11018,15 @@ var KXAPP;
         if (!top) {
             top = document.createElement('div');
             top.dataset.homeStrip = '1';
+            const dash = c.querySelector('[data-ag-dash]');
             const first = c.firstElementChild;
-            if (first && first.nextSibling)
+            if (dash)
+                c.insertBefore(top, dash);
+            else if (first && first.nextSibling)
                 c.insertBefore(top, first.nextSibling);
             else
                 c.prepend(top);
-        }
+        } /* N2.6b: the home strip (clock, holiday, weather – N2.4q decision) stays at the top, above the overview */
         void mountHomeStrip(top);
         sec.innerHTML = '<h2>Moje přehledy</h2><div data-home-board></div>';
         await renderBoard(sec.querySelector('[data-home-board]'), 'HOME', () => void mountHomeWidgets());
@@ -12978,7 +13049,7 @@ var KXAPP;
             };
         });
     }
-    /* N2.6b: one rule for closing – Escape or a click outside closes the open window (#modal) and side panel (#drawer); clicks inside menus / popovers / toasts don't */
+    /* N2.6b: one rule for closing  Escape or a click outside closes the open window (#modal) and side panel (#drawer); clicks inside menus / popovers / toasts don't */
     function closeOpenWindow() { const m = el('#modal'); if (m?.classList.contains('open')) {
         m.querySelector('[data-close]')?.click();
         if (m.classList.contains('open'))
@@ -13014,7 +13085,7 @@ var KXAPP;
                 host.classList.remove('kxs-wait');
                 splashShownAt = Date.now();
             } }, thr);
-            /* N2.6b fix: Přeskočit hides only the splash animation (it used to hide the whole start-up host incl. the first-run picker); safe mode also moves the splash aside so its buttons are clickable */
+            /* N2.6b fix: Preskocit hides only the splash animation (it used to hide the whole start-up host incl. the first-run picker); safe mode also moves the splash aside so its buttons are clickable */
             host.querySelector('[data-kxs-skip]')?.addEventListener('click', () => { host.classList.add('kxs-choosing'); });
             host.querySelector('[data-safe-start]')?.addEventListener('click', () => { host.classList.add('kxs-choosing'); }, true);
             const tips = snap?.splash?.tips?.show ? snap.splash.tips.items || [] : [];

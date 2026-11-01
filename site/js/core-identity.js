@@ -145,11 +145,10 @@ var KXIdentity;
                 throw new Error('IDENTITY_PROTECTED_OWNERS_INVALID');
             if (typeof this.core.actions.addGuard !== 'function')
                 throw new Error('IDENTITY_ACTION_GUARD_UNAVAILABLE');
-            const set = new Set(owners);
+            /* N2.6b: v DEMO prostoru (jen vymyšlená, oddělená data) se huby nezapisují mezi chráněné – brána i strážce akcí zůstávají beze změny */
+            const set = new Set(String(this.core?.workspaceProfile?.mode || '') === 'DEMO' ? [] : owners);
             this.core.actions.addGuard('CORE.IDENTITY.SESSION_GUARD', async (def, ctx) => {
                 if (!set.has(def.ownerApp))
-                    return;
-                /* N2.6b: DEMO prostor = jen vymyšlená, oddělená data → chráněné huby bez přihlášení (ostrý prostor beze změny) */ if (String(this.core?.workspaceProfile?.mode || '') === 'DEMO')
                     return;
                 let subject;
                 try {
@@ -163,7 +162,6 @@ var KXIdentity;
             });
             if (this.core.ownerReadGate?.set)
                 this.core.ownerReadGate.set(async (owner, actor) => { if (!set.has(owner))
-                    return true; /* N2.6b: DEMO prostor = jen vymyšlená, oddělená data → chráněné huby bez přihlášení (ostrý prostor beze změny) */ /* N2.6b: DEMO prostor = jen vymyšlená, oddělená data → chráněné huby bez přihlášení (ostrý prostor beze změny) */ if (String(this.core?.workspaceProfile?.mode || '') === 'DEMO')
                     return true; try {
                     return (await this.validate()) === actor;
                 }
