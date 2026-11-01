@@ -904,9 +904,72 @@ var KXAPP;
         else
             ins.querySelector('.kx-hub-bar-tools button')?.click(); });
     }
+    /* N2.6b (user: sections feel like settings): work first, settings folded – calendar one compact bar, Kaira conversation first, analytics explained, desk / files clear empty states */
+    function alpineSectionTidy() {
+        const c = document.querySelector('.workspace > .content');
+        if (!c)
+            return;
+        const sec = String(state.activeSection || '');
+        const fold = (host, items, key, label) => { if (!items.length)
+            return; let d = host.querySelector(`:scope > details[data-ag-fold="${key}"]`); if (!d) {
+            d = document.createElement('details');
+            d.className = 'ag-fold';
+            d.dataset.agFold = key;
+            d.innerHTML = `<summary>⚙ ${esc(TL(label))}</summary>`;
+            host.appendChild(d);
+        } for (const x of items)
+            d.appendChild(x); };
+        if (sec === 'calendar') {
+            const tb = c.querySelector('.calendar-toolbar');
+            if (tb && !tb.dataset.agTidy) {
+                tb.dataset.agTidy = '1';
+                tb.classList.add('ag-calbar');
+                fold(tb, Array.from(tb.querySelectorAll(':scope > .calendar-date-range')), 'calrange', 'agd.sec.moreFilters');
+            }
+            /* one add button only: the calendar view has its own ＋ New menu (it renders later, so this check runs on every mutation) */ if (tb && c.querySelector('.kx-pk-navr [data-nm-open]'))
+                tb.querySelectorAll(':scope > .btn:not(.ghost)').forEach(b => b.classList.add('ag-hide'));
+        }
+        if (sec === 'ai') {
+            const g = c.querySelector('.ai-main-grid'), w = c.querySelector('.ai-widget');
+            if (w && !w.dataset.agTidy) {
+                w.dataset.agTidy = '1';
+                const side = g ? Array.from(g.children).slice(1) : [];
+                const ctl = Array.from(w.querySelectorAll(':scope > .ai-controls'));
+                fold(w, [...ctl, ...side], 'kaira', 'agd.sec.kaira');
+                g?.classList.add('ag-ai-one');
+            }
+        }
+        if (sec === 'analytics') {
+            const grid = c.querySelector('.viz-grid');
+            if (grid && !c.querySelector('[data-ag-vizintro]')) {
+                const it = document.createElement('section');
+                it.className = 'ag-card ag-vizintro';
+                it.dataset.agVizintro = '1';
+                it.innerHTML = `<b>📊 ${esc(TL('agd.sec.vizTitle'))}</b><p>${esc(TL('agd.sec.vizText'))}</p><button type="button" class="btn" data-ag-sec="today">${esc(TL('agd.sec.vizOpen'))}</button>`;
+                grid.parentElement.insertBefore(it, grid);
+                it.querySelector('[data-ag-sec]').onclick = () => { state.activeSection = 'today'; render(); };
+            }
+        }
+        if (sec === 'desk') {
+            const g = c.querySelector('.desk-grid');
+            if (g)
+                g.classList.add('ag-desk');
+        }
+        if (sec === 'files') {
+            const tbl = c.querySelector('.file-table');
+            if (tbl && /Žádné|No /.test(tbl.textContent || '') && !c.querySelector('[data-ag-drop]')) {
+                const d = document.createElement('section');
+                d.className = 'ag-card ag-drop';
+                d.dataset.agDrop = '1';
+                d.innerHTML = `<b>📁 ${esc(TL('agd.sec.filesTitle'))}</b><p>${esc(TL('agd.sec.filesText'))}</p>`;
+                tbl.insertAdjacentElement('beforebegin', d);
+            }
+        }
+    }
     new MutationObserver(() => { try {
         decorateHubTabs();
         alpineHubTidy();
+        alpineSectionTidy();
     }
     catch { } }).observe(document.documentElement, { childList: true, subtree: true });
     function personalGreeting() { const h = new Date().getHours(); const part = h < 5 ? TL('greet.g0') : h < 10 ? TL('greet.g1') : h < 12 ? TL('greet.g2') : h < 18 ? TL('greet.g3') : TL('greet.g4'); return `${part}, ${userGreetName}`; }

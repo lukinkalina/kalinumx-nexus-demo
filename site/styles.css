@@ -988,3 +988,15 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 
 .ag-place h3{font-family:Cinzel,Georgia,serif;font-size:20px;margin:0 0 6px}.ag-place p{margin:4px 0}.ag-place-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .inspector.hub-full>[data-ag-admin]{opacity:.9}.inspector.hub-full>[data-ag-admin]>summary{color:var(--ag-muted);font-weight:700}
+
+/* ===== Alpine Gold v2 – sekce: práce na prvním místě ===== */
+.ag-hide{display:none !important}
+.calendar-toolbar.ag-calbar{display:flex !important;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 12px !important;min-height:0 !important}
+.calendar-toolbar.ag-calbar>*{margin:0 !important}
+.ag-fold{flex-basis:100%;border:1px solid rgba(233,181,79,.25);border-radius:10px;padding:6px 10px;background:rgba(10,15,24,.5)}
+.ag-fold>summary{cursor:pointer;color:var(--ag-muted);font-weight:700;font-size:12.5px}
+.ai-main-grid.ag-ai-one{grid-template-columns:minmax(0,1fr) !important}
+.ag-vizintro,.ag-drop{margin:0 0 12px;padding:14px 16px}.ag-vizintro p,.ag-drop p{color:var(--ag-muted);margin:6px 0 10px}
+.ag-drop{border-style:dashed !important;text-align:center;padding:28px}
+.desk-grid.ag-desk{grid-template-columns:repeat(auto-fill,minmax(260px,1fr)) !important;gap:12px}
+.desk-grid.ag-desk .folder-card{min-height:0 !important;height:auto !important}
