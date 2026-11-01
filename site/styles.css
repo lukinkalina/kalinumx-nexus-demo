@@ -1027,3 +1027,19 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .kx-notes-filters label,.kx-notes-filters>div>span{font-size:11px;color:var(--ag-muted);text-transform:uppercase;letter-spacing:.05em}
 
 #modal .modal:has(.kx-split) .kx-split-nav > .btn,#modal .modal:has(.kx-split) .kx-split-nav .btn.compact:not(.ghost){padding:8px 16px !important;font-size:13.5px !important;margin:6px 0}
+
+/* karty záznamů v hubech ze stavebnice: přehledné, kompaktní, dvě vedle sebe */
+.veh-list{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(600px,1fr));gap:12px}
+.veh-card{padding:12px 14px !important;border-radius:14px !important}
+.veh-card header{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.veh-card input[type=checkbox]{width:16px !important;height:16px !important;min-height:0 !important;transform:none !important;margin:0 !important}
+.veh-card .kx-record-controls{display:flex !important;flex-wrap:wrap;gap:6px 16px;align-items:center;min-height:0 !important;padding:6px 0 !important;font-size:12px;color:var(--ag-muted);border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06)}
+.veh-card .kx-record-controls label{display:inline-flex !important;flex-direction:row !important;gap:6px;align-items:center}
+.veh-card ul{display:grid;gap:4px;margin:8px 0 !important;padding:0 !important;list-style:none}
+.veh-card ul>li{display:grid !important;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 10px;padding:6px 10px !important;border-radius:10px;background:rgba(255,255,255,.025);min-height:0 !important}
+.veh-card ul>li>*{min-width:0}
+.veh-card ul>li :is(label){display:inline-flex !important;flex-direction:row !important;gap:4px;align-items:center;font-size:11px;color:var(--ag-muted)}
+.veh-card ul>li input[type=date]{width:136px !important;min-height:30px !important;padding:2px 6px !important}
+.veh-card ul>li :is(button,.btn){padding:4px 9px !important;font-size:12px !important;min-height:28px}
+.veh-card ul>li>:last-child{display:flex;flex-wrap:wrap;gap:4px;align-items:center;justify-content:flex-end}
+@media (max-width:760px){.veh-list{grid-template-columns:1fr}.veh-card ul>li{grid-template-columns:1fr}}

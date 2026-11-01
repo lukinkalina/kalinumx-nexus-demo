@@ -176,10 +176,16 @@ var KXDemoSeed;
                     }
                     if (def.kind === 'enum') {
                         const o = Object.keys(def.options || {});
-                        if (o.length)
-                            f[key] = o[(i + o.indexOf(o[i % o.length])) % o.length];
+                        if (!o.length)
+                            continue;
+                        const nm = String((NAMES[d.owner] || [])[i] || '').toLowerCase();
+                        const hint = nm.match(/\(([^)]+)\)/)?.[1] || '';
+                        const HINT = { 'papoušek': 'pták' };
+                        const h = HINT[hint] || hint;
+                        const byLabel = h ? o.find(k => String(def.options[k]?.cs || def.options[k]?.label || def.options[k] || '').toLowerCase().startsWith(h.slice(0, 4))) : null;
+                        f[key] = byLabel || o[i % o.length];
                         continue;
-                    }
+                    } /* enum value matches the record name (cat -> Cat), otherwise each option in turn */
                     if (def.kind === 'date') {
                         f[key] = day(-400 * (i + 1));
                         continue;
