@@ -245,6 +245,66 @@ var KXDemoSeed;
         await core.entities.save({ id: MARK4, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), subjects: out.subjects, items: out.items, hubs: out.hubs } }, { actorId, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true });
         return { seeded: true, ...out };
     }
-    KXDemoSeed = { seed, seed2, seed3, seed4, isDemo, MARK, MARK2, MARK3, MARK4 };
+    /* N2.6b · DEMO data v5: hubs outside the hub kit – Vehicles (all deadlines in every state) and Notes (notebooks, sections, pages) */
+    const MARK5 = 'CORE.DEMO_SEED.MARKER.V5';
+    async function seed5(core, actorId) {
+        if (!isDemo(core))
+            return { seeded: false };
+        if (await core.entities.get(MARK5).catch(() => null))
+            return { seeded: false, reason: 'ALREADY' };
+        const sp = await core.propagate.spaces(actorId);
+        const id = (k) => sp.find((x) => x.kind === k)?.id;
+        const fam = id('FAMILY') || id('PERSONAL'), com = id('COMPANY') || fam;
+        const day = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+        const out = { vehicles: 0, books: 0, pages: 0, errors: [] };
+        const V = [['Škoda Octavia Combi', '2BH 4521', 86420, -12, 20, 95000, 15000, 12, 140, fam, 'Rodinné auto – STK po termínu'], ['Ford Transit (dodávka)', '1BA 7788', 142300, 8, -5, 150000, 30000, 24, 40, com, 'Firemní dodávka – servis po termínu'], ['Přívěsný vozík', '2BC 1203', 0, 210, 365, 0, 0, 0, 300, fam, 'Vozík za auto']];
+        for (const [name, plate, km, stk, serv, servKm, intKm, intM, ins, space, note] of V)
+            try {
+                const f = { spaceIds: [space], name: 'DEMO · ' + name, plate, odometerKm: km, inspectionDueAt: day(stk), serviceDueAt: day(serv), insuranceDueAt: day(ins), note: 'DEMO · ' + note };
+                if (servKm)
+                    f.serviceDueKm = servKm;
+                if (intKm)
+                    f.serviceIntervalKm = intKm;
+                if (intM)
+                    f.serviceIntervalMonths = intM;
+                await core.actions.invoke('ACTION.VEHICLES.VEHICLE.CREATE', f, { actorId, appCode: 'APP.KX.VEHICLES', permissions: ['VEHICLES.VEHICLE.EDIT'], confirmed: true });
+                out.vehicles++;
+            }
+            catch (e) {
+                out.errors.push('vehicle ' + String(e?.message || e).slice(0, 80));
+            }
+        const NC = { actorId, appCode: 'APP.KX.NOTES', permissions: [], confirmed: true };
+        const B = [['Rodina', fam, [['Dům a zahrada', ['Seznam oprav na jaro', 'Nápady na terasu', 'Kontakty na řemeslníky']], ['Dovolená 2027', ['Co zabalit', 'Rozpočet dovolené']]]],
+            ['Dílna KalinumX', com, [['Zakázky', ['Postup gravírování dřeva', 'Nastavení laseru MOPA pro kov', 'Ceník gravírování']], ['Nápady', ['Vánoční kolekce', 'Svícny a krabičky']]]]];
+        for (const [bname, space, secs] of B)
+            try {
+                const b = await core.actions.invoke('ACTION.CORE.NOTES.BOOK_CREATE', { name: 'DEMO · ' + bname, spaceIds: [space] }, NC);
+                out.books++;
+                const bid = b?.id || b?.entity?.id;
+                for (const [sname, pages] of secs) {
+                    const s = await core.actions.invoke('ACTION.CORE.NOTES.SECTION_CREATE', { bookId: bid, name: sname }, NC);
+                    const sid = s?.id || s?.entity?.id;
+                    for (const pt of pages) {
+                        try {
+                            await core.actions.invoke('ACTION.CORE.NOTES.PAGE_CREATE', { sectionId: sid, title: 'DEMO · ' + pt }, NC);
+                            out.pages++;
+                        }
+                        catch (e) {
+                            out.errors.push('page ' + String(e?.message || e).slice(0, 80));
+                        }
+                    }
+                }
+            }
+            catch (e) {
+                out.errors.push('book ' + String(e?.message || e).slice(0, 80));
+            }
+        if (out.errors.length)
+            console.warn('DEMO seed v5', out.errors.slice(0, 8));
+        if (!out.vehicles && !out.books)
+            throw new Error('DEMO_SEED_EMPTY');
+        await core.entities.save({ id: MARK5, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), vehicles: out.vehicles, books: out.books, pages: out.pages } }, { actorId, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true });
+        return { seeded: true, ...out };
+    }
+    KXDemoSeed = { seed, seed2, seed3, seed4, seed5, isDemo, MARK, MARK2, MARK3, MARK4, MARK5 };
     globalThis.KXDemoSeed = KXDemoSeed;
 })();
