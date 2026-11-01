@@ -1814,6 +1814,41 @@ var KXAPP;
             console.warn('DEMO files', e);
         }
     }
+    /* N2.6b (user: images in notes can be resized): click an image in a note -> small bar 25 / 50 / 75 / 100 % + align; saved with the page (the editor already stores data-w / data-align) */
+    function agImgBar(fig) {
+        document.getElementById('agImgBar')?.remove();
+        const ed = fig.closest('[data-notes-editor]');
+        if (!ed)
+            return;
+        const r = fig.getBoundingClientRect();
+        const bar = document.createElement('div');
+        bar.id = 'agImgBar';
+        bar.className = 'ag-imgbar';
+        const w = String(fig.dataset.w || '100'), al = String(fig.dataset.align || 'center');
+        bar.innerHTML = [25, 50, 75, 100].map(n => `<button type="button" class="${String(n) === w ? 'on' : ''}" data-ag-imgw="${n}">${n} %</button>`).join('') + '<span></span>' + [['left', '⟸'], ['center', '⟺'], ['right', '⟹']].map(([a, s]) => `<button type="button" class="${a === al ? 'on' : ''}" data-ag-imgal="${a}" title="${esc(TL('agd.img.' + a))}">${s}</button>`).join('');
+        bar.style.left = Math.max(8, Math.min(innerWidth - 330, r.left + r.width / 2 - 160)) + 'px';
+        bar.style.top = Math.max(8, r.top - 44) + 'px';
+        document.body.appendChild(bar);
+        const fid = String(fig.dataset.fileId || '');
+        const live = () => { const e2 = document.querySelector('[data-notes-editor]') || ed; return (fid && e2.querySelector(`figure.kx-note-img[data-file-id="${CSS.escape(fid)}"]`)) || fig; };
+        /* the editor re-renders after saving: always write to the CURRENT figure and keep the bar (only toggle the highlight) */
+        const save = (f) => { f.closest('[data-notes-editor]')?.dispatchEvent(new Event('input', { bubbles: true })); };
+        bar.querySelectorAll('[data-ag-imgw]').forEach(b => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); const f = live(); const n = String(b.dataset.agImgw); if (n === '100')
+            delete f.dataset.w;
+        else
+            f.dataset.w = n; bar.querySelectorAll('[data-ag-imgw]').forEach(x => x.classList.toggle('on', x === b)); save(f); });
+        bar.querySelectorAll('[data-ag-imgal]').forEach(b => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); const f = live(); const a = String(b.dataset.agImgal); if (a === 'center')
+            delete f.dataset.align;
+        else
+            f.dataset.align = a; bar.querySelectorAll('[data-ag-imgal]').forEach(x => x.classList.toggle('on', x === b)); save(f); });
+    }
+    document.addEventListener('click', (e) => { const fig = e.target?.closest?.('[data-notes-editor] figure.kx-note-img'); if (fig) {
+        agImgBar(fig);
+        return;
+    } if (!e.target?.closest?.('#agImgBar'))
+        document.getElementById('agImgBar')?.remove(); }, true);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape')
+        document.getElementById('agImgBar')?.remove(); }, true);
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -13331,7 +13366,7 @@ var KXAPP;
         return true;
     } return false; }
     document.addEventListener('pointerdown', (e) => { const t = e.target; if (!t || !t.closest)
-        return; if (t.closest('.topbar,[data-action],.toast,[role=menu],.kx-more-menu,.menu,.kxs-root,.startup-picker,#kxDemoBar,.kx-popover,[data-keep-open]'))
+        return; if (t.closest('.topbar,[data-action],.toast,[role=menu],.kx-more-menu,.menu,.kxs-root,.startup-picker,#kxDemoBar,.kx-popover,[data-keep-open],#agImgBar,#agPreview'))
         return; const m = el('#modal'); if (m?.classList.contains('open')) {
         const box = m.querySelector('.modal');
         if (box && !box.contains(t)) {

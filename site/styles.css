@@ -1090,3 +1090,9 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .ag-pv-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:70px;border-radius:10px;border:1px solid var(--ag-gold);background:rgba(10,15,24,.8);color:var(--ag-gold-solid);font-size:30px;cursor:pointer}.ag-pv-nav.l{left:10px}.ag-pv-nav.r{right:10px}
 
 .file-table.ag-grid-mode>.tr.th{display:none !important}.file-table.ag-grid-mode{border:0 !important;background:transparent !important}
+
+/* poznámky: lišta velikosti a zarovnání obrázku */
+.ag-imgbar{position:fixed;z-index:9500;display:flex;gap:4px;align-items:center;padding:5px;border-radius:10px;background:#0b0f16;border:1px solid var(--ag-gold,rgba(233,181,79,.55));box-shadow:0 6px 24px rgba(0,0,0,.5)}
+.ag-imgbar button{min-height:28px;padding:2px 9px;border-radius:7px;border:1px solid rgba(233,181,79,.3);background:rgba(10,15,24,.8);color:#f4ecd8;font-size:12px;cursor:pointer}
+.ag-imgbar button.on{background:linear-gradient(180deg,#f2c869,#c9922e);color:#1a1205;border-color:#f6d58a;font-weight:800}.ag-imgbar span{width:1px;height:20px;background:rgba(233,181,79,.3);margin:0 3px}
+.kx-note-img{cursor:pointer}.kx-note-img[data-align="left"]{text-align:left}.kx-note-img[data-align="right"]{text-align:right}
