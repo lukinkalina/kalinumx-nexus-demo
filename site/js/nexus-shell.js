@@ -1793,8 +1793,13 @@ var KXAPP;
                 return;
             const pic = (title, a, b) => new Promise(res => { const c = document.createElement('canvas'); c.width = 1200; c.height = 800; const g = c.getContext('2d'); const gr = g.createLinearGradient(0, 0, 1200, 800); gr.addColorStop(0, a); gr.addColorStop(1, b); g.fillStyle = gr; g.fillRect(0, 0, 1200, 800); g.strokeStyle = '#e9b54f'; g.lineWidth = 14; g.strokeRect(40, 40, 1120, 720); g.fillStyle = '#fff3d6'; g.font = 'bold 64px Georgia'; g.textAlign = 'center'; g.fillText('DEMO', 600, 330); g.font = '48px Georgia'; g.fillText(title, 600, 430); c.toBlob(bb => res(bb), 'image/png'); });
             const pdf = `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n4 0 obj<</Length 120>>stream\nBT /F1 28 Tf 60 760 Td (DEMO - Cenik gravirovani) Tj 0 -50 Td /F1 16 Tf (Gravirovani do 5x5 cm .... 150 Kc) Tj ET\nendstream endobj\n5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF`;
-            const files = [['DEMO – gravírovaná krabička.png', await pic('Gravírovaná krabička', '#3b2410', '#0b0e14')], ['DEMO – svícen z dubu.png', await pic('Svícen z dubu', '#1c3b2b', '#0b0e14')], ['DEMO – laserové pole.png', await pic('Laserové pole MOPA', '#102a3b', '#0b0e14')], ['DEMO – zahrada.png', await pic('Zahrada na jaře', '#2c3b10', '#0b0e14')],
-                ['DEMO – ceník gravírování.pdf', new Blob([pdf], { type: 'application/pdf' })], ['DEMO – inventura materiálu.csv', new Blob(['Materiál;Množství;Jednotka\nDub 4 mm;12;deska\nPlexi čiré 3 mm;8;deska\nPETG filament;3;cívka\n'], { type: 'text/csv' })], ['DEMO – postup gravírování.txt', new Blob(['DEMO – postup gravírování dřeva\n1. Přebrousit povrch\n2. Zakrýt páskou\n3. Gravírovat ve dvou průchodech\n'], { type: 'text/plain' })]];
+            const DF = KXDemoSeed.DEMO_FILES;
+            const files = [];
+            for (const p of DF.pictures)
+                files.push([p.name, await pic(p.title, p.a, p.b)]);
+            files.push([DF.pdf.name, new Blob([pdf], { type: 'application/pdf' })]);
+            for (const x of DF.texts)
+                files.push([x.name, new Blob([x.body], { type: x.mime })]);
             for (const [name, blob] of files) {
                 try {
                     await runtime.actions.invoke('ACTION.CORE.FILE.IMPORT', { blob, name, mime: blob.type || 'application/octet-stream', ownerApp: 'APP.NEXUS', spaceIds: [space] }, { actorId: CURRENT_USER_ID, appCode: 'APP.NEXUS', deviceId: activeDevice?.id, permissions: ['CORE.FILE.IMPORT'], confirmed: true });

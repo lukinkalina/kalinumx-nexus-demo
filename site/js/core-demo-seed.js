@@ -332,6 +332,9 @@ var KXDemoSeed;
         await core.entities.save({ id: MARK5, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), vehicles: out.vehicles, books: out.books, pages: out.pages } }, { actorId, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true });
         return { seeded: true, ...out };
     }
-    KXDemoSeed = { seed, seed2, seed3, seed4, seed5, isDemo, MARK, MARK2, MARK3, MARK4, MARK5 };
+    /* DEMO files for the Files hub (names, picture captions, text bodies) – demo content, Czech on purpose */
+    const DEMO_FILES = { pictures: [{ name: 'DEMO – gravírovaná krabička.png', title: 'Gravírovaná krabička', a: '#3b2410', b: '#0b0e14' }, { name: 'DEMO – svícen z dubu.png', title: 'Svícen z dubu', a: '#1c3b2b', b: '#0b0e14' }, { name: 'DEMO – laserové pole.png', title: 'Laserové pole MOPA', a: '#102a3b', b: '#0b0e14' }, { name: 'DEMO – zahrada.png', title: 'Zahrada na jaře', a: '#2c3b10', b: '#0b0e14' }],
+        pdf: { name: 'DEMO – ceník gravírování.pdf' }, texts: [{ name: 'DEMO – inventura materiálu.csv', mime: 'text/csv', body: 'Materiál;Množství;Jednotka\nDub 4 mm;12;deska\nPlexi čiré 3 mm;8;deska\nPETG filament;3;cívka\n' }, { name: 'DEMO – postup gravírování.txt', mime: 'text/plain', body: 'DEMO – postup gravírování dřeva\n1. Přebrousit povrch\n2. Zakrýt páskou\n3. Gravírovat ve dvou průchodech\n' }] };
+    KXDemoSeed = { seed, seed2, seed3, seed4, seed5, isDemo, MARK, MARK2, MARK3, MARK4, MARK5, DEMO_FILES };
     globalThis.KXDemoSeed = KXDemoSeed;
 })();
