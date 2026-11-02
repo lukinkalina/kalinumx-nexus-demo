@@ -51,7 +51,7 @@ var KXAPP;
     let schoolInstall = null;
     let identityInstall = null;
     // Stage144: hub-native workspace panels, mounted in the APP inspector.
-    const HUB_WORKSPACES = { 'APP.KX.VEHICLES': () => KXVehicles, 'APP.KX.PETS': () => KXPets, 'APP.KX.HOME': () => KXHome, 'APP.KX.SCHOOL': () => KXSchool, 'APP.KX.CONTRACTS': () => KXContracts, 'APP.KX.HEALTH': () => KXHealth, 'APP.KX.CERTIFY': () => KXCertify, 'APP.KX.WARRANTY': () => KXWarranty, 'APP.KX.SUBSCRIPTIONS': () => KXSubscriptions, 'APP.KX.GARDEN': () => KXGarden, 'APP.KX.ASSETS': () => KXAssets, 'APP.KX.MAINTENANCE': () => KXMaintenance, 'APP.KX.SERVICE': () => KXService, 'APP.KX.PROJECTS': () => KXProjects, 'APP.KX.HR': () => KXHr, 'APP.KX.ENERGY': () => KXEnergy, 'APP.KX.RENTAL': () => KXRental, 'APP.KX.DOCUMENTS': () => KXDocuments, 'APP.KX.FOOD': () => KXFood, 'APP.KX.SALES': () => KXSales, 'APP.KX.BUILD': () => KXBuild, 'APP.KX.STOCK': () => KXStock, 'APP.KX.INVENTORY': () => KXInventory, 'APP.KX.FORMS': () => KXForms, 'APP.KX.GUIDE': () => KXGuide, 'APP.KX.SHIPPING': () => KXShipping, 'APP.KX.PRINT3D': () => KXPrint3D, 'APP.KX.SHOP': () => KXShop, 'APP.KX.TIME': () => KXTrackWork, 'APP.KX.HOBBY': () => KXHobby, 'APP.KX.LASER': () => KXLaserHub, 'APP.KX.ADS': () => KXAdsHub, 'APP.KX.FINANCE': () => KXFinanceHub, 'APP.KX.PURCHASE': () => KXPurchaseHub, 'APP.KX.MEDIA': () => KXGalleryHub };
+    const HUB_WORKSPACES = { 'APP.KX.VEHICLES': () => KXVehicles, 'APP.KX.PETS': () => KXPets, 'APP.KX.HOME': () => KXHome, 'APP.KX.SCHOOL': () => KXSchool, 'APP.KX.CONTRACTS': () => KXContracts, 'APP.KX.HEALTH': () => KXHealth, 'APP.KX.CERTIFY': () => KXCertify, 'APP.KX.WARRANTY': () => KXWarranty, 'APP.KX.SUBSCRIPTIONS': () => KXSubscriptions, 'APP.KX.GARDEN': () => KXGarden, 'APP.KX.ASSETS': () => KXAssets, 'APP.KX.MAINTENANCE': () => KXMaintenance, 'APP.KX.SERVICE': () => KXService, 'APP.KX.PROJECTS': () => KXProjects, 'APP.KX.HR': () => KXHr, 'APP.KX.ENERGY': () => KXEnergy, 'APP.KX.RENTAL': () => KXRental, 'APP.KX.DOCUMENTS': () => KXDocuments, 'APP.KX.FOOD': () => KXFood, 'APP.KX.SALES': () => KXSales, 'APP.KX.BUILD': () => KXBuild, 'APP.KX.STOCK': () => KXStock, 'APP.KX.INVENTORY': () => KXInventory, 'APP.KX.FORMS': () => KXForms, 'APP.KX.GUIDE': () => KXGuide, 'APP.KX.SHIPPING': () => KXShipping, 'APP.KX.VAULT': () => KXVault, 'APP.KX.PRINT3D': () => KXPrint3D, 'APP.KX.SHOP': () => KXShop, 'APP.KX.TIME': () => KXTrackWork, 'APP.KX.HOBBY': () => KXHobby, 'APP.KX.LASER': () => KXLaserHub, 'APP.KX.ADS': () => KXAdsHub, 'APP.KX.FINANCE': () => KXFinanceHub, 'APP.KX.PURCHASE': () => KXPurchaseHub, 'APP.KX.MEDIA': () => KXGalleryHub };
     let n2Modules = null;
     let UI_LOCALE = KXI18n.DEFAULT_LOCALE || 'cs';
     let pendingFirstRunLocale = null;
@@ -1102,6 +1102,7 @@ var KXAPP;
             agNav.restoring = false;
         }
     }, true);
+    globalThis.KXTL = (k) => TL(k); /* hub modules (e.g. the vault) use the same catalogue */
     new MutationObserver(() => { try {
         decorateHubTabs();
         alpineHubTidy();

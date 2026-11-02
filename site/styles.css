@@ -1125,3 +1125,12 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .ag-wordmark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:Cinzel,Georgia,serif;font-size:22px;letter-spacing:.42em;padding-left:.42em;font-weight:700;pointer-events:none;
  background:linear-gradient(180deg,#fff3d6 0%,#e9b54f 55%,#a8761c 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 18px rgba(233,181,79,.25);white-space:nowrap}
 @media (max-width:1280px){.ag-wordmark{display:none}}
+
+/* trezor hesel */
+.ag-vault h3{font-family:Cinzel,Georgia,serif;margin:0 0 6px}.ag-vault-warn{color:#ffb04a;font-weight:700}
+.ag-vault-form{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;max-width:900px;margin:8px 0}.ag-vault-form .wide{grid-column:1/-1}
+.ag-vault-bar{display:flex;gap:8px;align-items:center;margin-bottom:10px}.ag-vault-bar input{flex:1 1 320px;max-width:520px}
+.ag-vault-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:8px}
+.ag-vault-item{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;padding:10px 12px;border-radius:12px;border:1px solid rgba(233,181,79,.3);background:var(--ag-card)}
+.ag-vault-item small{grid-column:1;color:var(--ag-muted)}.ag-vault-item code{grid-column:1;font-size:13px;color:#f6e7c2}.ag-vault-item span{grid-column:2;grid-row:1/4;display:flex;gap:4px}
+.ag-vault-pw{display:flex;gap:6px}.ag-vault-edit{margin-bottom:10px;padding:12px}

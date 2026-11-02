@@ -142,3 +142,202 @@ var KXContracts, KXHealth, KXCertify, KXWarranty, KXSubscriptions, KXGarden, KXA
         kinds: { SEND_BY: 'Odeslat do', DELIVERY: 'Doručení', PICKUP: 'Vyzvednout do', RETURN_BY: 'Vrátit do', OTHER: 'Jiné' },
         subtitle: (d) => `${SHIP_KINDS[d.kind] || d.kind}${d.carrier ? ` · ${d.carrier}` : ''}${d.tracking ? ` · ${d.tracking}` : ''}` });
 })();
+/* N2.6b · KEYRON – password vault (user priority). Encryption ONLY in the browser: AES-GCM 256, key from the master password via PBKDF2-SHA256 (310 000 iterations).
+   The master password is never stored; Core keeps only ciphertext. Owner-only access; AI / Kaira contexts are refused; auto-lock after 5 min idle and when the hub closes. */
+var KXVault;
+(function (NS) {
+    const OWNER = 'APP.KX.VAULT', T_ENTRY = 'VAULT.ENTRY', T_META = 'VAULT.META', ITER = 310000, B64 = /^[A-Za-z0-9+/=]{8,40000}$/;
+    const deny = (c) => { const a = String(c?.appCode || ''); if (/AI|KAIRA|AGENT|MCP/i.test(a) || c?.agent)
+        throw new Error('VAULT_AI_DENIED'); if (!c?.actorId)
+        throw new Error('VAULT_ACTOR_REQUIRED'); };
+    function install(core) {
+        if (core.vault)
+            return core.vault;
+        const svc = { async personal(actor) { const sp = await core.propagate.spaces(actor); const s = sp.find((x) => x.kind === 'PERSONAL') || sp[0]; if (!s)
+                throw new Error('VAULT_NO_SPACE'); return s.id; },
+            async meta(p, c) { deny(c); const r = await core.entities.get(`${T_META}.${c.actorId}`); return r && !r.archivedAt && r.data?.owner === c.actorId ? { exists: true, salt: r.data.salt, iter: r.data.iter, check: r.data.check, revision: r.revision } : { exists: false }; },
+            async saveMeta(p, c) {
+                deny(c);
+                if (!B64.test(String(p?.salt)) || !B64.test(String(p?.check?.iv)) || !B64.test(String(p?.check?.ct)))
+                    throw new Error('VAULT_META_INVALID');
+                const id = `${T_META}.${c.actorId}`;
+                const old = await core.entities.get(id);
+                if (old && !old.archivedAt && p?.expectedRevision !== old.revision)
+                    throw new Error('VAULT_META_EXISTS');
+                return core.entities.save({ id, type: T_META, ownerApp: OWNER, schema: 'KX.VAULT.META/1', spaceIds: [await this.personal(c.actorId)], expectedRevision: old?.revision, data: { owner: c.actorId, salt: p.salt, iter: ITER, check: { iv: p.check.iv, ct: p.check.ct } } }, c);
+            },
+            async list(p, c) { deny(c); return (await core.entities.list()).filter((r) => r.type === T_ENTRY && !r.archivedAt && r.data?.owner === c.actorId).map((r) => ({ id: r.id, revision: r.revision, iv: r.data.iv, ct: r.data.ct, updatedAt: r.updatedAt })); },
+            async save(p, c) {
+                deny(c);
+                if (!B64.test(String(p?.iv)) || !B64.test(String(p?.ct)))
+                    throw new Error('VAULT_ENTRY_INVALID');
+                let old = null;
+                if (p?.id) {
+                    old = await core.entities.get(p.id);
+                    if (!old || old.type !== T_ENTRY || old.data?.owner !== c.actorId)
+                        throw new Error('VAULT_NOT_FOUND');
+                }
+                return core.entities.save({ id: p?.id, type: T_ENTRY, ownerApp: OWNER, schema: 'KX.VAULT.ENTRY/1', spaceIds: [await this.personal(c.actorId)], expectedRevision: old?.revision, data: { owner: c.actorId, iv: p.iv, ct: p.ct } }, c);
+            },
+            async archive(p, c) { deny(c); const r = await core.entities.get(p?.id); if (!r || r.type !== T_ENTRY || r.data?.owner !== c.actorId)
+                throw new Error('VAULT_NOT_FOUND'); return core.entities.archive ? core.entities.archive(r.id, c) : core.entities.save({ ...r, archivedAt: new Date().toISOString(), expectedRevision: r.revision }, c); } };
+        const defs = [['ACTION.VAULT.META.GET', 'READ', (p, c) => svc.meta(p, c)], ['ACTION.VAULT.META.SAVE', 'SAFE_WRITE', (p, c) => svc.saveMeta(p, c)], ['ACTION.VAULT.ENTRY.LIST', 'READ', (p, c) => svc.list(p, c)], ['ACTION.VAULT.ENTRY.SAVE', 'SAFE_WRITE', (p, c) => svc.save(p, c)], ['ACTION.VAULT.ENTRY.ARCHIVE', 'SAFE_WRITE', (p, c) => svc.archive(p, c)]];
+        const reg = [];
+        try {
+            for (const [code, risk, h] of defs) {
+                core.actions.register({ code, ownerApp: OWNER, risk, handler: h });
+                reg.push(code);
+            }
+            core.vault = svc;
+        }
+        catch (e) {
+            for (const c of reg)
+                try {
+                    core.actions.unregister(c);
+                }
+                catch { }
+            throw e;
+        }
+        return svc;
+    }
+    /* ---------- browser crypto ---------- */
+    const enc = new TextEncoder(), dec = new TextDecoder();
+    const b64 = (u) => { const a = u instanceof Uint8Array ? u : new Uint8Array(u); let s = ''; for (let i = 0; i < a.length; i++)
+        s += String.fromCharCode(a[i]); return btoa(s); };
+    const ub = (s) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+    async function derive(pw, salt, iter) { const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']); return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']); }
+    async function seal(key, obj) { const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(JSON.stringify(obj))); return { iv: b64(iv), ct: b64(ct) }; }
+    async function open(key, x) { const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ub(x.iv) }, key, ub(x.ct)); return JSON.parse(dec.decode(pt)); }
+    function genPassword(n = 20) { const cs = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*?-_=+'; const r = crypto.getRandomValues(new Uint32Array(n)); return Array.from(r, v => cs[v % cs.length]).join(''); }
+    /* ---------- hub screen ---------- */
+    function mountHub(root, core, opts) {
+        const tl = (k) => { try {
+            const f = opts?.TL || globalThis.KXTL;
+            return f ? f(k) : k;
+        }
+        catch {
+            return k;
+        } }; /* translations from the shell (catalogue cs / en) */
+        const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const C = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: [], confirmed: true };
+        const st = { key: null, items: [], q: '', edit: null, timer: 0 };
+        const toast = (m) => opts.onToast ? opts.onToast(m) : 0;
+        const lock = () => { st.key = null; st.items = []; st.edit = null; draw(); };
+        const bump = () => { clearTimeout(st.timer); st.timer = setTimeout(() => { if (st.key) {
+            lock();
+            toast(tl('vault.autolocked'));
+        } }, 5 * 60000); };
+        const alive = setInterval(() => { if (!root.isConnected) {
+            clearInterval(alive);
+            clearTimeout(st.timer);
+            st.key = null;
+        } }, 2000);
+        async function load() { const rows = await core.actions.invoke('ACTION.VAULT.ENTRY.LIST', {}, C); st.items = []; for (const r of rows) {
+            try {
+                st.items.push({ id: r.id, rev: r.revision, ...(await open(st.key, r)) });
+            }
+            catch { }
+        } st.items.sort((a, b) => String(a.title).localeCompare(String(b.title))); }
+        async function draw() {
+            const meta = await core.actions.invoke('ACTION.VAULT.META.GET', {}, C);
+            if (!meta.exists) {
+                root.innerHTML = `<section class="ag-vault ag-card"><h3>🔐 ${esc(tl('vault.setupTitle'))}</h3><p>${esc(tl('vault.setupText'))}</p><p class="ag-vault-warn">⚠ ${esc(tl('vault.noRecovery'))}</p>
+        <div class="ag-vault-form"><label class="kx-lf">${esc(tl('vault.master'))}<input type="password" data-v-pw autocomplete="new-password"></label><label class="kx-lf">${esc(tl('vault.masterAgain'))}<input type="password" data-v-pw2 autocomplete="new-password"></label></div><button type="button" class="btn" data-v-setup>🔐 ${esc(tl('vault.create'))}</button><small data-v-msg></small></section>`;
+                root.querySelector('[data-v-setup]').onclick = async () => {
+                    const a = root.querySelector('[data-v-pw]').value, b = root.querySelector('[data-v-pw2]').value;
+                    const msg = root.querySelector('[data-v-msg]');
+                    if (a.length < 10) {
+                        msg.textContent = tl('vault.tooShort');
+                        return;
+                    }
+                    if (a !== b) {
+                        msg.textContent = tl('vault.mismatch');
+                        return;
+                    }
+                    const salt = crypto.getRandomValues(new Uint8Array(16));
+                    const key = await derive(a, salt, ITER);
+                    const check = await seal(key, { ok: 'KX-VAULT-OK' });
+                    await core.actions.invoke('ACTION.VAULT.META.SAVE', { salt: b64(salt), check }, C);
+                    st.key = key;
+                    await load();
+                    bump();
+                    draw();
+                };
+                return;
+            }
+            if (!st.key) {
+                root.innerHTML = `<section class="ag-vault ag-card"><h3>🔒 ${esc(tl('vault.locked'))}</h3><p>${esc(tl('vault.lockedText'))}</p><div class="ag-vault-form"><label class="kx-lf">${esc(tl('vault.master'))}<input type="password" data-v-pw autocomplete="current-password"></label></div><button type="button" class="btn" data-v-unlock>🔓 ${esc(tl('vault.unlock'))}</button><small data-v-msg></small></section>`;
+                const go = async () => { const pw = root.querySelector('[data-v-pw]').value; const msg = root.querySelector('[data-v-msg]'); try {
+                    const key = await derive(pw, ub(meta.salt), meta.iter || ITER);
+                    const ok = await open(key, meta.check);
+                    if (ok?.ok !== 'KX-VAULT-OK')
+                        throw 0;
+                    st.key = key;
+                    await load();
+                    bump();
+                    draw();
+                }
+                catch {
+                    msg.textContent = tl('vault.wrong');
+                } };
+                root.querySelector('[data-v-unlock]').onclick = go;
+                root.querySelector('[data-v-pw]').onkeydown = (e) => { if (e.key === 'Enter')
+                    void go(); };
+                return;
+            }
+            bump();
+            const q = st.q.toLowerCase();
+            const list = st.items.filter((x) => !q || `${x.title} ${x.user} ${x.url} ${x.cat}`.toLowerCase().includes(q));
+            const e = st.edit;
+            root.innerHTML = `<section class="ag-vault"><div class="ag-vault-bar"><input type="search" data-v-q placeholder="${esc(tl('vault.search'))}" value="${esc(st.q)}"><button type="button" class="btn" data-v-new>＋ ${esc(tl('vault.new'))}</button><button type="button" class="btn ghost" data-v-lock>🔒 ${esc(tl('vault.lock'))}</button></div>
+        ${e ? `<div class="ag-card ag-vault-edit"><div class="ag-vault-form">${['title', 'user', 'url', 'cat'].map(f => `<label class="kx-lf">${esc(tl('vault.f.' + f))}<input data-v-f="${f}" value="${esc(e[f] || '')}"></label>`).join('')}<label class="kx-lf">${esc(tl('vault.f.pass'))}<span class="ag-vault-pw"><input data-v-f="pass" type="password" value="${esc(e.pass || '')}" autocomplete="off"><button type="button" class="btn ghost compact" data-v-gen>🎲 ${esc(tl('vault.generate'))}</button></span></label><label class="kx-lf wide">${esc(tl('vault.f.note'))}<textarea data-v-f="note" rows="2">${esc(e.note || '')}</textarea></label></div><button type="button" class="btn" data-v-save>${esc(tl('vault.save'))}</button><button type="button" class="btn ghost" data-v-cancel>${esc(tl('vault.cancel'))}</button></div>` : ''}
+        <div class="ag-vault-list">${list.length ? list.map((x) => `<article class="ag-vault-item"><b>${esc(x.title)}</b><small>${esc(x.user || '')}${x.url ? ` · ${esc(x.url)}` : ''}${x.cat ? ` · ${esc(x.cat)}` : ''}</small><code data-v-pwshow="${esc(x.id)}">••••••••</code><span><button type="button" class="btn ghost compact" data-v-show="${esc(x.id)}">👁</button><button type="button" class="btn compact" data-v-copy="${esc(x.id)}">⧉ ${esc(tl('vault.copy'))}</button><button type="button" class="btn ghost compact" data-v-edit="${esc(x.id)}">✎</button><button type="button" class="btn ghost compact" data-v-del="${esc(x.id)}">🗑</button></span></article>`).join('') : `<p class="muted">${esc(tl('vault.empty'))}</p>`}</div></section>`;
+            const $ = (s) => root.querySelector(s);
+            const all = (s) => Array.from(root.querySelectorAll(s));
+            $('[data-v-q]').oninput = (ev) => { st.q = ev.target.value; clearTimeout(st.qt); st.qt = setTimeout(() => { void draw().then(() => { const i = $('[data-v-q]'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }); }, 250); };
+            $('[data-v-new]').onclick = () => { st.edit = {}; void draw(); };
+            $('[data-v-lock]').onclick = () => { lock(); };
+            all('[data-v-edit]').forEach(b => b.onclick = () => { st.edit = { ...st.items.find((x) => x.id === b.dataset.vEdit) }; void draw(); });
+            all('[data-v-show]').forEach(b => b.onclick = () => { const x = st.items.find((i) => i.id === b.dataset.vShow); const c = root.querySelector(`[data-v-pwshow="${CSS.escape(String(b.dataset.vShow))}"]`); c.textContent = x?.pass || ''; setTimeout(() => { if (c.isConnected)
+                c.textContent = '••••••••'; }, 10000); bump(); });
+            all('[data-v-copy]').forEach(b => b.onclick = async () => { const x = st.items.find((i) => i.id === b.dataset.vCopy); try {
+                await navigator.clipboard.writeText(x?.pass || '');
+                toast(tl('vault.copied'));
+                setTimeout(() => { navigator.clipboard.writeText('').catch(() => { }); }, 30000);
+            }
+            catch {
+                toast(tl('vault.copyFail'));
+            } bump(); });
+            all('[data-v-del]').forEach(b => b.onclick = async () => { const x = st.items.find((i) => i.id === b.dataset.vDel); if (!x || !confirm(tl('vault.confirmDel').replace('{t}', x.title)))
+                return; await core.actions.invoke('ACTION.VAULT.ENTRY.ARCHIVE', { id: x.id }, C); await load(); void draw(); });
+            if (e) {
+                $('[data-v-gen]').onclick = () => { $('[data-v-f="pass"]').value = genPassword(); $('[data-v-f="pass"]').type = 'text'; };
+                $('[data-v-cancel]').onclick = () => { st.edit = null; void draw(); };
+                $('[data-v-save]').onclick = async () => {
+                    const v = {};
+                    all('[data-v-f]').forEach(i => v[String(i.dataset.vF)] = i.value.trim());
+                    if (!v.title) {
+                        toast(tl('vault.needTitle'));
+                        return;
+                    }
+                    const sealed = await seal(st.key, v);
+                    await core.actions.invoke('ACTION.VAULT.ENTRY.SAVE', { id: e.id, ...sealed }, C);
+                    st.edit = null;
+                    await load();
+                    void draw();
+                    toast(tl('vault.saved'));
+                };
+            }
+        }
+        /* the vault has its own bar (search, ＋ New password, Lock) – the generic hub bar would only confuse */ try {
+            root.closest('.inspector')?.querySelector(':scope > .kx-hub-bar, :scope > div > .kx-hub-bar')?.classList.add('ag-hide');
+        }
+        catch { }
+        root.addEventListener('pointerdown', bump, true);
+        root.addEventListener('keydown', bump, true);
+        void draw();
+    }
+    NS.install = install;
+    NS.mountHub = mountHub;
+    NS.genPassword = genPassword;
+})(KXVault || (KXVault = {}));
