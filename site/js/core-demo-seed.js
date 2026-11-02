@@ -341,6 +341,33 @@ var KXDemoSeed;
     /* DEMO files for the Files hub (names, picture captions, text bodies) – demo content, Czech on purpose */
     const DEMO_FILES = { pictures: [{ name: 'DEMO – gravírovaná krabička.png', title: 'Gravírovaná krabička', a: '#3b2410', b: '#0b0e14' }, { name: 'DEMO – svícen z dubu.png', title: 'Svícen z dubu', a: '#1c3b2b', b: '#0b0e14' }, { name: 'DEMO – laserové pole.png', title: 'Laserové pole MOPA', a: '#102a3b', b: '#0b0e14' }, { name: 'DEMO – zahrada.png', title: 'Zahrada na jaře', a: '#2c3b10', b: '#0b0e14' }],
         pdf: { name: 'DEMO – ceník gravírování.pdf' }, texts: [{ name: 'DEMO – inventura materiálu.csv', mime: 'text/csv', body: 'Materiál;Množství;Jednotka\nDub 4 mm;12;deska\nPlexi čiré 3 mm;8;deska\nPETG filament;3;cívka\n' }, { name: 'DEMO – postup gravírování.txt', mime: 'text/plain', body: 'DEMO – postup gravírování dřeva\n1. Přebrousit povrch\n2. Zakrýt páskou\n3. Gravírovat ve dvou průchodech\n' }] };
-    KXDemoSeed = { seed, seed2, seed3, seed4, seed5, isDemo, MARK, MARK2, MARK3, MARK4, MARK5, DEMO_FILES };
+    /* N2.6b · DEMO data v6: QR centre samples – fictional data only (the demo is public; never real contacts) */
+    const MARK6 = 'CORE.DEMO_SEED.MARKER.V6';
+    async function seed6(core, actorId) {
+        if (!isDemo(core))
+            return { seeded: false };
+        if (await core.entities.get(MARK6).catch(() => null))
+            return { seeded: false, reason: 'ALREADY' };
+        const C = { actorId, appCode: 'APP.KX.QR_SOS', permissions: [], confirmed: true };
+        const sp = await core.propagate.spaces(actorId);
+        const id = (k) => sp.find((x) => x.kind === k)?.id;
+        let n = 0;
+        const Q = [['DEMO · Wi-Fi pro hosty', 'WIFI', { ssid: 'DEMO-Host', pass: 'demo-heslo-2026', sec: 'WPA' }, id('FAMILY')], ['DEMO · Vizitka dílny', 'CONTACT', { name: 'DEMO Dílna', tel: '+420 000 000 000', email: 'demo@example.com', org: 'DEMO Gravírování', url: 'https://example.com' }, id('COMPANY')],
+            ['DEMO · SOS karta', 'SOS', { name: 'DEMO Osoba', ice: '+420 000 000 001', blood: '0+', allergy: 'žádné', meds: 'žádné' }, id('PERSONAL')], ['DEMO · Web e-shopu', 'WEB', { url: 'https://example.com/eshop' }, id('COMPANY')]];
+        for (const [name, kind, fields, space] of Q) {
+            try {
+                await core.actions.invoke('ACTION.QR.CODE.SAVE', { spaceId: space, data: { name, kind, fields } }, C);
+                n++;
+            }
+            catch (e) {
+                console.warn('DEMO qr', e);
+            }
+        }
+        if (!n)
+            throw new Error('DEMO_SEED_EMPTY');
+        await core.entities.save({ id: MARK6, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), qr: n } }, { actorId, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true });
+        return { seeded: true, qr: n };
+    }
+    KXDemoSeed = { seed, seed2, seed3, seed4, seed5, seed6, isDemo, MARK, MARK2, MARK3, MARK4, MARK5, MARK6, DEMO_FILES };
     globalThis.KXDemoSeed = KXDemoSeed;
 })();

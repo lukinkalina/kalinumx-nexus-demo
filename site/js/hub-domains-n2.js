@@ -341,3 +341,153 @@ var KXVault;
     NS.mountHub = mountHub;
     NS.genPassword = genPassword;
 })(KXVault || (KXVault = {}));
+/* N2.6b · QR centrum – web, text, Wi-Fi, contact (vCard) and SOS card QR codes with live preview, SVG / PNG download and print (offline encoder KXQRCode, MIT) */
+var KXQrHub;
+(function (NS) {
+    const OWNER = 'APP.KX.QR_SOS', T = 'QR.CODE', KINDS = ['WEB', 'TEXT', 'WIFI', 'CONTACT', 'SOS'];
+    function install(core) {
+        if (core.qrHub)
+            return core.qrHub;
+        const clean = (v, max) => String(v ?? '').slice(0, max);
+        const svc = { async list(p, c) { const ids = new Set((await core.propagate.spaces(c.actorId)).map((s) => s.id)); return (await core.entities.list()).filter((r) => r.type === T && !r.archivedAt && r.spaceIds.some((x) => ids.has(x))); },
+            async save(p, c) {
+                if (!KINDS.includes(p?.data?.kind))
+                    throw new Error('QR_KIND_INVALID');
+                const name = clean(p.data.name, 80).trim();
+                if (!name)
+                    throw new Error('QR_NAME_REQUIRED');
+                const f = {};
+                for (const [k, v] of Object.entries(p.data.fields || {}))
+                    f[clean(k, 30)] = clean(v, 600);
+                const sp = (await core.propagate.spaces(c.actorId)).find((s) => s.id === p.spaceId) || (await core.propagate.spaces(c.actorId))[0];
+                if (!sp)
+                    throw new Error('QR_NO_SPACE');
+                let old = null;
+                if (p.id) {
+                    old = await core.entities.get(p.id);
+                    if (!old || old.type !== T)
+                        throw new Error('QR_NOT_FOUND');
+                }
+                return core.entities.save({ id: p.id, type: T, ownerApp: OWNER, schema: 'KX.QR.CODE/1', spaceIds: old ? old.spaceIds : [sp.id], expectedRevision: old?.revision, data: { name, kind: p.data.kind, fields: f } }, c);
+            },
+            async archive(p, c) { const r = await core.entities.get(p?.id); if (!r || r.type !== T)
+                throw new Error('QR_NOT_FOUND'); return core.entities.archive ? core.entities.archive(r.id, c) : core.entities.save({ ...r, archivedAt: new Date().toISOString(), expectedRevision: r.revision }, c); } };
+        const defs = [['ACTION.QR.CODE.LIST', 'READ', (p, c) => svc.list(p, c)], ['ACTION.QR.CODE.SAVE', 'SAFE_WRITE', (p, c) => svc.save(p, c)], ['ACTION.QR.CODE.ARCHIVE', 'SAFE_WRITE', (p, c) => svc.archive(p, c)]];
+        const reg = [];
+        try {
+            for (const [code, risk, h] of defs) {
+                core.actions.register({ code, ownerApp: OWNER, risk, handler: h });
+                reg.push(code);
+            }
+            core.qrHub = svc;
+        }
+        catch (e) {
+            for (const x of reg)
+                try {
+                    core.actions.unregister(x);
+                }
+                catch { }
+            throw e;
+        }
+        return svc;
+    }
+    const wifiEsc = (v) => String(v || '').replace(/([\\;,:"])/g, '\\$1');
+    function payload(kind, f) {
+        if (kind === 'WEB')
+            return String(f.url || '');
+        if (kind === 'TEXT')
+            return String(f.text || '');
+        if (kind === 'WIFI')
+            return `WIFI:T:${f.sec || 'WPA'};S:${wifiEsc(f.ssid)};P:${wifiEsc(f.pass)};${f.hidden === '1' ? 'H:true;' : ''};`;
+        if (kind === 'CONTACT')
+            return ['BEGIN:VCARD', 'VERSION:3.0', `N:${f.name || ''}`, `FN:${f.name || ''}`, f.org ? `ORG:${f.org}` : '', f.tel ? `TEL:${f.tel}` : '', f.email ? `EMAIL:${f.email}` : '', f.url ? `URL:${f.url}` : '', 'END:VCARD'].filter(Boolean).join('\n');
+        return ['SOS', f.name ? `Jméno: ${f.name}` : '', f.ice ? `Kontakt v nouzi: ${f.ice}` : '', f.blood ? `Krevní skupina: ${f.blood}` : '', f.allergy ? `Alergie: ${f.allergy}` : '', f.meds ? `Léky: ${f.meds}` : '', f.note || ''].filter(Boolean).join('\n');
+    }
+    function svg(text, size = 200) {
+        const Q = globalThis.KXQRCode, L = globalThis.KXQRErrorCorrectLevel;
+        if (!Q || !text)
+            return '';
+        const qr = new Q(-1, L?.M ?? 0);
+        qr.addData(unescape(encodeURIComponent(text)));
+        qr.make();
+        const n = qr.getModuleCount(), m = 4, u = size / (n + 2 * m);
+        let d = '';
+        for (let r = 0; r < n; r++)
+            for (let c = 0; c < n; c++)
+                if (qr.isDark(r, c))
+                    d += `M${((c + m) * u).toFixed(2)} ${((r + m) * u).toFixed(2)}h${u.toFixed(2)}v${u.toFixed(2)}h-${u.toFixed(2)}z`;
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+    }
+    const FIELDS = { WEB: [['url', 'qr.f.url']], TEXT: [['text', 'qr.f.text']], WIFI: [['ssid', 'qr.f.ssid'], ['pass', 'qr.f.wifiPass'], ['sec', 'qr.f.sec']], CONTACT: [['name', 'qr.f.name'], ['tel', 'qr.f.tel'], ['email', 'qr.f.email'], ['org', 'qr.f.org'], ['url', 'qr.f.url']], SOS: [['name', 'qr.f.name'], ['ice', 'qr.f.ice'], ['blood', 'qr.f.blood'], ['allergy', 'qr.f.allergy'], ['meds', 'qr.f.meds'], ['note', 'qr.f.note']] };
+    function mountHub(root, core, opts) {
+        const tl = (k) => { try {
+            const f = opts?.TL || globalThis.KXTL;
+            return f ? f(k) : k;
+        }
+        catch {
+            return k;
+        } };
+        const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const C = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: [], confirmed: true };
+        const st = { rows: [], q: '', edit: null };
+        const toast = (m) => opts.onToast ? opts.onToast(m) : 0;
+        try {
+            root.closest('.inspector')?.querySelector(':scope > .kx-hub-bar, :scope > div > .kx-hub-bar')?.classList.add('ag-hide');
+        }
+        catch { }
+        const dl = (name, blob) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.addEventListener('click', (e) => e.stopPropagation()); /* the download click must not reach the 'click outside closes the hub' handler */ /* the download click must not reach the 'click outside closes the hub' handler */ document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); };
+        const png = (s, name) => { const img = new Image(); img.onload = () => { const c = document.createElement('canvas'); c.width = 1024; c.height = 1024; const g = c.getContext('2d'); g.drawImage(img, 0, 0, 1024, 1024); c.toBlob(b => { if (b)
+            dl(name + '.png', b); }, 'image/png'); }; img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s); };
+        async function load() { st.rows = await core.actions.invoke('ACTION.QR.CODE.LIST', {}, C); }
+        function draw() {
+            const q = st.q.toLowerCase();
+            const list = st.rows.filter((r) => !q || `${r.data.name} ${r.data.kind}`.toLowerCase().includes(q));
+            const e = st.edit;
+            root.innerHTML = `<section class="ag-qr"><div class="ag-vault-bar"><input type="search" data-q-q placeholder="${esc(tl('qr.search'))}" value="${esc(st.q)}"><button type="button" class="btn" data-q-new>＋ ${esc(tl('qr.new'))}</button></div>
+      ${e ? `<div class="ag-card ag-qr-edit"><div class="ag-qr-editgrid"><div><div class="ag-vault-form"><label class="kx-lf">${esc(tl('qr.f.title'))}<input data-q-name value="${esc(e.name || '')}"></label><label class="kx-lf">${esc(tl('qr.f.kind'))}<select data-q-kind>${KINDS.map(k => `<option value="${k}" ${e.kind === k ? 'selected' : ''}>${esc(tl('qr.k.' + k))}</option>`).join('')}</select></label>
+        ${(FIELDS[e.kind] || []).map(([k, l]) => k === 'sec' ? `<label class="kx-lf">${esc(tl(l))}<select data-q-f="sec">${['WPA', 'WEP', 'nopass'].map(o => `<option ${e.fields?.sec === o ? 'selected' : ''}>${o}</option>`).join('')}</select></label>` : `<label class="kx-lf ${k === 'text' || k === 'note' ? 'wide' : ''}">${esc(tl(l))}${k === 'text' ? `<textarea data-q-f="${k}" rows="3">${esc(e.fields?.[k] || '')}</textarea>` : `<input data-q-f="${k}" value="${esc(e.fields?.[k] || '')}">`}</label>`).join('')}</div>
+        <button type="button" class="btn" data-q-save>${esc(tl('qr.save'))}</button><button type="button" class="btn ghost" data-q-cancel>${esc(tl('vault.cancel'))}</button></div><div class="ag-qr-preview" data-q-prev></div></div></div>` : ''}
+      <div class="ag-qr-grid">${list.length ? list.map((r) => `<article class="ag-qr-card"><div class="ag-qr-img">${svg(payload(r.data.kind, r.data.fields), 160)}</div><b>${esc(r.data.name)}</b><small>${esc(tl('qr.k.' + r.data.kind))}</small><span><button type="button" class="btn compact" data-q-png="${esc(r.id)}">⬇ PNG</button><button type="button" class="btn ghost compact" data-q-svg="${esc(r.id)}">⬇ SVG</button><button type="button" class="btn ghost compact" data-q-print="${esc(r.id)}">🖨</button><button type="button" class="btn ghost compact" data-q-edit="${esc(r.id)}">✎</button><button type="button" class="btn ghost compact" data-q-del="${esc(r.id)}">🗑</button></span></article>`).join('') : `<p class="muted">${esc(tl('qr.empty'))}</p>`}</div></section>`;
+            const $ = (x) => root.querySelector(x);
+            const all = (x) => Array.from(root.querySelectorAll(x));
+            const find = (id) => st.rows.find((r) => r.id === id);
+            $('[data-q-q]').oninput = (ev) => { st.q = ev.target.value; clearTimeout(st.qt); st.qt = setTimeout(() => { draw(); const i = $('[data-q-q]'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 250); };
+            $('[data-q-new]').onclick = () => { st.edit = { kind: 'WEB', fields: {} }; draw(); };
+            all('[data-q-edit]').forEach(b => b.onclick = () => { const r = find(b.dataset.qEdit); st.edit = { id: r.id, name: r.data.name, kind: r.data.kind, fields: { ...r.data.fields } }; draw(); });
+            all('[data-q-del]').forEach(b => b.onclick = async () => { const r = find(b.dataset.qDel); if (!r || !confirm(tl('vault.confirmDel').replace('{t}', r.data.name)))
+                return; await core.actions.invoke('ACTION.QR.CODE.ARCHIVE', { id: r.id }, C); await load(); draw(); });
+            all('[data-q-svg]').forEach(b => b.onclick = () => { const r = find(b.dataset.qSvg); dl(r.data.name + '.svg', new Blob([svg(payload(r.data.kind, r.data.fields), 512)], { type: 'image/svg+xml' })); });
+            all('[data-q-png]').forEach(b => b.onclick = () => { const r = find(b.dataset.qPng); png(svg(payload(r.data.kind, r.data.fields), 512), r.data.name); });
+            all('[data-q-print]').forEach(b => b.onclick = () => { const r = find(b.dataset.qPrint); const w = window.open('', '_blank'); if (!w) {
+                toast(tl('qr.popup'));
+                return;
+            } w.document.write(`<title>${esc(r.data.name)}</title><div style="text-align:center;font-family:sans-serif"><h2>${esc(r.data.name)}</h2>${svg(payload(r.data.kind, r.data.fields), 420)}</div>`); w.document.close(); w.focus(); w.print(); });
+            if (e) {
+                const read = () => { e.name = $('[data-q-name]').value; const f = { ...(e.fields || {}) }; all('[data-q-f]').forEach(i => f[String(i.dataset.qF)] = i.value); e.fields = f; };
+                const prev = () => { read(); const t = payload(e.kind, e.fields); ($('[data-q-prev]')).innerHTML = t ? svg(t, 220) + `<small>${esc(tl('qr.livePreview'))}</small>` : `<small>${esc(tl('qr.fillIn'))}</small>`; };
+                root.querySelectorAll('[data-q-f],[data-q-name]').forEach(i => i.oninput = prev);
+                $('[data-q-kind]').onchange = (ev) => { read(); e.kind = ev.target.value; draw(); };
+                prev();
+                $('[data-q-cancel]').onclick = () => { st.edit = null; draw(); };
+                $('[data-q-save]').onclick = async () => { read(); if (!String(e.name || '').trim()) {
+                    toast(tl('vault.needTitle'));
+                    return;
+                } try {
+                    await core.actions.invoke('ACTION.QR.CODE.SAVE', { id: e.id, data: { name: e.name, kind: e.kind, fields: e.fields } }, C);
+                    st.edit = null;
+                    await load();
+                    draw();
+                    toast(tl('qr.saved'));
+                }
+                catch (err) {
+                    toast(String(err?.message || err));
+                } };
+            }
+        }
+        void load().then(draw);
+    }
+    NS.install = install;
+    NS.mountHub = mountHub;
+    NS.payload = payload;
+    NS.svg = svg;
+})(KXQrHub || (KXQrHub = {}));

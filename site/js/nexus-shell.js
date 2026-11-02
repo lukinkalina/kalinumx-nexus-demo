@@ -51,7 +51,7 @@ var KXAPP;
     let schoolInstall = null;
     let identityInstall = null;
     // Stage144: hub-native workspace panels, mounted in the APP inspector.
-    const HUB_WORKSPACES = { 'APP.KX.VEHICLES': () => KXVehicles, 'APP.KX.PETS': () => KXPets, 'APP.KX.HOME': () => KXHome, 'APP.KX.SCHOOL': () => KXSchool, 'APP.KX.CONTRACTS': () => KXContracts, 'APP.KX.HEALTH': () => KXHealth, 'APP.KX.CERTIFY': () => KXCertify, 'APP.KX.WARRANTY': () => KXWarranty, 'APP.KX.SUBSCRIPTIONS': () => KXSubscriptions, 'APP.KX.GARDEN': () => KXGarden, 'APP.KX.ASSETS': () => KXAssets, 'APP.KX.MAINTENANCE': () => KXMaintenance, 'APP.KX.SERVICE': () => KXService, 'APP.KX.PROJECTS': () => KXProjects, 'APP.KX.HR': () => KXHr, 'APP.KX.ENERGY': () => KXEnergy, 'APP.KX.RENTAL': () => KXRental, 'APP.KX.DOCUMENTS': () => KXDocuments, 'APP.KX.FOOD': () => KXFood, 'APP.KX.SALES': () => KXSales, 'APP.KX.BUILD': () => KXBuild, 'APP.KX.STOCK': () => KXStock, 'APP.KX.INVENTORY': () => KXInventory, 'APP.KX.FORMS': () => KXForms, 'APP.KX.GUIDE': () => KXGuide, 'APP.KX.SHIPPING': () => KXShipping, 'APP.KX.VAULT': () => KXVault, 'APP.KX.PRINT3D': () => KXPrint3D, 'APP.KX.SHOP': () => KXShop, 'APP.KX.TIME': () => KXTrackWork, 'APP.KX.HOBBY': () => KXHobby, 'APP.KX.LASER': () => KXLaserHub, 'APP.KX.ADS': () => KXAdsHub, 'APP.KX.FINANCE': () => KXFinanceHub, 'APP.KX.PURCHASE': () => KXPurchaseHub, 'APP.KX.MEDIA': () => KXGalleryHub };
+    const HUB_WORKSPACES = { 'APP.KX.VEHICLES': () => KXVehicles, 'APP.KX.PETS': () => KXPets, 'APP.KX.HOME': () => KXHome, 'APP.KX.SCHOOL': () => KXSchool, 'APP.KX.CONTRACTS': () => KXContracts, 'APP.KX.HEALTH': () => KXHealth, 'APP.KX.CERTIFY': () => KXCertify, 'APP.KX.WARRANTY': () => KXWarranty, 'APP.KX.SUBSCRIPTIONS': () => KXSubscriptions, 'APP.KX.GARDEN': () => KXGarden, 'APP.KX.ASSETS': () => KXAssets, 'APP.KX.MAINTENANCE': () => KXMaintenance, 'APP.KX.SERVICE': () => KXService, 'APP.KX.PROJECTS': () => KXProjects, 'APP.KX.HR': () => KXHr, 'APP.KX.ENERGY': () => KXEnergy, 'APP.KX.RENTAL': () => KXRental, 'APP.KX.DOCUMENTS': () => KXDocuments, 'APP.KX.FOOD': () => KXFood, 'APP.KX.SALES': () => KXSales, 'APP.KX.BUILD': () => KXBuild, 'APP.KX.STOCK': () => KXStock, 'APP.KX.INVENTORY': () => KXInventory, 'APP.KX.FORMS': () => KXForms, 'APP.KX.GUIDE': () => KXGuide, 'APP.KX.SHIPPING': () => KXShipping, 'APP.KX.VAULT': () => KXVault, 'APP.KX.QR_SOS': () => KXQrHub, 'APP.KX.PRINT3D': () => KXPrint3D, 'APP.KX.SHOP': () => KXShop, 'APP.KX.TIME': () => KXTrackWork, 'APP.KX.HOBBY': () => KXHobby, 'APP.KX.LASER': () => KXLaserHub, 'APP.KX.ADS': () => KXAdsHub, 'APP.KX.FINANCE': () => KXFinanceHub, 'APP.KX.PURCHASE': () => KXPurchaseHub, 'APP.KX.MEDIA': () => KXGalleryHub };
     let n2Modules = null;
     let UI_LOCALE = KXI18n.DEFAULT_LOCALE || 'cs';
     let pendingFirstRunLocale = null;
@@ -408,6 +408,12 @@ var KXAPP;
                                 }
                                 catch (e) {
                                     console.warn('DEMO seed v5', e);
+                                }
+                                try {
+                                    await KXDemoSeed.seed6?.(runtime, CURRENT_USER_ID);
+                                }
+                                catch (e) {
+                                    console.warn('DEMO seed v6', e);
                                 }
                                 if (r2?.seeded && !r.seeded) {
                                     toast(TL('demo.seeded'));
@@ -7880,6 +7886,7 @@ var KXAPP;
         a.href = u;
         a.download = name || NT('pasted');
         a.rel = 'noopener';
+        a.addEventListener('click', (ev) => ev.stopPropagation());
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -12077,7 +12084,7 @@ var KXAPP;
                 { key: 'play', label: '▶ Přehrát', run: () => play(id) },
                 { key: 'rename', label: '✎ Přejmenovat', run: async () => { const t = prompt('Nový název nahrávky', row.title); if (t === null || !t.trim())
                         return; await runtime.actions.invoke('ACTION.CORE.RECORDER.RENAME', { id, expectedRevision: row.revision, title: t }, recCtx()); toast('Přejmenováno'); await recorderModal(); } },
-                { key: 'download', label: '⇩ Stáhnout', run: async () => { const blob = await runtime.recorder.blob(id, CURRENT_USER_ID); const u = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = u; a.download = row.fileName; a.addEventListener('click', e => e.stopPropagation()); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000); } },
+                { key: 'download', label: '⇩ Stáhnout', run: async () => { const blob = await runtime.recorder.blob(id, CURRENT_USER_ID); const u = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = u; a.download = row.fileName; a.addEventListener('click', e => e.stopPropagation()); a.addEventListener('click', (ev) => ev.stopPropagation()); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000); } },
                 { key: 'send', label: '📲 Poslat na jiné zařízení', run: async () => { await runtime.actions.invoke('ACTION.CORE.HANDOFF.SEND', { deepLink: link, title: row.title }, handoffCtx()); toast('Odesláno – objeví se v Přijatých odkazech na dalších zařízeních'); } },
                 { key: 'copy', label: '⧉ Kopírovat odkaz', run: async () => { try {
                         await navigator.clipboard.writeText(link);
@@ -12226,7 +12233,7 @@ var KXAPP;
         } };
         m.querySelector('[data-prompt-seed]')?.addEventListener('click', seed);
         m.querySelector('[data-prompt-seed-top]')?.addEventListener('click', seed);
-        m.querySelector('[data-prompt-export]').onclick = async () => { const pack = await runtime.actions.invoke('ACTION.CORE.PROMPT.EXPORT', {}, C); const u = URL.createObjectURL(new Blob([JSON.stringify(pack, null, 1)], { type: 'application/json' })); const a = document.createElement('a'); a.href = u; a.download = 'kalinumx-prompty.json'; a.addEventListener('click', e => e.stopPropagation()); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000); };
+        m.querySelector('[data-prompt-export]').onclick = async () => { const pack = await runtime.actions.invoke('ACTION.CORE.PROMPT.EXPORT', {}, C); const u = URL.createObjectURL(new Blob([JSON.stringify(pack, null, 1)], { type: 'application/json' })); const a = document.createElement('a'); a.href = u; a.download = 'kalinumx-prompty.json'; a.addEventListener('click', e => e.stopPropagation()); a.addEventListener('click', (ev) => ev.stopPropagation()); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000); };
         m.querySelector('[data-prompt-newcat]').onclick = async () => { const n = prompt('Název kategorie' + (pUi.cat ? ' (vznikne jako podkategorie vybrané)' : '')); if (!n)
             return; try {
             await runtime.actions.invoke('ACTION.CORE.PROMPT.CATEGORY.SAVE', { name: n, parentId: pUi.cat }, C);
