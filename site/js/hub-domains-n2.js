@@ -1,4 +1,4 @@
-var KXContracts, KXHealth, KXCertify, KXWarranty, KXSubscriptions, KXGarden;
+var KXContracts, KXHealth, KXCertify, KXWarranty, KXSubscriptions, KXGarden, KXAssets, KXMaintenance, KXService, KXProjects, KXHr, KXEnergy, KXRental, KXDocuments;
 (function () {
     function make(o) {
         const S = o.subjectWord, I = o.itemWord;
@@ -59,4 +59,45 @@ var KXContracts, KXHealth, KXCertify, KXWarranty, KXSubscriptions, KXGarden;
         fields: { name: name('Název', 'Název je povinný'), kind: E('Typ', GARDEN_KINDS, true), place: T('Umístění', 80), note: T('Poznámka', 500) },
         kinds: { WATERING: 'Zalévání', FERTILIZING: 'Hnojení', PRUNING: 'Řez', SPRAYING: 'Postřik', HARVEST: 'Sklizeň', REPOTTING: 'Přesazení', OTHER: 'Jiné' },
         subtitle: (d) => `${GARDEN_KINDS[d.kind] || d.kind}${d.place ? ` · ${d.place}` : ''}` });
+    /* N2.6b · first batch of hubs that had no screen of their own (user: build the missing hubs) – same engine, same invariants */
+    const ASSET_KINDS = { ELECTRONICS: 'Elektronika', FURNITURE: 'Nábytek', TOOLS: 'Nástroje a stroje', VALUABLES: 'Cennosti', SPORT: 'Sport a hobby', OTHER: 'Jiné' };
+    KXAssets = make({ key: 'ASSETS', typeSuffix: 'ITEM', label: 'Správa majetku', scopeTag: 'asset', serviceKey: 'assetsDomain', listKey: 'assets', prefix: 'ast', subjectWord: 'věc', subjectCap: 'Věc', countWord: 'věcí', placeholder: 'např. Pojištění domácnosti', empty: 'Zatím žádný majetek. Přidejte věc a k ní termíny pojištění, servisu nebo konce záruky.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Druh', ASSET_KINDS, true), place: T('Umístění', 80), bought: D('Datum pořízení'), value: T('Hodnota (Kč)', 20), serial: T('Výrobní číslo', 60), note: T('Poznámka', 500) },
+        kinds: { INSURANCE: 'Pojištění', SERVICE: 'Servis', WARRANTY_END: 'Konec záruky', DEPRECIATION: 'Odpis / přecenění', INVENTORY: 'Inventura', OTHER: 'Jiné' },
+        subtitle: (d) => `${ASSET_KINDS[d.kind] || d.kind}${d.place ? ` · ${d.place}` : ''}${d.value ? ` · ${d.value} Kč` : ''}` });
+    const MACHINE_KINDS = { LASER: 'Laser', PRINTER3D: '3D tiskárna', CNC: 'CNC', COMPRESSOR: 'Kompresor', EXHAUST: 'Odsávání', ELECTRONICS: 'Elektronika', OTHER: 'Jiné' };
+    KXMaintenance = make({ key: 'MAINTENANCE', typeSuffix: 'MACHINE', label: 'Servis a údržba', scopeTag: 'machine', serviceKey: 'maintenanceDomain', listKey: 'machines', prefix: 'mnt', subjectWord: 'zařízení', subjectCap: 'Zařízení', countWord: 'zařízení', placeholder: 'např. Čištění optiky', empty: 'Zatím žádná zařízení. Přidejte stroj a k němu pravidelnou údržbu – čištění, kalibraci, výměnu filtrů.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Druh', MACHINE_KINDS, true), model: T('Model', 80), serial: T('Výrobní číslo', 60), place: T('Umístění', 80), note: T('Poznámka', 500) },
+        kinds: { CLEANING: 'Čištění', LUBRICATION: 'Mazání', CALIBRATION: 'Kalibrace', PART_REPLACEMENT: 'Výměna dílu', FILTER: 'Výměna filtru', INSPECTION: 'Kontrola', OTHER: 'Jiné' },
+        subtitle: (d) => `${MACHINE_KINDS[d.kind] || d.kind}${d.model ? ` · ${d.model}` : ''}${d.place ? ` · ${d.place}` : ''}` });
+    const REPAIR_KINDS = { OWN: 'Vlastní', CUSTOMER: 'Zákaznická' }, REPAIR_STATES = { RECEIVED: 'Přijato', DIAGNOSIS: 'Diagnostika', WAITING_PART: 'Čeká na díl', IN_REPAIR: 'Opravuje se', DONE: 'Hotovo', HANDED: 'Předáno' };
+    KXService = make({ key: 'SERVICE', typeSuffix: 'REPAIR', label: 'Servis a opravy', scopeTag: 'repair', serviceKey: 'serviceDomain', listKey: 'repairs', prefix: 'srv', subjectWord: 'oprava', subjectCap: 'Oprava', countWord: 'oprav', placeholder: 'např. Předání zákazníkovi', empty: 'Zatím žádné opravy. Přidejte zakázku opravy a k ní termíny – diagnostika, objednání dílu, předání.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Druh', REPAIR_KINDS, true), state: E('Stav', REPAIR_STATES), customer: T('Zákazník', 120), device: T('Zařízení', 120), note: T('Poznámka', 500) },
+        kinds: { INTAKE: 'Příjem', DIAGNOSIS: 'Diagnostika', PART_ORDER: 'Objednat díl', HANDOVER: 'Předání', REPAIR_WARRANTY: 'Záruka opravy', OTHER: 'Jiné' },
+        subtitle: (d) => `${REPAIR_STATES[d.state] || ''}${d.customer ? ` · ${d.customer}` : ''}${d.device ? ` · ${d.device}` : ''}` });
+    const PROJECT_KINDS = { ORDER: 'Zakázka', INTERNAL: 'Interní', FAMILY: 'Rodinný', BUILD: 'Stavba', OTHER: 'Jiné' }, PROJECT_STATES = { PLAN: 'Plán', RUNNING: 'Běží', PAUSED: 'Pozastaveno', DONE: 'Hotovo' };
+    KXProjects = make({ key: 'PROJECTS', typeSuffix: 'PROJECT', label: 'Správa projektů', scopeTag: 'project', serviceKey: 'projectsDomain', listKey: 'projects', prefix: 'prj', subjectWord: 'projekt', subjectCap: 'Projekt', countWord: 'projektů', placeholder: 'např. Odevzdání návrhu', empty: 'Zatím žádné projekty. Přidejte projekt a k němu milníky, termíny odevzdání a schůzky.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Druh', PROJECT_KINDS, true), state: E('Stav', PROJECT_STATES), client: T('Klient', 120), start: D('Začátek'), end: D('Konec'), note: T('Poznámka', 500) },
+        kinds: { MILESTONE: 'Milník', DEADLINE: 'Odevzdání', MEETING: 'Schůzka', REVIEW: 'Kontrola', INVOICE: 'Fakturace', OTHER: 'Jiné' },
+        subtitle: (d, f) => `${PROJECT_STATES[d.state] || ''}${d.client ? ` · ${d.client}` : ''}${d.end ? ` · do ${f(d.end)}` : ''}` });
+    const HR_ROLES = { EMPLOYEE: 'Zaměstnanec', PART_TIME: 'Brigádník', CONTRACTOR: 'Externista', SELF: 'OSVČ' };
+    KXHr = make({ key: 'HR', typeSuffix: 'PERSON', label: 'Lidé a práce', scopeTag: 'worker', serviceKey: 'hrDomain', listKey: 'workers', prefix: 'hr', subjectWord: 'osoba', subjectCap: 'Osoba', countWord: 'osob', placeholder: 'např. Školení BOZP', empty: 'Zatím žádní lidé. Přidejte osobu a k ní školení, lékařské prohlídky a konec smlouvy.',
+        fields: { name: name('Jméno', 'Jméno je povinné'), role: E('Vztah', HR_ROLES, true), position: T('Pozice', 80), started: D('Nástup'), note: T('Poznámka', 500) },
+        kinds: { SAFETY_TRAINING: 'Školení BOZP', MEDICAL: 'Lékařská prohlídka', CONTRACT_END: 'Konec smlouvy', REVIEW: 'Hodnocení', VACATION: 'Dovolená', OTHER: 'Jiné' },
+        subtitle: (d) => `${HR_ROLES[d.role] || d.role}${d.position ? ` · ${d.position}` : ''}` });
+    const ENERGY_KINDS = { POWER: 'Elektřina', GAS: 'Plyn', WATER: 'Voda', HEAT: 'Teplo', SOLAR: 'Solár' };
+    KXEnergy = make({ key: 'ENERGY', typeSuffix: 'POINT', label: 'Správa energií', scopeTag: 'point', serviceKey: 'energyDomain', listKey: 'points', prefix: 'nrg', subjectWord: 'odběrné místo', subjectCap: 'Odběrné místo', countWord: 'odběrných míst', placeholder: 'např. Odečet elektroměru', empty: 'Zatím žádná odběrná místa. Přidejte elektřinu, plyn nebo vodu a k nim odečty, zálohy a konec fixace.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Druh', ENERGY_KINDS, true), supplier: T('Dodavatel', 80), ean: T('EAN / číslo místa', 40), address: T('Adresa', 120), note: T('Poznámka', 500) },
+        kinds: { METER_READING: 'Odečet', ADVANCE: 'Záloha', BILLING: 'Vyúčtování', FIX_END: 'Konec fixace', REVISION: 'Revize', OTHER: 'Jiné' },
+        subtitle: (d) => `${ENERGY_KINDS[d.kind] || d.kind}${d.supplier ? ` · ${d.supplier}` : ''}` });
+    const RENTAL_KINDS = { LENT_TO: 'Půjčeno komu', BORROWED: 'Vypůjčeno od', RENTING_OUT: 'Pronajímám', RENTING: 'Pronajímám si' };
+    KXRental = make({ key: 'RENTAL', typeSuffix: 'ITEM', label: 'Pronájmy a výpůjčky', scopeTag: 'rental', serviceKey: 'rentalDomain', listKey: 'rentals', prefix: 'rnt', subjectWord: 'položka', subjectCap: 'Položka', countWord: 'položek', placeholder: 'např. Vrácení vrtačky', empty: 'Zatím nic půjčeného ani pronajatého. Přidejte věc a termín vrácení nebo platby.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Druh', RENTAL_KINDS, true), party: T('Protistrana', 120), since: D('Od kdy'), note: T('Poznámka', 500) },
+        kinds: { RETURN: 'Vrácení', PAYMENT: 'Platba', HANDOVER: 'Předání', CHECK: 'Kontrola stavu', OTHER: 'Jiné' },
+        subtitle: (d) => `${RENTAL_KINDS[d.kind] || d.kind}${d.party ? ` · ${d.party}` : ''}` });
+    const DOC_KINDS = { ID_CARD: 'Občanský průkaz', PASSPORT: 'Pas', DRIVING: 'Řidičský průkaz', CERTIFICATE: 'Certifikát / osvědčení', CONTRACT: 'Smlouva', MANUAL: 'Manuál', OTHER: 'Jiné' };
+    KXDocuments = make({ key: 'DOCUMENTS', typeSuffix: 'DOC', label: 'Dokumenty a manuály', scopeTag: 'doc', serviceKey: 'documentsDomain', listKey: 'docs', prefix: 'doc', subjectWord: 'dokument', subjectCap: 'Dokument', countWord: 'dokumentů', placeholder: 'např. Konec platnosti pasu', empty: 'Zatím žádné dokumenty. Přidejte doklad nebo manuál a hlídejte konec platnosti a obnovu.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Druh', DOC_KINDS, true), holder: T('Komu patří', 80), number: T('Číslo', 40), validTo: D('Platnost do'), note: T('Poznámka', 500) },
+        kinds: { EXPIRY: 'Konec platnosti', RENEWAL: 'Obnova', REVIEW: 'Revize', OTHER: 'Jiné' },
+        subtitle: (d, f) => `${DOC_KINDS[d.kind] || d.kind}${d.holder ? ` · ${d.holder}` : ''}${d.validTo ? ` · do ${f(d.validTo)}` : ''}` });
 })();
