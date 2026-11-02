@@ -5029,7 +5029,7 @@ var KX;
         code = 'MOCK.LOCAL';
         name = 'KalinumX Local Mock';
         capabilities = { chat: true, attachments: true, tools: false, recentChats: false, projects: false, folders: false };
-        async chat(request) { const last = [...request.messages].reverse().find(x => x.role === 'USER'); const text = (last?.content || '').trim(); return { content: `Lokální diagnostický provider přijal zprávu${text ? ` „${text.slice(0, 180)}“` : ''}. Nebyl použit žádný cloudový model ani externí API.`, providerMessageRef: `MOCK.${request.sessionId}.${request.messages.length}`, model: 'KX-MOCK-LOCAL' }; }
+        async chat(request) { const last = [...request.messages].reverse().find(x => x.role === 'USER'); const text = (last?.content || '').trim(); const __demo = globalThis.KXDemoAnswer; const __d = typeof __demo === 'function' ? __demo(text) : null; /* N2.6b: DEMO showcase answers only when the DEMO workspace sets the hook; otherwise unchanged */ /* N2.6b: DEMO showcase answers only when the DEMO workspace sets the hook; otherwise unchanged */ return { content: __d || `Lokální diagnostický provider přijal zprávu${text ? ` „${text.slice(0, 180)}“` : ''}. Nebyl použit žádný cloudový model ani externí API.`, providerMessageRef: `MOCK.${request.sessionId}.${request.messages.length}`, model: 'KX-MOCK-LOCAL' }; }
     }
     KX.MockAIProviderAdapter = MockAIProviderAdapter;
     class AIConnectionService {

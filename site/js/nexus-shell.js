@@ -1109,6 +1109,32 @@ var KXAPP;
         }
     }, true);
     globalThis.KXTL = (k) => TL(k);
+    /* N2.6b (user): AI in the DEMO is a showcase only – friendly sample answers instead of the diagnostic text; the live NEXUS uses the user's provider */
+    setTimeout(() => {
+        try {
+            const norm = (x) => x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            globalThis.KXDemoAnswer = (q) => {
+                if (String(runtime?.workspaceProfile?.mode || '') !== 'DEMO')
+                    return null;
+                const n = norm(q || '');
+                const pick = (k) => TL('kdemo.' + k);
+                if (/zaplat|platb|faktur|pay|bill/.test(n))
+                    return pick('pay');
+                if (/ukol|udelat|todo|task/.test(n))
+                    return pick('tasks');
+                if (/tyden|prehled|shrn|week|summary/.test(n))
+                    return pick('week');
+                if (/laser|gravir|engrav/.test(n))
+                    return pick('laser');
+                if (/nakup|koupit|shop|buy/.test(n))
+                    return pick('shop');
+                if (/zdravi|lekar|ockov|health|doctor/.test(n))
+                    return pick('health');
+                return pick('default');
+            };
+        }
+        catch { }
+    }, 600);
     /* N2.6b: live NEXUS – load the device-encrypted API keys so Kaira works after a reload (DEMO never stores keys) */ setTimeout(() => { try {
         if (String(runtime?.workspaceProfile?.mode || '') !== 'DEMO')
             void globalThis.KXAiProviders?.loadPersisted?.();
@@ -6383,6 +6409,12 @@ var KXAPP;
         const m = toolHost('ai-connections');
         if (!AP)
             return;
+        if (String(runtime?.workspaceProfile?.mode || '') === 'DEMO') {
+            m.innerHTML = `<div class="modal" data-ai-conn-modal><div class="drawer-head"><div><b>⚙ ${esc(TL('aiui.connections'))}</b><small>${esc(TL('aiui.connHelp'))}</small></div><button class="icon-btn" data-close>×</button></div><div class="ins-section"><p class="ag-vault-demo">🎭 ${esc(TL('kdemo.connNote'))}</p><p class="muted">${Object.values(AP.P).map((v) => esc(v.name)).join(' · ')}</p></div></div>`;
+            m.className = 'modal-wrap open';
+            m.querySelector('[data-close]').onclick = () => { m.className = 'modal-wrap'; m.innerHTML = ''; };
+            return;
+        } /* N2.6b: DEMO – AI is a showcase, no connections or keys */
         const rows = await runtime.aiConnections.listForUser(CURRENT_USER_ID, aiMgmtCtx()).catch(() => []);
         const refOf = async (id) => { try {
             return (await runtime.entities.get(id))?.data?.secretRef;
