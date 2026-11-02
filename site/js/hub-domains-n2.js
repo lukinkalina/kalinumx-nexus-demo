@@ -1,4 +1,4 @@
-var KXContracts, KXHealth, KXCertify, KXWarranty, KXSubscriptions, KXGarden, KXAssets, KXMaintenance, KXService, KXProjects, KXHr, KXEnergy, KXRental, KXDocuments, KXFood, KXSales, KXBuild, KXStock, KXInventory, KXForms, KXGuide, KXShipping;
+var KXContracts, KXHealth, KXCertify, KXWarranty, KXSubscriptions, KXGarden, KXAssets, KXMaintenance, KXService, KXProjects, KXHr, KXEnergy, KXRental, KXDocuments, KXFood, KXSales, KXBuild, KXStock, KXInventory, KXForms, KXGuide, KXShipping, KXPrint, KXGraphics;
 (function () {
     function make(o) {
         const S = o.subjectWord, I = o.itemWord;
@@ -141,6 +141,17 @@ var KXContracts, KXHealth, KXCertify, KXWarranty, KXSubscriptions, KXGarden, KXA
         fields: { name: name('Název', 'Název je povinný'), kind: E('Směr', SHIP_KINDS, true), carrier: T('Dopravce', 60), tracking: T('Sledovací číslo', 60), party: T('Odesílatel / příjemce', 120), note: T('Poznámka', 300) },
         kinds: { SEND_BY: 'Odeslat do', DELIVERY: 'Doručení', PICKUP: 'Vyzvednout do', RETURN_BY: 'Vrátit do', OTHER: 'Jiné' },
         subtitle: (d) => `${SHIP_KINDS[d.kind] || d.kind}${d.carrier ? ` · ${d.carrier}` : ''}${d.tracking ? ` · ${d.tracking}` : ''}` });
+    /* N2.6b · last kit hubs: print centre and graphics */
+    const PRINT_KINDS = { LASER: 'Laser', PRINT3D: '3D tisk', PAPER: 'Papír / dokumenty', LABELS: 'Štítky', TEXTILE: 'Textil' }, PRINT_STATES = { WAITING: 'Čeká', READY: 'Připraveno', PRINTING: 'Tiskne se', DONE: 'Hotovo', HANDED: 'Předáno' };
+    KXPrint = make({ key: 'PRINT', typeSuffix: 'JOB', label: 'Tiskové centrum', scopeTag: 'printjob', serviceKey: 'printDomain', listKey: 'printJobs', prefix: 'prt', subjectWord: 'tisková úloha', subjectCap: 'Úloha', countWord: 'úloh', placeholder: 'např. Vyzvednutí zákazníkem', empty: 'Zatím žádné tiskové úlohy. Přidejte úlohu a hlídejte termín, materiál a vyzvednutí.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Technologie', PRINT_KINDS, true), state: E('Stav', PRINT_STATES), quantity: T('Počet kusů', 20), material: T('Materiál', 80), customer: T('Zákazník', 120), note: T('Poznámka', 500) },
+        kinds: { DEADLINE: 'Termín', MATERIAL: 'Připravit materiál', PROOF: 'Schválení náhledu', PICKUP: 'Vyzvednutí', OTHER: 'Jiné' },
+        subtitle: (d) => `${PRINT_KINDS[d.kind] || d.kind} · ${PRINT_STATES[d.state] || ''}${d.quantity ? ` · ${d.quantity} ks` : ''}` });
+    const GFX_KINDS = { LOGO: 'Logo', CARD: 'Vizitka', ENGRAVING: 'Podklad pro gravírování', PRINT: 'Tiskovina', WEB: 'Web / sociální sítě', OTHER: 'Jiné' }, GFX_STATES = { DRAFT: 'Návrh', REVIEW: 'Ke schválení', APPROVED: 'Schváleno', EXPORTED: 'Exportováno' };
+    KXGraphics = make({ key: 'GRAPHICS', typeSuffix: 'DESIGN', label: 'Grafika a podklady', scopeTag: 'design', serviceKey: 'graphicsDomain', listKey: 'designs', prefix: 'gfx', subjectWord: 'podklad', subjectCap: 'Podklad', countWord: 'podkladů', placeholder: 'např. Schválení zákazníkem', empty: 'Zatím žádné grafické podklady. Přidejte návrh a hlídejte schválení a export pro výrobu.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Druh', GFX_KINDS, true), state: E('Stav', GFX_STATES), client: T('Klient', 120), format: T('Formát (SVG, PNG, PDF…)', 40), note: T('Poznámka', 500) },
+        kinds: { DRAFT: 'Návrh', APPROVAL: 'Schválení', REVISION: 'Úpravy', EXPORT: 'Export pro výrobu', OTHER: 'Jiné' },
+        subtitle: (d) => `${GFX_KINDS[d.kind] || d.kind} · ${GFX_STATES[d.state] || ''}${d.client ? ` · ${d.client}` : ''}` });
 })();
 /* N2.6b · KEYRON – password vault (user priority). Encryption ONLY in the browser: AES-GCM 256, key from the master password via PBKDF2-SHA256 (310 000 iterations).
    The master password is never stored; Core keeps only ciphertext. Owner-only access; AI / Kaira contexts are refused; auto-lock after 5 min idle and when the hub closes. */
@@ -491,3 +502,94 @@ var KXQrHub;
     NS.payload = payload;
     NS.svg = svg;
 })(KXQrHub || (KXQrHub = {}));
+/* N2.6b · Hry – offline family games (memory and five-in-a-row), no internet, no ads */
+var KXGamesHub;
+(function (NS) {
+    function install(core) { return core; }
+    function mountHub(root, core, opts) {
+        const tl = (k) => { try {
+            const f = opts?.TL || globalThis.KXTL;
+            return f ? f(k) : k;
+        }
+        catch {
+            return k;
+        } };
+        try {
+            root.closest('.inspector')?.querySelector(':scope > .kx-hub-bar, :scope > div > .kx-hub-bar')?.classList.add('ag-hide');
+        }
+        catch { }
+        const st = { game: 'memory' };
+        const E = ['🦊', '🐼', '🦉', '🐢', '🦋', '🐙', '🌵', '🍓'];
+        const newMemory = () => { const deck = [...E, ...E].map((e, i) => ({ e, i, open: false, done: false })); for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        } st.m = { deck, picked: [], moves: 0, start: Date.now(), lock: false }; };
+        const newGomoku = () => { st.g = { n: 10, cells: Array(100).fill(''), turn: 'X', win: '' }; };
+        newMemory();
+        newGomoku();
+        const five = (c, n, i) => { const p = c[i]; if (!p)
+            return false; const r = Math.floor(i / n), k = i % n; for (const [dr, dk] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
+            let cnt = 1;
+            for (const s of [1, -1]) {
+                let rr = r + dr * s, kk = k + dk * s;
+                while (rr >= 0 && rr < n && kk >= 0 && kk < n && c[rr * n + kk] === p) {
+                    cnt++;
+                    rr += dr * s;
+                    kk += dk * s;
+                }
+            }
+            if (cnt >= 5)
+                return true;
+        } return false; };
+        function draw() {
+            const tabs = `<div class="ag-filters"><button type="button" class="${st.game === 'memory' ? 'on' : ''}" data-g-tab="memory">🃏 ${tl('games.memory')}</button><button type="button" class="${st.game === 'gomoku' ? 'on' : ''}" data-g-tab="gomoku">⭕ ${tl('games.gomoku')}</button></div>`;
+            let body = '';
+            if (st.game === 'memory') {
+                const m = st.m;
+                const done = m.deck.every((c) => c.done);
+                body = `<p class="muted">${tl('games.memoryHelp')}</p><div class="ag-g-mem">${m.deck.map((c, ix) => `<button type="button" class="ag-g-card ${c.open || c.done ? 'open' : ''} ${c.done ? 'done' : ''}" data-g-card="${ix}">${c.open || c.done ? c.e : '✦'}</button>`).join('')}</div><p><b>${tl('games.moves')}: ${m.moves}</b>${done ? ` · 🎉 ${tl('games.won').replace('{s}', String(Math.round((Date.now() - m.start) / 1000)))}` : ''}</p><button type="button" class="btn" data-g-new>↻ ${tl('games.newGame')}</button>`;
+            }
+            else {
+                const g = st.g;
+                body = `<p class="muted">${tl('games.gomokuHelp')}</p><div class="ag-g-board">${g.cells.map((v, ix) => `<button type="button" class="ag-g-cell ${v}" data-g-cell="${ix}">${v === 'X' ? '✕' : v === 'O' ? '◯' : ''}</button>`).join('')}</div><p><b>${g.win ? `🎉 ${tl('games.winner').replace('{p}', g.win === 'X' ? '✕' : '◯')}` : `${tl('games.turn')}: ${g.turn === 'X' ? '✕' : '◯'}`}</b></p><button type="button" class="btn" data-g-new>↻ ${tl('games.newGame')}</button>`;
+            }
+            root.innerHTML = `<section class="ag-games">${tabs}${body}</section>`;
+            root.querySelectorAll('[data-g-tab]').forEach(b => b.onclick = () => { st.game = String(b.dataset.gTab); draw(); });
+            root.querySelector('[data-g-new]').onclick = () => { if (st.game === 'memory')
+                newMemory();
+            else
+                newGomoku(); draw(); };
+            root.querySelectorAll('[data-g-card]').forEach(b => b.onclick = () => {
+                const m = st.m, ix = Number(b.dataset.gCard), c = m.deck[ix];
+                if (m.lock || c.open || c.done)
+                    return;
+                c.open = true;
+                m.picked.push(ix);
+                if (m.picked.length === 2) {
+                    m.moves++;
+                    const [a, b2] = m.picked.map((k) => m.deck[k]);
+                    if (a.e === b2.e) {
+                        a.done = b2.done = true;
+                        m.picked = [];
+                        draw();
+                    }
+                    else {
+                        m.lock = true;
+                        draw();
+                        setTimeout(() => { a.open = b2.open = false; m.picked = []; m.lock = false; draw(); }, 800);
+                    }
+                }
+                else
+                    draw();
+            });
+            root.querySelectorAll('[data-g-cell]').forEach(b => b.onclick = () => { const g = st.g, ix = Number(b.dataset.gCell); if (g.win || g.cells[ix])
+                return; g.cells[ix] = g.turn; if (five(g.cells, g.n, ix))
+                g.win = g.turn;
+            else
+                g.turn = g.turn === 'X' ? 'O' : 'X'; draw(); });
+        }
+        draw();
+    }
+    NS.install = install;
+    NS.mountHub = mountHub;
+})(KXGamesHub || (KXGamesHub = {}));
