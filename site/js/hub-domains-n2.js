@@ -1,4 +1,4 @@
-var KXContracts, KXHealth, KXCertify, KXWarranty, KXSubscriptions, KXGarden, KXAssets, KXMaintenance, KXService, KXProjects, KXHr, KXEnergy, KXRental, KXDocuments;
+var KXContracts, KXHealth, KXCertify, KXWarranty, KXSubscriptions, KXGarden, KXAssets, KXMaintenance, KXService, KXProjects, KXHr, KXEnergy, KXRental, KXDocuments, KXFood, KXSales, KXBuild, KXStock, KXInventory, KXForms, KXGuide, KXShipping;
 (function () {
     function make(o) {
         const S = o.subjectWord, I = o.itemWord;
@@ -100,4 +100,45 @@ var KXContracts, KXHealth, KXCertify, KXWarranty, KXSubscriptions, KXGarden, KXA
         fields: { name: name('Název', 'Název je povinný'), kind: E('Druh', DOC_KINDS, true), holder: T('Komu patří', 80), number: T('Číslo', 40), validTo: D('Platnost do'), note: T('Poznámka', 500) },
         kinds: { EXPIRY: 'Konec platnosti', RENEWAL: 'Obnova', REVIEW: 'Revize', OTHER: 'Jiné' },
         subtitle: (d, f) => `${DOC_KINDS[d.kind] || d.kind}${d.holder ? ` · ${d.holder}` : ''}${d.validTo ? ` · do ${f(d.validTo)}` : ''}` });
+    /* N2.6b · second batch of hubs without their own screen */
+    const FOOD_KINDS = { FRIDGE: 'Lednice', FREEZER: 'Mrazák', PANTRY: 'Spíž', DRINKS: 'Nápoje', BABY: 'Dětská výživa', OTHER: 'Jiné' };
+    KXFood = make({ key: 'FOOD', typeSuffix: 'STOCK', label: 'Jídlo a nákupy', scopeTag: 'food', serviceKey: 'foodDomain', listKey: 'foods', prefix: 'fd', subjectWord: 'zásoba', subjectCap: 'Zásoba', countWord: 'zásob', placeholder: 'např. Spotřebovat do', empty: 'Zatím žádné zásoby. Přidejte potravinu a hlídejte datum spotřeby a další nákup.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Kde', FOOD_KINDS, true), amount: T('Množství', 40), bought: D('Koupeno'), note: T('Poznámka', 300) },
+        kinds: { USE_BY: 'Spotřebovat do', BEST_BEFORE: 'Minimální trvanlivost', BUY: 'Koupit znovu', DEFROST: 'Rozmrazit', OTHER: 'Jiné' },
+        subtitle: (d) => `${FOOD_KINDS[d.kind] || d.kind}${d.amount ? ` · ${d.amount}` : ''}` });
+    const CUSTOMER_KINDS = { B2C: 'Zákazník', B2B: 'Firma', RESELLER: 'Prodejce', VIP: 'Stálý zákazník' };
+    KXSales = make({ key: 'SALES', typeSuffix: 'CUSTOMER', label: 'Prodej a zákazníci', scopeTag: 'customer', serviceKey: 'salesDomain', listKey: 'customers', prefix: 'sal', subjectWord: 'zákazník', subjectCap: 'Zákazník', countWord: 'zákazníků', placeholder: 'např. Poslat nabídku', empty: 'Zatím žádní zákazníci. Přidejte zákazníka a k němu nabídky, follow-upy a splatnosti faktur.',
+        fields: { name: name('Jméno / firma', 'Jméno je povinné'), kind: E('Druh', CUSTOMER_KINDS, true), contact: T('Kontakt', 120), ico: T('IČO', 20), note: T('Poznámka', 500) },
+        kinds: { OFFER: 'Nabídka', FOLLOW_UP: 'Ozvat se', ORDER_DUE: 'Termín zakázky', INVOICE_DUE: 'Splatnost faktury', REVIEW: 'Žádost o recenzi', OTHER: 'Jiné' },
+        subtitle: (d) => `${CUSTOMER_KINDS[d.kind] || d.kind}${d.contact ? ` · ${d.contact}` : ''}` });
+    const BUILD_KINDS = { NEW: 'Novostavba', RECONSTRUCTION: 'Rekonstrukce', ASSEMBLY: 'Montáž', REPAIR: 'Oprava', GARDEN: 'Zahrada a terén' };
+    KXBuild = make({ key: 'BUILD', typeSuffix: 'SITE', label: 'Stavby a montáže', scopeTag: 'site', serviceKey: 'buildDomain', listKey: 'sites', prefix: 'bld', subjectWord: 'stavba', subjectCap: 'Stavba', countWord: 'staveb', placeholder: 'např. Dodávka materiálu', empty: 'Zatím žádné stavby. Přidejte stavbu nebo montáž a k ní etapy, dodávky a kontroly.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Druh', BUILD_KINDS, true), place: T('Místo', 120), contractor: T('Dodavatel / řemeslník', 120), start: D('Začátek'), note: T('Poznámka', 500) },
+        kinds: { STAGE: 'Etapa', DELIVERY: 'Dodávka materiálu', INSPECTION: 'Kontrola / přejímka', PAYMENT: 'Platba', HANDOVER: 'Předání', OTHER: 'Jiné' },
+        subtitle: (d) => `${BUILD_KINDS[d.kind] || d.kind}${d.place ? ` · ${d.place}` : ''}` });
+    const STOCK_KINDS = { MATERIAL: 'Materiál', GOODS: 'Zboží', PACKAGING: 'Obaly', SPARE: 'Náhradní díly', CONSUMABLE: 'Spotřební materiál' };
+    KXStock = make({ key: 'STOCK', typeSuffix: 'ITEM', label: 'Sklady a inventury', scopeTag: 'stock', serviceKey: 'stockDomain', listKey: 'stockItems', prefix: 'stk', subjectWord: 'skladová položka', subjectCap: 'Položka', countWord: 'položek', placeholder: 'např. Doobjednat', empty: 'Zatím žádné skladové položky. Přidejte materiál nebo zboží a hlídejte doobjednání a inventury.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Druh', STOCK_KINDS, true), amount: T('Stav zásoby', 40), minimum: T('Minimum', 40), place: T('Umístění', 80), supplier: T('Dodavatel', 120), note: T('Poznámka', 300) },
+        kinds: { REORDER: 'Doobjednat', STOCKTAKE: 'Inventura', EXPIRY: 'Expirace', DELIVERY: 'Dodávka', OTHER: 'Jiné' },
+        subtitle: (d) => `${STOCK_KINDS[d.kind] || d.kind}${d.amount ? ` · ${d.amount}` : ''}${d.place ? ` · ${d.place}` : ''}` });
+    const INV_KINDS = { TOOL: 'Nářadí', DEVICE: 'Zařízení', FURNITURE: 'Vybavení', IT: 'IT technika', OTHER: 'Jiné' };
+    KXInventory = make({ key: 'INVENTORY', typeSuffix: 'PIECE', label: 'Inventury a evidence kusů', scopeTag: 'piece', serviceKey: 'inventoryDomain', listKey: 'pieces', prefix: 'inv', subjectWord: 'kus', subjectCap: 'Kus', countWord: 'kusů', placeholder: 'např. Roční inventura', empty: 'Zatím žádné evidované kusy. Přidejte kus s inventárním číslem a hlídejte inventury a kontroly.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Druh', INV_KINDS, true), code: T('Inventární číslo', 40), place: T('Umístění', 80), holder: T('Kdo má u sebe', 80), note: T('Poznámka', 300) },
+        kinds: { STOCKTAKE: 'Inventura', CHECK: 'Kontrola', RETURN: 'Vrácení', DISPOSAL: 'Vyřazení', OTHER: 'Jiné' },
+        subtitle: (d) => `${INV_KINDS[d.kind] || d.kind}${d.code ? ` · ${d.code}` : ''}${d.holder ? ` · ${d.holder}` : ''}` });
+    const FORM_KINDS = { PROTOCOL: 'Protokol', CHECKLIST: 'Kontrolní seznam', HANDOVER: 'Předávací protokol', REQUEST: 'Žádost', OTHER: 'Jiné' };
+    KXForms = make({ key: 'FORMS', typeSuffix: 'FORM', label: 'Formuláře a protokoly', scopeTag: 'form', serviceKey: 'formsDomain', listKey: 'forms', prefix: 'frm', subjectWord: 'formulář', subjectCap: 'Formulář', countWord: 'formulářů', placeholder: 'např. Vyplnit do', empty: 'Zatím žádné formuláře. Přidejte protokol nebo kontrolní seznam a hlídejte vyplnění a revize.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Druh', FORM_KINDS, true), owner: T('Odpovídá', 80), note: T('Poznámka', 500) },
+        kinds: { FILL_IN: 'Vyplnit do', SIGN: 'Podepsat', SUBMIT: 'Odevzdat', REVIEW: 'Revize', OTHER: 'Jiné' },
+        subtitle: (d) => `${FORM_KINDS[d.kind] || d.kind}${d.owner ? ` · ${d.owner}` : ''}` });
+    const GUIDE_KINDS = { WORK: 'Pracovní postup', SAFETY: 'Bezpečnost', MACHINE: 'Obsluha stroje', HOME: 'Domácnost', OTHER: 'Jiné' };
+    KXGuide = make({ key: 'GUIDE', typeSuffix: 'GUIDE', label: 'Návody a postupy', scopeTag: 'guide', serviceKey: 'guideDomain', listKey: 'guides', prefix: 'gd', subjectWord: 'návod', subjectCap: 'Návod', countWord: 'návodů', placeholder: 'např. Revize postupu', empty: 'Zatím žádné návody. Přidejte postup a hlídejte jeho revize a školení.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Druh', GUIDE_KINDS, true), author: T('Autor', 80), version: T('Verze', 20), note: T('Poznámka', 500) },
+        kinds: { REVIEW: 'Revize postupu', TRAINING: 'Proškolení', UPDATE: 'Aktualizace', OTHER: 'Jiné' },
+        subtitle: (d) => `${GUIDE_KINDS[d.kind] || d.kind}${d.version ? ` · v${d.version}` : ''}` });
+    const SHIP_KINDS = { OUTGOING: 'Odesílám', INCOMING: 'Přijímám', RETURN: 'Vratka' };
+    KXShipping = make({ key: 'SHIPPING', typeSuffix: 'PARCEL', label: 'Zásilky a doručování', scopeTag: 'parcel', serviceKey: 'shippingDomain', listKey: 'parcels', prefix: 'shp', subjectWord: 'zásilka', subjectCap: 'Zásilka', countWord: 'zásilek', placeholder: 'např. Vyzvednout do', empty: 'Zatím žádné zásilky. Přidejte zásilku a hlídejte odeslání, doručení a vyzvednutí.',
+        fields: { name: name('Název', 'Název je povinný'), kind: E('Směr', SHIP_KINDS, true), carrier: T('Dopravce', 60), tracking: T('Sledovací číslo', 60), party: T('Odesílatel / příjemce', 120), note: T('Poznámka', 300) },
+        kinds: { SEND_BY: 'Odeslat do', DELIVERY: 'Doručení', PICKUP: 'Vyzvednout do', RETURN_BY: 'Vrátit do', OTHER: 'Jiné' },
+        subtitle: (d) => `${SHIP_KINDS[d.kind] || d.kind}${d.carrier ? ` · ${d.carrier}` : ''}${d.tracking ? ` · ${d.tracking}` : ''}` });
 })();
