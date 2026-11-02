@@ -1114,3 +1114,14 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .ag-fcard{cursor:default}.ag-fcard .ag-fthumb{border:0;width:100%;cursor:zoom-in;padding:0}.ag-fname{display:grid;gap:2px;text-align:left;background:none;border:0;color:var(--ag-text);padding:2px;cursor:pointer;min-width:0}.ag-fname:hover b{color:var(--ag-gold-solid)}
 
 .kx-note-table[data-w="50"]{width:50%}.kx-note-table[data-w="75"]{width:75%}.kx-note-table[data-w="100"]{width:100%}
+
+/* ===== shell: logo 1:1 bez nápisu, podélné logo v záhlaví, Domů / Zpět ===== */
+.app-shell>.sidebar .brand-copy{display:none !important}
+.app-shell>.sidebar .brand-mark{width:96px !important;height:96px !important;margin:6px auto !important;flex:0 0 auto;background-color:transparent !important;border:0 !important;box-shadow:none !important;outline:0 !important}
+.app-shell>.sidebar :has(> .brand-mark){justify-content:center;align-items:center;height:auto !important;min-height:108px !important;max-height:none !important;overflow:visible}
+.app-shell.kx-rail>.sidebar .brand-mark{width:58px !important;height:58px !important;margin:6px auto 0 !important}
+.topbar .ag-navbtn{width:32px;height:32px;font-size:16px;margin-left:4px}
+.topbar{position:relative}
+.ag-wordmark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:Cinzel,Georgia,serif;font-size:22px;letter-spacing:.42em;padding-left:.42em;font-weight:700;pointer-events:none;
+ background:linear-gradient(180deg,#fff3d6 0%,#e9b54f 55%,#a8761c 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 18px rgba(233,181,79,.25);white-space:nowrap}
+@media (max-width:1280px){.ag-wordmark{display:none}}
