@@ -1108,7 +1108,12 @@ var KXAPP;
             agNav.restoring = false;
         }
     }, true);
-    globalThis.KXTL = (k) => TL(k); /* hub modules (e.g. the vault) use the same catalogue */
+    globalThis.KXTL = (k) => TL(k);
+    /* N2.6b: live NEXUS – load the device-encrypted API keys so Kaira works after a reload (DEMO never stores keys) */ setTimeout(() => { try {
+        if (String(runtime?.workspaceProfile?.mode || '') !== 'DEMO')
+            void globalThis.KXAiProviders?.loadPersisted?.();
+    }
+    catch { } }, 500); /* hub modules (e.g. the vault) use the same catalogue */
     new MutationObserver(() => { try {
         decorateHubTabs();
         alpineHubTidy();
@@ -6397,7 +6402,7 @@ var KXAPP;
         <h4>＋ ${esc(TL('aiui.newConn'))}</h4><div class="kx-calc-grid">
         <label class="kx-lf"><span>${esc(TL('aiui.provider'))}</span><select data-aic="provider">${Object.entries(AP.P).map(([k, v]) => `<option value="${k}">${esc(v.name)}${v.verify ? ' *' : ''}</option>`).join('')}</select></label>
         <label class="kx-lf"><span>${esc(TL('aiui.label'))}</span><input data-aic="label" maxlength="80"></label>
-        <label class="kx-lf"><span>${esc(TL('aiui.model'))}</span><select data-aic="model"><option value="">${esc(TL('aiui.loadFirst'))}</option></select></label><label class="kx-lf"><span>${esc(TL('aiui.modelManual'))}</span><input data-aic="modelManual" maxlength="120"></label></div>
+        <label class="kx-lf"><span>${esc(TL('aiui.model'))}</span><select data-aic="model"><option value="">${esc(TL('aiui.loadFirst'))}</option></select></label><label class="kx-lf"><span>${esc(TL('aiui.modelManual'))}</span><input data-aic="modelManual" maxlength="120"></label><label class="kx-lf"><span>${esc(TL('aiui.apiKey'))}</span><input data-aic="key" type="password" autocomplete="new-password" spellcheck="false" placeholder="${esc(TL('aiui.apiKeyPh'))}"></label>${String(runtime?.workspaceProfile?.mode || '') === 'DEMO' ? `<p class="muted kx-acc-help">${esc(TL('aiui.demoKeyNote'))}</p>` : `<label class="kx-lf"><span><input type="checkbox" data-aic="remember" checked> ${esc(TL('aiui.remember'))}</span></label>`}</div>
         <button class="btn ghost compact" data-aic-models>${esc(TL('aiui.loadModels'))}</button> <button class="btn" data-aic-save>${esc(TL('laser.save'))}</button> <span class="kx-lf-help" data-aic-err></span>
         <p class="muted kx-acc-help">${esc(TL('aiui.keyNote'))} * ${esc(TL('aiui.verifyNote'))}</p></div></div>`;
         m.className = 'modal-wrap open';
@@ -6408,10 +6413,10 @@ var KXAPP;
         let tmpRef = '';
         const ensureRef = () => { if (!tmpRef)
             tmpRef = 'SECURE_REF:' + crypto.randomUUID().replace(/-/g, ''); return tmpRef; };
-        /* no key ever passes through the UI (project rule): cloud keys only via the native OS prompt; local AI needs no key */ const putKey = () => AP.P[q('provider').value].family === 'LOCAL' ? '' : ensureRef();
+        /* no key ever passes through the UI (project rule): cloud keys only via the native OS prompt; local AI needs no key */ const putKey = () => { if (AP.P[q('provider').value].family === 'LOCAL')
+            return ''; const k = (q('key')?.value || '').trim(); if (!k)
+            throw new Error('AI_KEY_REQUIRED'); const ref = ensureRef(); AP.putKey(ref, k); return ref; }; /* N2.6b: the key is typed here (user decision); live NEXUS remembers it device-encrypted, DEMO keeps it for the session only */
         m.querySelector('[data-aic-models]').onclick = async () => { err(''); try {
-            if (AP.P[q('provider').value].family !== 'LOCAL')
-                throw new Error('AI_NATIVE_KEY_FIRST');
             const ref = putKey();
             const models = await AP.listModels(q('provider').value, { secretRef: ref || undefined });
             q('model').innerHTML = models.map((x) => `<option>${esc(x)}</option>`).join('') || `<option value="">${esc(TL('aiui.noModels'))}</option>`;
@@ -6428,6 +6433,16 @@ var KXAPP;
                 const model = q('model').value || q('modelManual').value.trim();
                 if (!model)
                     throw new Error('AI_MODEL_REQUIRED');
+                if (ref && String(runtime?.workspaceProfile?.mode || '') !== 'DEMO' && q('remember')?.checked) {
+                    try {
+                        await AP.persistKey(ref, (q('key')?.value || '').trim());
+                    }
+                    catch (e) {
+                        console.warn('key persist', e);
+                    }
+                }
+                if (q('key'))
+                    q('key').value = '';
                 await runtime.actions.invoke('ACTION.CORE.AI.CONNECTION.SAVE', { userId: CURRENT_USER_ID, providerCode: code, label: q('label').value.trim() || AP.P[code].name, authMode: ref ? 'SECURE_REF' : 'NONE', secretRef: ref || undefined, defaultModel: model }, aiMgmtCtx());
                 toast(TL('aiui.saved'));
                 void ( /* N2.5v guard: re-render only if this window is still the open one */(kxWinKey(m) === __kxRoot && m.classList.contains('open')) && aiConnectionsModal());

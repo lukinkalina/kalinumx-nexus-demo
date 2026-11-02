@@ -249,8 +249,42 @@ var KXVault;
             }
             catch { }
         } st.items.sort((a, b) => String(a.title).localeCompare(String(b.title))); }
+        /* N2.6b (user): the DEMO vault opens without a master password so customers can try everything; fictional sample entries; the live vault is unchanged */
+        const isDemo = () => { try {
+            return !!globalThis.KXDemoSeed?.isDemo?.(core);
+        }
+        catch {
+            return false;
+        } };
+        const DEMO_PW = 'KX-DEMO-VAULT-OPEN';
+        async function demoOpen(meta) {
+            if (meta.exists) {
+                st.key = await derive(DEMO_PW, ub(meta.salt), meta.iter || ITER);
+                await load();
+                return;
+            }
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const key = await derive(DEMO_PW, salt, ITER);
+            await core.actions.invoke('ACTION.VAULT.META.SAVE', { salt: b64(salt), check: await seal(key, { ok: 'KX-VAULT-OK' }) }, C);
+            st.key = key;
+            for (const e of [{ title: 'DEMO · E-shop administrace', user: 'demo@example.com', url: 'https://example.com/admin', cat: 'Firma', pass: genPassword() }, { title: 'DEMO · Wi-Fi doma', user: '', url: '', cat: 'Domácnost', pass: genPassword(16) }, { title: 'DEMO · Banka (ukázka)', user: 'demo-uzivatel', url: 'https://example.com/banka', cat: 'Finance', pass: genPassword() }])
+                await core.actions.invoke('ACTION.VAULT.ENTRY.SAVE', await seal(key, e), C);
+            await load();
+        }
         async function draw() {
             const meta = await core.actions.invoke('ACTION.VAULT.META.GET', {}, C);
+            if (isDemo() && !st.key) {
+                try {
+                    await demoOpen(meta);
+                }
+                catch (e) {
+                    console.warn('demo vault', e);
+                }
+                if (st.key) {
+                    void draw();
+                    return;
+                }
+            }
             if (!meta.exists) {
                 root.innerHTML = `<section class="ag-vault ag-card"><h3>🔐 ${esc(tl('vault.setupTitle'))}</h3><p>${esc(tl('vault.setupText'))}</p><p class="ag-vault-warn">⚠ ${esc(tl('vault.noRecovery'))}</p>
         <div class="ag-vault-form"><label class="kx-lf">${esc(tl('vault.master'))}<input type="password" data-v-pw autocomplete="new-password"></label><label class="kx-lf">${esc(tl('vault.masterAgain'))}<input type="password" data-v-pw2 autocomplete="new-password"></label></div><button type="button" class="btn" data-v-setup>🔐 ${esc(tl('vault.create'))}</button><small data-v-msg></small></section>`;
@@ -296,18 +330,21 @@ var KXVault;
                     void go(); };
                 return;
             }
-            bump();
+            if (!isDemo())
+                bump();
             const q = st.q.toLowerCase();
             const list = st.items.filter((x) => !q || `${x.title} ${x.user} ${x.url} ${x.cat}`.toLowerCase().includes(q));
             const e = st.edit;
-            root.innerHTML = `<section class="ag-vault"><div class="ag-vault-bar"><input type="search" data-v-q placeholder="${esc(tl('vault.search'))}" value="${esc(st.q)}"><button type="button" class="btn" data-v-new>＋ ${esc(tl('vault.new'))}</button><button type="button" class="btn ghost" data-v-lock>🔒 ${esc(tl('vault.lock'))}</button></div>
+            root.innerHTML = `<section class="ag-vault">${isDemo() ? `<p class="ag-vault-demo">🎭 ${esc(tl('vault.demoNote'))}</p>` : ''}<div class="ag-vault-bar"><input type="search" data-v-q placeholder="${esc(tl('vault.search'))}" value="${esc(st.q)}"><button type="button" class="btn" data-v-new>＋ ${esc(tl('vault.new'))}</button>${isDemo() ? '' : `<button type="button" class="btn ghost" data-v-lock>🔒 ${esc(tl('vault.lock'))}</button>`}</div>
         ${e ? `<div class="ag-card ag-vault-edit"><div class="ag-vault-form">${['title', 'user', 'url', 'cat'].map(f => `<label class="kx-lf">${esc(tl('vault.f.' + f))}<input data-v-f="${f}" value="${esc(e[f] || '')}"></label>`).join('')}<label class="kx-lf">${esc(tl('vault.f.pass'))}<span class="ag-vault-pw"><input data-v-f="pass" type="password" value="${esc(e.pass || '')}" autocomplete="off"><button type="button" class="btn ghost compact" data-v-gen>🎲 ${esc(tl('vault.generate'))}</button></span></label><label class="kx-lf wide">${esc(tl('vault.f.note'))}<textarea data-v-f="note" rows="2">${esc(e.note || '')}</textarea></label></div><button type="button" class="btn" data-v-save>${esc(tl('vault.save'))}</button><button type="button" class="btn ghost" data-v-cancel>${esc(tl('vault.cancel'))}</button></div>` : ''}
         <div class="ag-vault-list">${list.length ? list.map((x) => `<article class="ag-vault-item"><b>${esc(x.title)}</b><small>${esc(x.user || '')}${x.url ? ` · ${esc(x.url)}` : ''}${x.cat ? ` · ${esc(x.cat)}` : ''}</small><code data-v-pwshow="${esc(x.id)}">••••••••</code><span><button type="button" class="btn ghost compact" data-v-show="${esc(x.id)}">👁</button><button type="button" class="btn compact" data-v-copy="${esc(x.id)}">⧉ ${esc(tl('vault.copy'))}</button><button type="button" class="btn ghost compact" data-v-edit="${esc(x.id)}">✎</button><button type="button" class="btn ghost compact" data-v-del="${esc(x.id)}">🗑</button></span></article>`).join('') : `<p class="muted">${esc(tl('vault.empty'))}</p>`}</div></section>`;
             const $ = (s) => root.querySelector(s);
             const all = (s) => Array.from(root.querySelectorAll(s));
             $('[data-v-q]').oninput = (ev) => { st.q = ev.target.value; clearTimeout(st.qt); st.qt = setTimeout(() => { void draw().then(() => { const i = $('[data-v-q]'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }); }, 250); };
             $('[data-v-new]').onclick = () => { st.edit = {}; void draw(); };
-            $('[data-v-lock]').onclick = () => { lock(); };
+            const lk = root.querySelector('[data-v-lock]');
+            if (lk)
+                lk.onclick = () => { lock(); };
             all('[data-v-edit]').forEach(b => b.onclick = () => { st.edit = { ...st.items.find((x) => x.id === b.dataset.vEdit) }; void draw(); });
             all('[data-v-show]').forEach(b => b.onclick = () => { const x = st.items.find((i) => i.id === b.dataset.vShow); const c = root.querySelector(`[data-v-pwshow="${CSS.escape(String(b.dataset.vShow))}"]`); c.textContent = x?.pass || ''; setTimeout(() => { if (c.isConnected)
                 c.textContent = '••••••••'; }, 10000); bump(); });

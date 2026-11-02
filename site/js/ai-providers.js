@@ -23,6 +23,51 @@ var KXAiProviders;
         throw new Error('AI_KEY_TOO_SHORT'); vault.set(ref, String(key)); };
     const forget = (ref) => vault.delete(ref);
     const hasKey = (ref) => vault.has(ref);
+    /* N2.6b (user decision 2026-11-02): in the LIVE NEXUS keys are remembered on this device so Kaira keeps working after reload.
+       Encrypted with a non-extractable AES-GCM device key; kept in a separate IndexedDB (kx-secure-keys) – never in core data, backups, exports or sync. DEMO: memory only. */
+    const SDB = 'kx-secure-keys';
+    const idb = () => new Promise((res, rej) => { const g = globalThis.indexedDB; if (!g) {
+        rej(new Error('NO_IDB'));
+        return;
+    } const o = g.open(SDB, 1); o.onupgradeneeded = () => { o.result.createObjectStore('k'); }; o.onsuccess = () => res(o.result); o.onerror = () => rej(o.error); });
+    const idbGet = async (k) => { const db = await idb(); return new Promise((res, rej) => { const r = db.transaction('k', 'readonly').objectStore('k').get(k); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); };
+    const idbPut = async (k, v) => { const db = await idb(); return new Promise((res, rej) => { const t = db.transaction('k', 'readwrite'); t.objectStore('k').put(v, k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); }); };
+    const idbDel = async (k) => { const db = await idb(); return new Promise((res, rej) => { const t = db.transaction('k', 'readwrite'); t.objectStore('k').delete(k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); }); };
+    const idbKeys = async () => { const db = await idb(); return new Promise((res, rej) => { const r = db.transaction('k', 'readonly').objectStore('k').getAllKeys(); r.onsuccess = () => res((r.result || []).map(String)); r.onerror = () => rej(r.error); }); };
+    async function deviceKey() { let k = await idbGet('deviceKey'); if (!k) {
+        k = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+        await idbPut('deviceKey', k);
+    } return k; }
+    const b64 = (u) => { const a = u instanceof Uint8Array ? u : new Uint8Array(u); let x = ''; for (let i = 0; i < a.length; i++)
+        x += String.fromCharCode(a[i]); return btoa(x); };
+    const ub = (x) => Uint8Array.from(atob(x), c => c.charCodeAt(0));
+    async function persistKey(ref, key) { if (!vault.has(ref))
+        putKey(ref, key); const dk = await deviceKey(); const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, dk, new TextEncoder().encode(String(key))); await idbPut('sec:' + ref, { iv: b64(iv), ct: b64(ct), last4: String(key).slice(-4), at: new Date().toISOString() }); }
+    async function loadPersisted() { let n = 0; try {
+        const dk = await deviceKey();
+        for (const k of await idbKeys()) {
+            if (!k.startsWith('sec:'))
+                continue;
+            try {
+                const v = await idbGet(k);
+                const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ub(v.iv) }, dk, ub(v.ct));
+                vault.set(k.slice(4), new TextDecoder().decode(pt));
+                n++;
+            }
+            catch { }
+        }
+    }
+    catch { } return n; }
+    async function forgetPersisted(ref) { vault.delete(ref); try {
+        await idbDel('sec:' + ref);
+    }
+    catch { } }
+    async function last4(ref) { try {
+        const v = await idbGet('sec:' + ref);
+        if (v?.last4)
+            return String(v.last4);
+    }
+    catch { } const k = vault.get(ref); return k ? String(k).slice(-4) : ''; }
     let fetcher = globalThis.fetch?.bind(globalThis);
     const setFetcher = (f) => { fetcher = f; };
     const baseOf = (code, conn) => String(conn?.defaults?.baseUrl || conn?.baseUrl || P[code].base).replace(/\/+$/, '');
@@ -99,6 +144,6 @@ var KXAiProviders;
             catch (e) { }
         }
     }
-    KXAiProviders = { P, install, adapter, listModels, putKey, forget, hasKey, setFetcher, hosts };
+    KXAiProviders = { P, install, adapter, listModels, putKey, forget, hasKey, setFetcher, hosts, persistKey, loadPersisted, forgetPersisted, last4 };
     globalThis.KXAiProviders = KXAiProviders;
 })();
