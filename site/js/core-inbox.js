@@ -132,7 +132,12 @@ var KXInbox;
     const placeOf = (el) => { const hub = document.querySelector('#inspector [data-hub-manual]')?.dataset.hubManual || 'APP.NEXUS'; const title = (el.closest('.modal')?.querySelector('.drawer-head b')?.textContent || document.querySelector('#inspector h2,#inspector .drawer-head b')?.textContent || '').trim().slice(0, 80); return { hub, title }; };
     async function flush(w) {
         if (!core0 || !ctx0 || w.committed || !w.dirty)
+            return; /* N2.6b: saved recently and every edited field has since been re-rendered = the save went through (slow machines re-render later than the 1.5 s mark) -> not a draft */
+        if (w.savedAt && Date.now() - w.savedAt < 60000 && w.touched && w.touched.size && ![...w.touched].some((f) => f?.isConnected)) {
+            w.dirty = false;
+            w.touched.clear();
             return;
+        }
         let info;
         try {
             info = w.collect();
@@ -202,7 +207,13 @@ var KXInbox;
         document.addEventListener('click', (e) => { const b = e.target?.closest?.('button'); if (!b)
             return; const isSave = [...b.attributes].some((a) => /^data-[a-z0-9-]*-(save|create-save|apply|create|draft)$/.test(a.name)) || /^(uložit|vytvořit|save|create)\b/i.test((b.textContent || '').trim()); if (!isSave)
             return; const w = watches.find(x => x.el.contains(b)); if (!w)
-            return; w.committed = true; setTimeout(() => { if (w.el.isConnected && w.dirty && !w.el.closest('.modal-wrap:not(.open)'))
+            return; w.committed = true; w.savedAt = Date.now(); setTimeout(() => { if (!(w.el.isConnected && w.dirty && !w.el.closest('.modal-wrap:not(.open)')))
+            return; /* N2.6b: a form that stays open after a SUCCESSFUL save (it re-rendered: the edited fields are gone) is clean – no false draft; same fields still on screen = save did not go through -> keep capturing */ /* N2.6b: a form that stays open after a SUCCESSFUL save (it re-rendered: the edited fields are gone) is clean – no false draft; same fields still on screen = save did not go through -> keep capturing */ const still = [...(w.touched || [])].some((f) => f?.isConnected); if (w.touched && w.touched.size && !still) {
+            w.dirty = false;
+            w.touched.clear();
+            w.committed = false;
+        }
+        else
             w.committed = false; }, 1500); }, true);
         /* gone from the page, or its window closed (windows stay in the page, only hidden) */ const gone = (w) => !w.el.isConnected || !!w.el.closest('.modal-wrap:not(.open)');
         const mo = new MutationObserver(() => { for (let i = watches.length - 1; i >= 0; i--) {

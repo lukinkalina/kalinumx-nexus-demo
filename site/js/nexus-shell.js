@@ -6427,7 +6427,7 @@ var KXAPP;
             if (!AP.P[c.providerCode])
                 continue;
             const ref = await refOf(c.id);
-            list.push(`<div class="kx-ai-conn" data-ai-conn="${esc(c.id)}"><b>${esc(c.label)}</b> <small class="muted">${esc(AP.P[c.providerCode].name)} · ${esc(c.defaultModel || '—')}</small> ${AP.P[c.providerCode].family === 'LOCAL' ? `<span class="chip">${esc(TL('aiui.local'))}</span>` : ref && AP.hasKey(ref) ? `<span class="chip">🔐 ${esc(TL('aiui.keyLoaded'))}</span>` : `<span class="chip kx-off">${esc(TL('aiui.keyMissing'))}</span> <button class="btn compact" data-ai-enroll="${esc(c.id)}|${esc(c.providerCode)}">🔐 ${esc(TL('aiui.enroll'))}</button>`}</div>`);
+            list.push(`<div class="kx-ai-conn" data-ai-conn="${esc(c.id)}"><b>${esc(c.label)}</b> <small class="muted">${esc(AP.P[c.providerCode].name)} · ${esc(c.defaultModel || '—')}</small> ${AP.P[c.providerCode].family === 'LOCAL' ? `<span class="chip">${esc(TL('aiui.local'))}</span>` : ref && AP.hasKey(ref) ? `<span class="chip">🔐 ••••${esc(await AP.last4?.(ref) || '')}</span> <button class="btn ghost compact" data-ai-key-replace="${esc(ref)}" data-ai-key-label="${esc(c.label)}">🔑 ${esc(TL('aiui.replaceKey'))}</button> <button class="btn ghost compact" data-ai-key-remove="${esc(ref)}">🗑 ${esc(TL('aiui.removeKey'))}</button>` : `<span class="chip kx-off">${esc(TL('aiui.keyMissing'))}</span>${ref ? ` <button class="btn compact" data-ai-key-replace="${esc(ref)}" data-ai-key-label="${esc(c.label)}">🔑 ${esc(TL('aiui.enterKey'))}</button>` : ''}`}</div>`);
         }
         m.innerHTML = `<div class="modal" data-ai-conn-modal><div class="drawer-head"><div><b>⚙ ${esc(TL('aiui.connections'))}</b><small>${esc(TL('aiui.connHelp'))}</small></div><button class="icon-btn" data-close>×</button></div><div class="ins-section">
         ${list.length ? list.join('') : `<p class="muted">${esc(TL('aiui.noConn'))}</p>`}
@@ -6456,10 +6456,32 @@ var KXAPP;
         catch (e) {
             err(aiErrText(e));
         } };
+        /* N2.6b: replace / remove the key of an existing connection – the same single key field is used (no second secret input) */ let replaceRef = '';
+        m.querySelectorAll('[data-ai-key-replace]').forEach(x => x.onclick = () => { replaceRef = String(x.dataset.aiKeyReplace); err(TL('aiui.replaceHint').replace('{n}', String(x.dataset.aiKeyLabel || ''))); const k = q('key'); if (k) {
+            k.scrollIntoView({ block: 'center' });
+            k.focus();
+        } const sb = m.querySelector('[data-aic-save]'); if (sb)
+            sb.textContent = TL('aiui.saveKey'); });
+        m.querySelectorAll('[data-ai-key-remove]').forEach(x => x.onclick = async () => { if (!confirm(TL('aiui.removeConfirm')))
+            return; await AP.forgetPersisted?.(String(x.dataset.aiKeyRemove)); AP.forget?.(String(x.dataset.aiKeyRemove)); toast(TL('aiui.keyRemoved')); void aiConnectionsModal(); });
         m.querySelector('[data-aic-save]').onclick = async () => {
             const __kxRoot = kxWinKey(m);
             err('');
             try {
+                if (replaceRef) {
+                    const k = (q('key')?.value || '').trim();
+                    if (!k)
+                        throw new Error('AI_KEY_REQUIRED');
+                    AP.putKey(replaceRef, k);
+                    if (String(runtime?.workspaceProfile?.mode || '') !== 'DEMO' && q('remember')?.checked !== false) {
+                        await AP.persistKey(replaceRef, k);
+                    }
+                    q('key').value = '';
+                    replaceRef = '';
+                    toast(TL('aiui.keyReplaced'));
+                    void aiConnectionsModal();
+                    return;
+                }
                 const code = q('provider').value;
                 const ref = putKey();
                 const model = q('model').value || q('modelManual').value.trim();
@@ -8173,12 +8195,18 @@ var KXAPP;
     function issuesBellSoon() { clearTimeout(issuesBellTimer); issuesBellTimer = setTimeout(() => void refreshIssuesBell(), 1500); }
     setInterval(() => void refreshIssuesBell(), 60000);
     var issuesBellBusy = false;
+    let issuesBellAgain = false, issuesBellSince = 0;
     async function refreshIssuesBell() {
         void applyBugCaptureSetting();
         const b = document.querySelector('[data-issues-bell]');
-        if (!b || !runtime.issues || issuesBellBusy)
+        if (!b || !runtime.issues)
+            return; /* N2.6b: a refresh requested while one runs is NOT dropped (it ran later only after 60 s) – it runs right after; a stuck refresh is released after 10 s */
+        if (issuesBellBusy && Date.now() - issuesBellSince < 10000) {
+            issuesBellAgain = true;
             return;
+        }
         issuesBellBusy = true;
+        issuesBellSince = Date.now();
         try {
             const s = await runtime.actions.invoke('ACTION.CORE.ISSUES.SUMMARY', {}, lyCtx());
             b.dataset.sev = s.top || 'NONE';
@@ -8191,6 +8219,10 @@ var KXAPP;
         catch { }
         finally {
             issuesBellBusy = false;
+            if (issuesBellAgain) {
+                issuesBellAgain = false;
+                setTimeout(() => void refreshIssuesBell(), 0);
+            }
         }
     }
     async function issuesFix(f) {
