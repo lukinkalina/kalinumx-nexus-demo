@@ -23,7 +23,8 @@ var KXApi;
     function install(core) {
         if (core.api)
             return core.api;
-        const protectedOwner = (o) => !!core.identity?.isProtected?.(o);
+        /* N2.6b: sensitive hubs are ALWAYS proposal-only for API / MCP clients – independent of identity protection (the DEMO workspace switches that off for browsing, which made Finance writes direct for AI) */ const API_SENSITIVE = new Set(['APP.KX.FINANCE', 'APP.KX.HEALTH', 'APP.KX.PEOPLE', 'APP.KX.SUBSCRIPTIONS', 'APP.KX.VAULT']);
+        const protectedOwner = (o) => API_SENSITIVE.has(String(o)) || !!core.identity?.isProtected?.(o);
         const inScope = (c, def) => { const o = c.data.scope?.owners || []; return o.includes('*') || o.includes(def.ownerApp); };
         async function client(token) {
             if (typeof token !== 'string' || !token.startsWith('kxapi_'))

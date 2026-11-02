@@ -1999,6 +1999,149 @@ var KXAPP;
         document.getElementById('agTblBar')?.remove(); }, true);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape')
         document.getElementById('agTblBar')?.remove(); }, true);
+    /* N2.6b · AI via MCP: the NEXUS side – a remembered folder (File System Access, NAS share), the AI package (sync export WITHOUT the vault) and the AI proposals -> Inbox for approval */
+    const AGAI = { dir: null, ctx: null, timer: 0 };
+    const aiIdb = () => new Promise((res, rej) => { const o = indexedDB.open('kx-ai-mcp', 1); o.onupgradeneeded = () => { o.result.createObjectStore('k'); }; o.onsuccess = () => res(o.result); o.onerror = () => rej(o.error); });
+    const aiGet = async (k) => { const db = await aiIdb(); return new Promise(r => { const x = db.transaction('k').objectStore('k').get(k); x.onsuccess = () => r(x.result); x.onerror = () => r(undefined); }); };
+    const aiPut = async (k, v) => { const db = await aiIdb(); return new Promise(r => { const tx = db.transaction('k', 'readwrite'); tx.objectStore('k').put(v, k); tx.oncomplete = () => r(); tx.onerror = () => r(); }); };
+    async function agAiDir(ask) {
+        let d = AGAI.dir || await aiGet('dir');
+        if (d) {
+            let p = await d.queryPermission?.({ mode: 'readwrite' });
+            if (p && p !== 'granted' && ask)
+                p = await d.requestPermission?.({ mode: 'readwrite' });
+            if (p && p !== 'granted')
+                return null;
+        }
+        if (!d && ask) {
+            if (typeof window.showDirectoryPicker !== 'function')
+                return null;
+            d = await window.showDirectoryPicker({ mode: 'readwrite', id: 'kx-ai' });
+            await aiPut('dir', d);
+        }
+        AGAI.dir = d || null;
+        return AGAI.dir;
+    }
+    async function agAiPackage(ctx) { const pkg = await runtime.actions.invoke('ACTION.CORE.SYNC.EXPORT', {}, ctx); for (const st of Object.keys(pkg.stores || {}))
+        pkg.stores[st] = (pkg.stores[st] || []).filter((r) => !String(r?.type || '').startsWith('VAULT.')); return pkg; }
+    async function agAiSave(ctx, ask) {
+        const pkg = await agAiPackage(ctx);
+        const d = await agAiDir(ask);
+        const body = JSON.stringify(pkg);
+        if (d) {
+            const fh = await d.getFileHandle('nexus-ai-balicek.json', { create: true });
+            const w = await fh.createWritable();
+            await w.write(body);
+            await w.close();
+        }
+        else {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
+            a.download = 'nexus-ai-balicek.json';
+            a.addEventListener('click', (ev) => ev.stopPropagation());
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+        }
+        const at = new Date().toISOString();
+        await aiPut('lastSave', at);
+        return at;
+    }
+    async function agAiLoad(file) {
+        let txt = '';
+        if (file)
+            txt = await file.text();
+        else {
+            const d = await agAiDir(true);
+            if (!d)
+                throw new Error('AI_FOLDER_REQUIRED');
+            const fh = await d.getFileHandle('nexus-mcp-navrhy.json');
+            txt = await (await fh.getFile()).text();
+        }
+        const j = JSON.parse(txt);
+        if (j?.format !== 'KX.MCP_PROPOSALS/1' || !Array.isArray(j.items))
+            throw new Error('AI_PROPOSALS_FORMAT');
+        let n = 0;
+        for (const it of j.items) {
+            if (!it?.id || !it?.code)
+                continue;
+            try {
+                await runtime.inbox.add({ source: 'MCP', reason: 'APPROVAL', key: 'MCP:' + String(it.id).slice(0, 80), title: `${TL('aimcp.propTitle')}: ${String(it.code).replace(/^ACTION\./, '')}`, text: JSON.stringify(it.payload ?? {}, null, 1).slice(0, 20000), target: { hub: '', actionCode: String(it.code), payload: it.payload ?? {} } }, { actorId: CURRENT_USER_ID, appCode: 'APP.KX.NEXUS', deviceId: activeDevice?.id, permissions: [], confirmed: true });
+                n++;
+            }
+            catch (e) {
+                console.warn('mcp proposal', e);
+            }
+        }
+        return n;
+    }
+    function agAiAuto(on) { clearInterval(AGAI.timer); AGAI.timer = 0; if (on)
+        AGAI.timer = setInterval(() => { if (AGAI.ctx && String(runtime?.workspaceProfile?.mode || '') !== 'DEMO')
+            void agAiSave(AGAI.ctx, false).catch((e) => console.warn('AI package auto', e)); }, 15 * 60000); }
+    void aiGet('auto').then((v) => { if (v)
+        agAiAuto(true); }).catch(() => { });
+    async function agAiMcpCard(m, ctx) {
+        const err = (e) => toast(String(e?.message || e));
+        const grid = m.querySelector('.settings-grid');
+        if (!grid || grid.querySelector('[data-aimcp]'))
+            return;
+        AGAI.ctx = ctx;
+        const demo = String(runtime?.workspaceProfile?.mode || '') === 'DEMO';
+        const last = await aiGet('lastSave').catch(() => null);
+        const auto = !!(await aiGet('auto').catch(() => false));
+        const dir = await aiGet('dir').catch(() => null);
+        const fs = typeof window.showDirectoryPicker === 'function';
+        const card = document.createElement('div');
+        card.className = 'settings-card';
+        card.dataset.aimcp = '1';
+        card.innerHTML = demo ? `<h3>🤖 ${esc(TL('aimcp.title'))}</h3><p class="ag-vault-demo">🎭 ${esc(TL('aimcp.demo'))}</p>` : `<h3>🤖 ${esc(TL('aimcp.title'))}</h3><p>${esc(TL('aimcp.intro'))}</p>
+        <div class="ag-aimcp-row"><button class="btn ghost compact" data-aimcp-folder>📁 ${esc(dir ? TL('aimcp.folderChange') : TL('aimcp.folder'))}</button><small>${esc(dir ? `${TL('aimcp.folderSet')}: ${dir.name}` : (fs ? TL('aimcp.folderNone') : TL('aimcp.noFs')))}</small></div>
+        <div class="ag-aimcp-row"><button class="btn compact" data-aimcp-save>💾 ${esc(TL('aimcp.save'))}</button><label><input type="checkbox" data-aimcp-auto ${auto ? 'checked' : ''}> ${esc(TL('aimcp.auto'))}</label><small data-aimcp-last>${esc(last ? `${TL('aimcp.last')}: ${new Date(last).toLocaleString()}` : '')}</small></div>
+        <div class="ag-aimcp-row"><button class="btn compact" data-aimcp-load>📥 ${esc(TL('aimcp.load'))}</button>${fs && dir ? '' : `<input type="file" accept=".json,application/json" data-aimcp-file>`}<small data-aimcp-msg></small></div>
+        <details><summary>${esc(TL('aimcp.howto'))}</summary><p>${esc(TL('aimcp.howtoText'))}</p><pre class="ag-aimcp-pre">{ "mcpServers": { "nexus": { "command": "node", "args": ["C:/NEXUS/tools/nexus-mcp/nexus-mcp.mjs", "--data", "Z:/NEXUS-sync/nexus-ai-balicek.json"] } } }</pre></details>`;
+        grid.appendChild(card);
+        if (demo)
+            return;
+        const msg = (x) => { const e = card.querySelector('[data-aimcp-msg]'); if (e)
+            e.textContent = x; };
+        card.querySelector('[data-aimcp-folder]').onclick = async () => { try {
+            AGAI.dir = null;
+            await aiPut('dir', null);
+            const d = await agAiDir(true);
+            if (d) {
+                toast(`${TL('aimcp.folderSet')}: ${d.name}`);
+                card.remove();
+                void agAiMcpCard(m, ctx);
+            }
+        }
+        catch (e) {
+            if (e?.name !== 'AbortError')
+                err(e);
+        } };
+        card.querySelector('[data-aimcp-save]').onclick = async () => { try {
+            const at = await agAiSave(ctx, true);
+            toast(TL('aimcp.saved'));
+            const l = card.querySelector('[data-aimcp-last]');
+            if (l)
+                l.textContent = `${TL('aimcp.last')}: ${new Date(at).toLocaleString()}`;
+        }
+        catch (e) {
+            if (/AUTH_SESSION/.test(String(e?.message)))
+                msg(TL('aimcp.needLogin'));
+            else
+                err(e);
+        } };
+        card.querySelector('[data-aimcp-auto]').onchange = async (ev) => { await aiPut('auto', !!ev.target.checked); agAiAuto(!!ev.target.checked); toast(ev.target.checked ? TL('aimcp.autoOn') : TL('aimcp.autoOff')); };
+        card.querySelector('[data-aimcp-load]').onclick = async () => { try {
+            const f = card.querySelector('[data-aimcp-file]')?.files?.[0] || null;
+            const n = await agAiLoad(f);
+            msg(TL('aimcp.loaded').replace('{n}', String(n)));
+            toast(TL('aimcp.loaded').replace('{n}', String(n)));
+        }
+        catch (e) {
+            msg(/NotFound/.test(String(e?.name)) ? TL('aimcp.noProposals') : String(e?.message || e));
+        } };
+    }
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -6378,7 +6521,7 @@ var KXAPP;
         const items = await IB.list({ status: 'NEW' }, C);
         const props = (await runtime.entities.list()).filter((r) => r.type === 'CORE.AI_ACTION_REQUEST' && r.data?.status === 'PROPOSED' && (!r.data.userId || r.data.userId === CURRENT_USER_ID));
         const it = (x) => x.locked ? `<div class="kx-ai-conn" data-inbox-item="${esc(x.id)}" data-inbox-locked>🔒 ${esc(TL('inbox.locked'))}: <b>${esc(hubLabel(x.hub) || x.hub)}</b> <small class="muted">${esc(new Date(x.createdAt).toLocaleString('cs-CZ'))}</small></div>`
-            : `<div class="kx-ai-conn" data-inbox-item="${esc(x.id)}"><div style="flex:1"><b>${esc(x.title)}</b> <small class="muted">${esc(TL('inbox.src.' + x.source))} · ${esc(TL('inbox.rsn.' + x.reason))} · ${esc(new Date(x.createdAt).toLocaleString('cs-CZ'))}</small>${x.text ? `<details><summary>${esc(TL('inbox.detail'))}</summary><pre class="kx-inbox-text">${esc(x.text)}</pre></details>` : ''}${x.lastError ? `<small class="kx-off">${esc(x.lastError)}</small>` : ''}</div>${x.target?.actionCode ? `<button class="btn compact" data-inbox-retry="${esc(x.id)}">↻ ${esc(TL('inbox.retry'))}</button>` : ''}${x.target?.payload?.form && DRAFT_OPENERS[x.target.payload.form] ? `<button class="btn compact" data-inbox-continue="${esc(x.id)}">↪ ${esc(TL('draft.continue'))}</button>` : ''}<button class="btn ghost compact" data-inbox-done="${esc(x.id)}">✓ ${esc(TL('inbox.done'))}</button><button class="btn ghost compact" data-inbox-discard="${esc(x.id)}">🗑 ${esc(TL('inbox.discard'))}</button></div>`;
+            : `<div class="kx-ai-conn" data-inbox-item="${esc(x.id)}"><div style="flex:1"><b>${esc(x.title)}</b> <small class="muted">${esc(TL('inbox.src.' + x.source))} · ${esc(TL('inbox.rsn.' + x.reason))} · ${esc(new Date(x.createdAt).toLocaleString('cs-CZ'))}</small>${x.text ? `<details><summary>${esc(TL('inbox.detail'))}</summary><pre class="kx-inbox-text">${esc(x.text)}</pre></details>` : ''}${x.lastError ? `<small class="kx-off">${esc(x.lastError)}</small>` : ''}</div>${x.target?.actionCode ? `<button class="btn compact" data-inbox-retry="${esc(x.id)}">${x.reason === 'APPROVAL' ? `✓ ${esc(TL('inbox.approveRun'))}` : `↻ ${esc(TL('inbox.retry'))}`}</button>` : ''}${x.target?.payload?.form && DRAFT_OPENERS[x.target.payload.form] ? `<button class="btn compact" data-inbox-continue="${esc(x.id)}">↪ ${esc(TL('draft.continue'))}</button>` : ''}<button class="btn ghost compact" data-inbox-done="${esc(x.id)}">✓ ${esc(TL('inbox.done'))}</button><button class="btn ghost compact" data-inbox-discard="${esc(x.id)}">🗑 ${esc(TL('inbox.discard'))}</button></div>`;
         const pr = (r) => `<div class="kx-ai-conn" data-inbox-proposal="${esc(r.id)}"><div style="flex:1"><b>${esc(r.data.actionCode)}</b> <small class="muted">${esc(TL('inbox.proposal'))} · ${esc(new Date(r.createdAt || r.data.createdAt || Date.now()).toLocaleString('cs-CZ'))}</small></div><button class="btn compact" data-inbox-approve="${esc(r.id)}">✓ ${esc(TL('inbox.approve'))}</button><button class="btn ghost compact" data-inbox-reject="${esc(r.id)}">✕ ${esc(TL('inbox.reject'))}</button></div>`;
         const m = toolHost('inbox');
         m.innerHTML = `<div class="modal" data-inbox-modal><div class="drawer-head"><div><b>📥 ${esc(TL('inbox.title'))}</b><small>${esc(TL('inbox.help'))}</small></div><button class="icon-btn" data-close>×</button></div><div class="ins-section">
@@ -10724,6 +10867,7 @@ var KXAPP;
         const ctx = { actorId: CURRENT_USER_ID, appCode: 'APP.KX.NEXUS', deviceId: activeDevice?.id, permissions: [], confirmed: true };
         const err = (e) => { const x = m.querySelector('[data-sync-error]'); if (x)
             x.textContent = String(e?.message || e).replace(/^AUTH_SESSION_REQUIRED_FOR_SYNC.*/, 'Nejdřív se přihlaste (Profil → Ověřená identita)').replace(/^Scope denied: family manager.*/, 'Jen správce rodiny může synchronizovat celý Workspace').replace(/^SYNC_PACKAGE_NEEDS_NEWER_APP.*/, 'Balíček je z novější verze aplikace – aktualizujte NEXUS').replace(/^SYNC_PACKAGE_CORRUPTED.*/, 'Balíček je poškozený (nesedí otisk SHA-256)').replace(/^SYNC_PREVIEW_STALE.*/, 'Data se od náhledu změnila – udělejte náhled znovu'); };
+        void agAiMcpCard(m, ctx);
         m.querySelector('[data-sync-export]')?.addEventListener('click', async () => { try {
             const pkg = await runtime.actions.invoke('ACTION.CORE.SYNC.EXPORT', {}, ctx);
             if (syncUi.url)
