@@ -1117,8 +1117,8 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 
 /* ===== shell: logo 1:1 bez nápisu, podélné logo v záhlaví, Domů / Zpět ===== */
 .app-shell>.sidebar .brand-copy{display:none !important}
-.app-shell>.sidebar .brand-mark{width:96px !important;height:96px !important;margin:6px auto !important;flex:0 0 auto;background-color:transparent !important;border:0 !important;box-shadow:none !important;outline:0 !important}
-.app-shell>.sidebar :has(> .brand-mark){justify-content:center;align-items:center;height:auto !important;min-height:108px !important;max-height:none !important;overflow:visible}
+.app-shell>.sidebar .brand-mark{width:184px !important;height:184px !important;margin:4px auto !important;flex:0 0 auto;justify-self:center;background-color:transparent !important;border:0 !important;box-shadow:none !important;outline:0 !important}
+.app-shell>.sidebar :has(> .brand-mark){display:flex !important;justify-content:center !important;align-items:center;grid-template-columns:1fr !important;height:auto !important;min-height:192px !important;max-height:none !important;overflow:visible;padding:0 !important}
 .app-shell.kx-rail>.sidebar .brand-mark{width:58px !important;height:58px !important;margin:6px auto 0 !important}
 .topbar .ag-navbtn{width:32px;height:32px;font-size:16px;margin-left:4px}
 .topbar{position:relative}
@@ -1145,3 +1145,5 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .ag-g-board{display:grid;grid-template-columns:repeat(10,36px);gap:3px;margin:10px 0}.ag-g-cell{width:36px;height:36px;border-radius:6px;border:1px solid rgba(233,181,79,.3);background:rgba(10,15,24,.8);font-size:20px;font-weight:800;cursor:pointer}.ag-g-cell.X{color:#4fb0ff}.ag-g-cell.O{color:#ffb04a}
 
 .ag-vault-demo{margin:0 0 10px;padding:8px 12px;border-radius:10px;background:rgba(233,181,79,.12);border:1px solid rgba(233,181,79,.4);color:#f6e7c2;font-size:13px}
+
+.app-shell>.sidebar .brand-mark .live-brand,.app-shell>.sidebar .brand-mark img,.app-shell>.sidebar .brand-mark svg{width:100% !important;height:100% !important;object-fit:contain}
