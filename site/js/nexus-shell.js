@@ -871,8 +871,8 @@ var KXAPP;
             }
         }
         catch { }
-        const ws = ins.querySelector('#hubWorkspace');
-        const code = String(ws?.dataset.hubRoot || (((ins.querySelector('#hubRename')?.textContent || ins.textContent || '').match(/APP\.KX\.[A-Z0-9_]+/) || [])[0]) || '');
+        const ws = ins.querySelector('#hubWorkspace'); /* the hub code from the hub header first (text search could find another hub's code) */
+        const code = String(ins.querySelector(':scope > .kx-hub-head')?.dataset.hubHead || ws?.dataset.hubRoot || (((ins.querySelector('#hubRename')?.textContent || ins.textContent || '').match(/APP\.KX\.[A-Z0-9_]+/) || [])[0]) || '');
         /* ONLY clearly administrative parts go to the fold – the hub bar and the hub function (#hubWorkspace) always stay */
         const ADMIN = ':scope > :is(.kx-card-path,.kx-card-quick,details.record-meta,#hubRename,#hubIssues,#recordShare,.ins-section:has(> .record-counters),.ins-section:has(#recordRelations))';
         const guides = Array.from(ins.querySelectorAll(':scope > .ins-section')).filter(e => /^📘/.test((e.textContent || '').trim()));
@@ -905,7 +905,7 @@ var KXAPP;
         pl?.remove();
         const sub = (head?.querySelector('h2')?.nextElementSibling?.textContent || '').trim();
         const acts = [];
-        const HUB_TOOL = { 'APP.KX.NOTES': ['agd.hp.notes', 'action', 'kx-notes'], 'APP.KX.CONNECT': ['agd.hp.kaira', 'section', 'ai'], 'APP.KX.AI': ['agd.hp.kaira', 'section', 'ai'], 'APP.KX.NEXUS': ['agd.hp.today', 'section', 'today'],
+        const HUB_TOOL = { 'APP.KX.NOTES': ['agd.hp.notes', 'action', 'kx-notes'], 'APP.KX.CONNECT': ['agd.hp.kaira', 'section', 'ai'], 'APP.KX.AI': ['agd.hp.kaira', 'section', 'ai'], 'APP.KX.NEXUS': ['agd.hp.today', 'section', 'today'], 'APP.KX.IDENTITY': ['agd.hp.theme', 'action', 'theme'], 'APP.KX.AUTOMATE': ['agd.hp.processes', 'action', 'kx-processes'], 'APP.KX.LAB': ['agd.hp.lab', 'action', 'kx-insights'], 'APP.KX.CREATOR': ['agd.hp.creator', 'action', 'shell-presets'],
             'APP.KX.INSIGHT': ['agd.hp.analytics', 'section', 'analytics'], 'APP.KX.DATA': ['agd.hp.gateway', 'action', 'web-gateway'],
             'APP.KX.BACKUP': ['agd.hp.backup', 'action', 'sync-merge'], 'APP.KX.ARCHIVE': ['agd.hp.archive', 'section', 'trash'], 'APP.KX.DEV': ['agd.hp.dev', 'action', 'kx-bugs'] };
         /* every hub that is an entrance to an existing tool gets a direct button to it */ if (HUB_TOOL[code])
