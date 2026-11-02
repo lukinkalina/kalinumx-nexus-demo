@@ -14,7 +14,9 @@ var KXApi;
     const FORBIDDEN_SECURITY = /^ACTION\.CORE\.(PRIVACY|SHARING|SPACE|USER|DEVICE|SYNC|SETTING|ENTITY|HANDOFF|SYSTEM|IMPLEMENTATION)\./;
     /* N2.5a: roles and rights never through the API */
     const FORBIDDEN_ACCESS = /^ACTION\.CORE\.(ACCESS|RECOVERY|ORG)\./;
-    const forbidden = (code) => FORBIDDEN.test(code) || FORBIDDEN_SECURITY.test(code) || FORBIDDEN_ACCESS.test(code);
+    /* N2.6b: the KEYRON password vault never through the API / MCP – not even its ciphertext (found by the MCP data test) */
+    const FORBIDDEN_VAULT = /^ACTION\.VAULT\./;
+    const forbidden = (code) => FORBIDDEN.test(code) || FORBIDDEN_SECURITY.test(code) || FORBIDDEN_ACCESS.test(code) || FORBIDDEN_VAULT.test(code);
     const hex = (b) => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
     async function sha(text) { return hex(await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))); }
     function newToken() { const b = new Uint8Array(32); globalThis.crypto.getRandomValues(b); return 'kxapi_' + [...b].map(x => x.toString(16).padStart(2, '0')).join(''); }

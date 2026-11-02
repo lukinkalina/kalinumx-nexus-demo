@@ -1147,3 +1147,117 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .ag-vault-demo{margin:0 0 10px;padding:8px 12px;border-radius:10px;background:rgba(233,181,79,.12);border:1px solid rgba(233,181,79,.4);color:#f6e7c2;font-size:13px}
 
 .app-shell>.sidebar .brand-mark .live-brand,.app-shell>.sidebar .brand-mark img,.app-shell>.sidebar .brand-mark svg{width:100% !important;height:100% !important;object-fit:contain}
+
+/* ===== N2.6b – přehledné výběry: pilulky (2–4 volby) a zlaté rozbalovací seznamy (5+) ===== */
+.kx-seg{display:inline-flex !important;flex-wrap:nowrap !important;gap:4px !important;border:0 !important;overflow:visible !important;padding:3px !important;border-radius:999px !important;background:rgba(10,15,24,.6);box-shadow:inset 0 0 0 1px rgba(233,181,79,.25)}
+.kx-seg button{border:0 !important;border-radius:999px !important;padding:4px 14px !important;min-height:28px;background:transparent !important;color:var(--ag-text,#e8e2d2) !important;white-space:nowrap;box-shadow:none !important}
+.kx-seg button:hover{background:rgba(233,181,79,.12) !important}
+.kx-seg button.on{background:linear-gradient(180deg,#f2c869,#c9922e) !important;color:#1a1205 !important;font-weight:800}
+.kx-seg button.on::before{display:none !important}
+:is(.inspector,.workspace .content,#modal,#drawer) select:not([multiple]){appearance:none;-webkit-appearance:none;min-height:34px;padding:4px 34px 4px 12px !important;border-radius:10px !important;border:1px solid rgba(233,181,79,.45) !important;color:var(--ag-text,#e8e2d2) !important;cursor:pointer;
+ background:rgba(10,15,24,.85) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23e9b54f' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 12px center !important}
+:is(.inspector,.workspace .content,#modal,#drawer) select:not([multiple]):focus{outline:none;border-color:#e9b54f !important;box-shadow:0 0 0 3px rgba(233,181,79,.18)}
+:is(.inspector,.workspace .content,#modal,#drawer) select option{background:#0b0f16;color:#e8e2d2}
+
+:is(.inspector,.workspace .content,#modal,#drawer) select:not([multiple]){font-size:13px !important}
+/* hub calendars / overviews: wide cards instead of four narrow columns */
+.inspector.hub-full .kx-hub-admin .ins-section > div > div[style*="grid"]{grid-template-columns:repeat(auto-fill,minmax(520px,1fr)) !important;gap:14px !important}
+.inspector.hub-full .kx-hub-admin .settings-card table{width:100% !important;table-layout:fixed}
+.inspector.hub-full .kx-hub-admin .settings-card td{height:64px;vertical-align:top}
+.inspector.hub-full .kx-hub-admin .studio-toolbar{flex-wrap:wrap;gap:6px !important;align-items:center}
+
+.inspector.hub-full .kx-hub-admin .settings-card table{width:100% !important;max-width:none !important;min-width:0 !important;display:table !important}
+.inspector.hub-full .kx-hub-admin .settings-card table :is(td,th){width:auto !important;min-width:0 !important;max-width:none !important;padding:4px 6px !important}
+.inspector.hub-full .kx-hub-admin .settings-card table td{height:58px !important;border-color:rgba(233,181,79,.18) !important}
+.inspector.hub-full .kx-hub-admin .settings-card table th{color:var(--ag-gold-solid,#e9b54f);font-size:11px;letter-spacing:.08em}
+.inspector.hub-full .kx-hub-admin .settings-card :has(> table){width:100% !important;max-width:none !important;display:block !important}
+
+/* ===== N2.6b – hierarchie karty záznamu: tvoje data > popis > termíny > technické údaje ===== */
+.inspector.hub-full .veh-card{display:flex !important;flex-direction:column;gap:10px;padding:14px 16px !important;border-radius:14px !important;background:linear-gradient(180deg,rgba(18,24,36,.92),rgba(10,15,24,.9)) !important;border:1px solid rgba(233,181,79,.32) !important}
+.inspector.hub-full .veh-card > header{display:grid !important;grid-template-columns:minmax(0,1fr) auto auto auto;align-items:center;gap:2px 8px}
+.inspector.hub-full .veh-card > header > b{grid-column:1;font-size:20px !important;font-weight:800;color:#fff3d6 !important;line-height:1.2;letter-spacing:.01em}
+.inspector.hub-full .veh-card > header > small{grid-column:1;grid-row:2;font-size:13px !important;color:#b9b2a0 !important}
+.inspector.hub-full .veh-card > header > .ag-tech{grid-column:2;grid-row:1;font-size:10.5px;color:#7d7869;border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:1px 6px}
+.inspector.hub-full .veh-card > header > button{grid-row:1}
+.inspector.hub-full .veh-badges{display:flex;flex-wrap:wrap;gap:6px}
+.inspector.hub-full .veh-badge{font-size:12px !important;font-weight:700;padding:4px 10px !important;border-radius:999px !important;border:1px solid transparent !important}
+.inspector.hub-full .veh-badge.veh-overdue{background:rgba(229,72,77,.16) !important;color:#ff8a8d !important;border-color:rgba(229,72,77,.5) !important}
+.inspector.hub-full .veh-badge.veh-soon{background:rgba(255,176,74,.14) !important;color:#ffc77a !important;border-color:rgba(255,176,74,.45) !important}
+.inspector.hub-full .veh-badge.veh-ok{background:rgba(70,200,120,.12) !important;color:#7fe0a5 !important;border-color:rgba(70,200,120,.4) !important}
+.inspector.hub-full .veh-card > ul{display:grid;gap:8px;margin:0 !important;padding:0 !important;list-style:none}
+.inspector.hub-full .veh-card > ul > li{display:grid !important;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 10px;padding:10px 12px !important;border-radius:11px;background:rgba(255,255,255,.035);border:1px solid rgba(233,181,79,.18);border-left:3px solid rgba(233,181,79,.7)}
+.inspector.hub-full .veh-card > ul > li > span:first-child b{display:block;font-size:15px !important;font-weight:700;color:#f6ecd6}
+.inspector.hub-full .veh-card > ul > li > span:first-child small{display:block;font-size:12.5px !important;color:#a9a290;margin-top:2px}
+.inspector.hub-full .veh-card > ul > li .veh-actions{display:flex;flex-wrap:wrap;gap:4px;align-items:center;justify-content:flex-end}
+.inspector.hub-full .veh-card > ul > li .veh-actions label{font-size:11.5px;color:#8f8a7b}
+.inspector.hub-full .veh-card > ul > li .veh-actions input[type=date]{max-width:140px;min-height:28px !important;font-size:12px}
+.inspector.hub-full .veh-card :is([data-pet-done],[data-veh-done],[data-kit-done],[data-done],button[data-hk-done]){border-color:rgba(233,181,79,.6) !important;color:#f2c869 !important}
+.inspector.hub-full .veh-card button.danger{color:#ff8a8d !important;border-color:rgba(229,72,77,.45) !important}
+.inspector.hub-full .veh-card > .kx-record-controls{order:9;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;padding-top:8px;border-top:1px dashed rgba(233,181,79,.18);font-size:12px;color:#8f8a7b}
+.inspector.hub-full .veh-card > .kx-record-controls label{font-size:12px !important;color:#a39e8e}
+.inspector.hub-full .ag-share-l{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#7d7869;font-weight:700}
+.inspector.hub-full .veh-card > :is(.veh-actions:not(.kx-record-controls),footer){order:8}
+
+/* ===== N2.6b – typografický systém celého hubu: 1) tvoje data 2) nadpisy sekcí 3) popisky polí 4) pomocný text ===== */
+/* 2) section headings – Cinzel, gold rule */
+.inspector.hub-full :is(.ins-section,.settings-card,.veh-card,details) > :is(h3,h4,.ins-title,.kx-sec-title){font-family:Cinzel,Georgia,serif;font-size:17px !important;font-weight:700;color:#f3e3bd !important;letter-spacing:.02em;margin:0 0 8px !important;padding-left:10px;border-left:3px solid #e9b54f}
+.inspector.hub-full .ins-section > :is(h3,h4) + :is(small,p.muted){display:block;margin:-4px 0 10px 13px}
+.inspector.hub-full details > summary{font-size:14px !important;color:#d9c9a2 !important;font-weight:700}
+/* 3) field labels – small gold caps above the field */
+.inspector.hub-full .kx-lf > span:first-child,.inspector.hub-full label.kx-lf{font-size:10.5px !important;letter-spacing:.09em;text-transform:uppercase;color:#c9a35a !important;font-weight:700}
+/* 1) user data – what is typed is bright and readable */
+.inspector.hub-full :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),textarea,select){font-size:15px !important;color:#fff6e2 !important;font-weight:600;text-transform:none;letter-spacing:0}
+.inspector.hub-full :is(input,textarea)::placeholder{color:#6f6a5c !important;font-weight:400}
+/* 4) helper / technical text */
+.inspector.hub-full :is(.muted,.kx-lf-help,.kx-acc-help,.hint){font-size:12px !important;color:#9a9483 !important;font-weight:400}
+/* forms in a box */
+.inspector.hub-full :is(form,.kx-calc-grid,[data-veh-form],[data-lh-form],.kx-hub-form){background:rgba(255,255,255,.025);border:1px solid rgba(233,181,79,.22);border-radius:12px;padding:12px 14px !important}
+/* buttons by weight: primary gold / secondary quiet / destructive red */
+.inspector.hub-full .btn.ghost:not(.danger){color:#d8cfb8 !important;border-color:rgba(233,181,79,.28) !important;background:rgba(10,15,24,.6) !important}
+.inspector.hub-full .btn.danger,.inspector.hub-full .btn.ghost.danger{color:#ff8a8d !important;border-color:rgba(229,72,77,.45) !important;background:rgba(229,72,77,.06) !important}
+/* tables: header small gold caps, first column = the user's names */
+.inspector.hub-full table :is(th){font-size:11px !important;letter-spacing:.08em;text-transform:uppercase;color:#c9a35a !important;font-weight:700}
+.inspector.hub-full table td{font-size:13.5px !important;color:#ece4d0}
+.inspector.hub-full table tbody td:first-child{font-weight:700;color:#fff3d6 !important}
+/* empty states */
+.inspector.hub-full :is(.empty,.desk-empty,p.empty){font-size:13px !important;color:#a39e8e !important;text-align:center;padding:18px 12px !important;border:1px dashed rgba(233,181,79,.22);border-radius:12px;background:rgba(255,255,255,.015)}
+
+/* card header: name first, description under it, small actions right */
+.inspector.hub-full .veh-card > header{grid-template-columns:minmax(0,1fr) auto !important;grid-auto-flow:row}
+.inspector.hub-full .veh-card > header > b{grid-row:1 !important;grid-column:1 !important}
+.inspector.hub-full .veh-card > header > small{grid-row:2 !important;grid-column:1 / -1 !important}
+.inspector.hub-full .veh-card > header > .ag-tech{grid-row:1 !important;grid-column:2 !important;justify-self:end;align-self:start}
+.inspector.hub-full .veh-card > header > button{display:none}
+.inspector.hub-full .veh-card > header:hover > button,.inspector.hub-full .veh-card > header:focus-within > button{display:inline-grid}
+.inspector.hub-full .veh-card > header > .ag-head-acts{grid-row:1;grid-column:2;display:flex;gap:4px;justify-self:end}
+/* deadline item: title + date over the full width, controls on their own row */
+.inspector.hub-full .veh-card > ul > li{grid-template-columns:1fr !important}
+.inspector.hub-full .veh-card > ul > li > span:first-child b{font-size:15px !important}
+.inspector.hub-full .veh-card > ul > li .veh-actions{justify-content:flex-start !important;padding-top:6px;border-top:1px solid rgba(255,255,255,.05)}
+.inspector.hub-full .veh-card > ul > li .veh-actions .btn{min-height:26px !important;padding:2px 10px !important;font-size:12px !important}
+.inspector.hub-full .veh-card > header > .ag-tech{grid-row:2 !important;grid-column:2 !important;align-self:center}
+.inspector.hub-full .veh-card > ul > li .veh-actions input[type=date]{font-size:12.5px !important;font-weight:500;max-width:150px}
+
+/* ===== N2.6b – úvodní obrazovka: střídání log, bez obrázku ===== */
+#startup .kxs-root .kxs-img{display:none !important}
+#startup .kxs-root{background:radial-gradient(900px 520px at 50% 42%,rgba(233,181,79,.12),rgba(5,8,13,0) 70%),#05080d !important}
+#startup .kxs-root .kxs-dim{opacity:0 !important}
+#startup .kxs-root .kxs-logo{display:none !important}
+#startup .kxs-center{display:flex;flex-direction:column;align-items:center;gap:10px}
+.ag-splash-logos{position:relative;width:min(300px,62vw);aspect-ratio:1;filter:drop-shadow(0 0 28px rgba(233,181,79,.25))}
+.ag-splash-logos img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;animation:agLogoCycle 15s infinite ease-in-out}
+@keyframes agLogoCycle{0%{opacity:0;transform:scale(.94)}4%{opacity:1;transform:scale(1)}15%{opacity:1;transform:scale(1.02)}19%{opacity:0;transform:scale(1.04)}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.ag-splash-logos img{animation:none}.ag-splash-logos img:first-child{opacity:1}}
+#startup .kxs-root .kxs-name{font-family:Cinzel,Georgia,serif !important;font-size:30px !important;letter-spacing:.12em !important;background:linear-gradient(180deg,#fff3d6,#e9b54f 60%,#a8761c) !important;-webkit-background-clip:text !important;background-clip:text !important;color:transparent !important}
+#startup .kxs-root .kxs-tagline{color:#c9b892 !important;letter-spacing:.2em;text-transform:uppercase;font-size:11px !important}
+#startupStatus{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(5vh + 300px);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#d9c08a;text-shadow:0 0 12px rgba(233,181,79,.3)}
+#startupBar{height:3px !important;border-radius:3px;background:linear-gradient(90deg,#a8761c,#f2c869,#fff3d6) !important;box-shadow:0 0 12px rgba(233,181,79,.6)}
+#startup .kxs-root :is(.kxs-progress,.kxs-bar){max-width:320px;margin:6px auto 0}
+/* start screen while choosing the data source: keep the logos visible, smaller and above the picker; the picker stays on top and clickable */
+#startup.kxs-choosing .kxs-root{opacity:1 !important;pointer-events:none !important;z-index:2 !important}
+#startup.kxs-choosing .startup-picker{z-index:10 !important}
+#startup.kxs-choosing .kxs-center{transform:translateY(-16vh);transition:transform .5s ease}
+#startup.kxs-choosing .ag-splash-logos{width:min(220px,48vw)}
+#startup.kxs-choosing .kxs-root :is(.kxs-progress,.kxs-bar,.kxs-steps,.kxs-step,.kxs-tips){display:none !important}
+#startup.kxs-choosing #startupStatus,#startup.kxs-choosing #startupBar{display:none !important}
+#startup .kxs-root.kxs-light{color:#e8e2d2 !important}

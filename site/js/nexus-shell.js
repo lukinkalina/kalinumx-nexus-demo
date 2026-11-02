@@ -864,6 +864,17 @@ var KXAPP;
         const ins = document.querySelector('#inspector.open.hub-full');
         if (!ins)
             return;
+        /* N2.6b (user: what I enter must stand out): split the technical "rev N" from the record description and tag the sharing row */
+        ins.querySelectorAll('.veh-card > header > small:not([data-ag-split])').forEach(sm => { sm.dataset.agSplit = '1'; const m = (sm.textContent || '').match(/^(.*?)(?:\s*·\s*)?(rev\s*\d+)\s*$/); if (m) {
+            sm.textContent = m[1];
+            const r = document.createElement('span');
+            r.className = 'ag-tech';
+            r.textContent = m[2];
+            sm.closest('header')?.insertBefore(r, sm.nextSibling);
+        } });
+        ins.querySelectorAll('.veh-card > header:not([data-ag-acts])').forEach(h => { h.dataset.agActs = '1'; const bs = Array.from(h.querySelectorAll(':scope > button')); if (!bs.length)
+            return; const w = document.createElement('span'); w.className = 'ag-head-acts'; bs.forEach(b => w.appendChild(b)); h.appendChild(w); }); /* the record's own actions (↗ ⋯) stay small at the right of the header */
+        ins.querySelectorAll('.veh-card > .kx-record-controls:not([data-ag-share])').forEach(c => { c.dataset.agShare = '1'; const l = document.createElement('span'); l.className = 'ag-share-l'; l.textContent = TL('agd.share'); c.prepend(l); });
         /* picture header: the hub's own icon from the active / built-in icon set instead of letters (DA, ZA…) */
         try {
             const ws0 = ins.querySelector('#hubWorkspace');
@@ -4050,8 +4061,10 @@ var KXAPP;
             return false;
         /* a placeholder first option („šablona…“) = an action picker, not a choice → keep the select */ if (/…$|\.\.\.$/.test(String(o[0]?.textContent || '').trim()) && !o[0].value)
             return false;
-        const labels = o.map(x => x.textContent?.trim() || '');
-        return labels.every(l => l.length > 0 && l.length <= 22) && labels.join('').length <= 150;
+        const labels = o.map(x => x.textContent?.trim() || ''); /* N2.6b (user: wrapped grids were unreadable): buttons only for 2–4 short choices; more choices stay a clear dropdown */
+        if (o.length > 4)
+            return false;
+        return labels.every(l => l.length > 0 && l.length <= 16) && labels.join('').length <= 48;
     }
     function kxSegEnhance(sel) {
         sel.dataset.kxSeg = '1';
@@ -13634,3 +13647,26 @@ var KXAPP;
     }
     mount();
 })(KXAPP || (KXAPP = {}));
+/* N2.6b (user): start screen without the big picture – rotating brand logos in the centre, name and loading info styled to match */
+(function agSplashLogos() {
+    if (typeof document === 'undefined')
+        return;
+    let n = 0;
+    const N = 6;
+    const put = () => {
+        const c = document.querySelector('#startup .kxs-root .kxs-center');
+        if (c && !c.querySelector('.ag-splash-logos')) {
+            const box = document.createElement('div');
+            box.className = 'ag-splash-logos';
+            box.setAttribute('aria-hidden', 'true');
+            box.innerHTML = Array.from({ length: N }, (_, i) => `<img src="assets/brand/splash/kx-splash-${i + 1}.webp" alt="" style="animation-delay:${i * 2.5}s" ${i ? 'loading="lazy"' : ''}>`).join('');
+            c.prepend(box);
+        }
+        if (++n < 150 && document.getElementById('startup'))
+            setTimeout(put, 100);
+    };
+    if (document.readyState === 'loading')
+        document.addEventListener('DOMContentLoaded', put);
+    else
+        put();
+})();
