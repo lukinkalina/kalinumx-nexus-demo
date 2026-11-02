@@ -905,12 +905,11 @@ var KXAPP;
         pl?.remove();
         const sub = (head?.querySelector('h2')?.nextElementSibling?.textContent || '').trim();
         const acts = [];
-        if (code === 'APP.KX.NOTES')
-            acts.push(['agd.hp.notes', 'action', 'kx-notes']);
-        if (code === 'APP.KX.DOCUMENTS')
-            acts.push(['agd.hp.files', 'section', 'files']);
-        if (code === 'APP.KX.CONNECT' || code === 'APP.KX.AI')
-            acts.push(['agd.hp.kaira', 'section', 'ai']);
+        const HUB_TOOL = { 'APP.KX.NOTES': ['agd.hp.notes', 'action', 'kx-notes'], 'APP.KX.CONNECT': ['agd.hp.kaira', 'section', 'ai'], 'APP.KX.AI': ['agd.hp.kaira', 'section', 'ai'], 'APP.KX.NEXUS': ['agd.hp.today', 'section', 'today'],
+            'APP.KX.INSIGHT': ['agd.hp.analytics', 'section', 'analytics'], 'APP.KX.DATA': ['agd.hp.gateway', 'action', 'web-gateway'],
+            'APP.KX.BACKUP': ['agd.hp.backup', 'action', 'sync-merge'], 'APP.KX.ARCHIVE': ['agd.hp.archive', 'section', 'trash'], 'APP.KX.DEV': ['agd.hp.dev', 'action', 'kx-bugs'] };
+        /* every hub that is an entrance to an existing tool gets a direct button to it */ if (HUB_TOOL[code])
+            acts.push(HUB_TOOL[code]);
         pl = document.createElement('section');
         pl.className = 'ins-section ag-place';
         pl.dataset.agPlace = '1';
@@ -921,8 +920,31 @@ var KXAPP;
             bar.insertAdjacentElement('afterend', pl);
         else
             head?.insertAdjacentElement('afterend', pl);
-        pl.querySelectorAll('[data-ag-place-go]').forEach(b => b.onclick = (e) => { e.stopPropagation(); const [k, v] = String(b.dataset.agPlaceGo).split(':'); if (k === 'action')
-            (Array.from(document.querySelectorAll('[data-action]')).find(x => x.dataset.action === v))?.click();
+        pl.querySelectorAll('[data-ag-place-go]').forEach(b => b.onclick = (e) => { e.stopPropagation(); const [k, v] = String(b.dataset.agPlaceGo).split(':'); if (k === 'action') {
+            const bound = () => Array.from(document.querySelectorAll('[data-action]')).find(x => x.dataset.action === v && typeof x.onclick === 'function');
+            let b2 = bound();
+            if (b2) {
+                b2.click();
+            }
+            else { /* the action's own button lives in a closed menu: add a permanent hidden trigger outside the app root, let render() bind it, then use it */
+                let host = document.getElementById('agActHost');
+                if (!host) {
+                    host = document.createElement('div');
+                    host.id = 'agActHost';
+                    host.hidden = true;
+                    document.body.appendChild(host);
+                }
+                if (!Array.from(host.querySelectorAll('[data-action]')).some(x => x.dataset.action === v)) {
+                    const nb = document.createElement('button');
+                    nb.type = 'button';
+                    nb.dataset.action = v;
+                    nb.tabIndex = -1;
+                    host.appendChild(nb);
+                }
+                render();
+                setTimeout(() => bound()?.click(), 0);
+            }
+        }
         else if (k === 'section') {
             state.inspector = false;
             state.activeSection = v;
@@ -10429,7 +10451,7 @@ var KXAPP;
         const sel = flat.find(c => c.id === webUi.categoryId);
         m.innerHTML = `<div class="modal" data-web-panel data-web-context-active="${webUi.context}"><div class="drawer-head"><div><b>Weby a odkazy</b><small>Vlastní kategorie až do 3 úrovní · přiřazení k záznamům všech hubů</small></div><button class="icon-btn" data-close>×</button></div>
           <div class="filter-tabs"><button data-web-context="HOME" class="${webUi.context === 'HOME' ? 'active' : ''}">Domov</button><button data-web-context="COMPANY" class="${webUi.context === 'COMPANY' ? 'active' : ''}">Firma</button></div>
-          <div class="settings-grid"><div class="settings-card"><h3>Kategorie</h3>${tree.length ? `<button class="row-btn compact ${webUi.categoryId ? '' : 'active'}" data-web-cat=""><span>Vše</span></button>${treeHtml(tree)}` : `<p class="empty">Zatím žádné kategorie – namapujte si vlastní, nebo načtěte výchozí.</p><button class="row-btn compact" data-web-seed><span>Načíst výchozí kategorie (${webUi.context === 'HOME' ? 'Jídlo, Oblečení, Boty, Škola, Zahrada…' : 'Materiály, Produkty, Služby, Konkurence…'})</span><b>＋</b></button>`}
+          <div class="settings-grid"><div class="settings-card"><h3>Kategorie</h3>${tree.length ? `<button class="row-btn compact ${webUi.categoryId ? '' : 'active'}" data-web-cat=""><span>Vše</span></button>${treeHtml(tree)}${webUi.context === 'COMPANY' ? `<button class="row-btn compact" data-web-recommended title="${esc(TL('web.recommendedHelp'))}"><span>＋ ${esc(TL('web.recommended'))}</span></button>` : ''}` : `<p class="empty">Zatím žádné kategorie – namapujte si vlastní, nebo načtěte výchozí.</p><button class="row-btn compact" data-web-seed><span>Načíst výchozí kategorie (${webUi.context === 'HOME' ? 'Jídlo, Oblečení, Boty, Škola, Zahrada…' : 'Materiály, Produkty, Služby, Konkurence…'})</span><b>＋</b></button>`}
             <input id="webCatName" placeholder="${sel ? (sel.depth >= 3 ? 'Max. 3 úrovně' : `Nová podkategorie v „${esc(sel.name)}“`) : 'Nová kategorie'}" ${sel && sel.depth >= 3 ? 'disabled' : ''}><button class="row-btn compact" data-web-cat-add ${sel && sel.depth >= 3 ? 'disabled' : ''}><span>Přidat kategorii</span><b>＋</b></button>
             ${sel ? `<button class="row-btn compact" data-web-cat-delete="${esc(sel.id)}" data-rev="${esc(sel.revision)}"><span>Smazat „${esc(sel.name)}“ (jen prázdnou)</span><b>−</b></button>` : ''}</div>
           <div class="settings-card"><h3>${sel ? esc(sel.name) : 'Všechny weby'} <small>(${links.length})</small></h3><input id="webSearch" placeholder="Hledat v názvu, adrese, poznámce…" value="${esc(webUi.text)}">
@@ -10445,6 +10467,14 @@ var KXAPP;
         m.querySelectorAll('[data-web-cat]').forEach((b) => b.onclick = () => { webUi.categoryId = b.dataset.webCat || null; void webLinksModal(); });
         m.querySelector('[data-web-seed]')?.addEventListener('click', async () => { try {
             await runtime.actions.invoke('ACTION.CORE.WEB.CATEGORY.SEED', { context: webUi.context }, webCtx());
+            await webLinksModal();
+        }
+        catch (e) {
+            err(e);
+        } });
+        m.querySelector('[data-web-recommended]')?.addEventListener('click', async () => { try {
+            const r = await runtime.actions.invoke('ACTION.CORE.WEB.LINK.RECOMMENDED', { context: webUi.context }, webCtx());
+            toast(TL('web.recommendedDone').replace('{n}', String(r?.links || 0)));
             await webLinksModal();
         }
         catch (e) {

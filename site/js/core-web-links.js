@@ -17,6 +17,8 @@ var KXWebLinks;
         HOME: [['Jídlo'], ['Oblečení'], ['Boty'], ['Škola'], ['Zahrada', ['Stromy', 'Květiny']], ['Různé']],
         COMPANY: [['Materiály'], ['Produkty'], ['Služby'], ['Konkurence'], ['Dodavatelé'], ['Různé']]
     };
+    /* N2.6b (user): recommended links, one by one – added by 'fill in defaults' only when missing (matched by URL), never overwritten */
+    const RECOMMENDED = { COMPANY: [['Úpravy obrázků', [['Idea.ai – zvětšení obrázku (upscaler)', 'https://www.idea.ai/image-upscaler', 'Zvětšení a zostření obrázku pomocí AI.'], ['HiCompress – změna DPI', 'https://hicompress.com/convert/dpi-converter', 'Převod a nastavení DPI obrázku (např. pro tisk a laser).'], ['Dither It! – rastrování obrázku', 'https://ditherit.com/', 'Dithering – převod obrázku na body, vhodné pro gravírování laserem.'], ['PineTools – inverze barev', 'https://pinetools.com/invert-image-colors', 'Převrácení barev obrázku (negativ).']]]] };
     const str = (v, max, code, required = true) => { if (v === undefined || v === null || v === '') {
         if (required)
             throw new Error(code + '_REQUIRED');
@@ -177,6 +179,28 @@ var KXWebLinks;
             }
             return { context, created };
         }
+        /* N2.6b (user): recommended links, one by one, as a separate action – only missing ones (matched by URL), never overwritten; image tools go under 'Služby' */
+        async addRecommended(input, ctx) {
+            const context = this.ctxCheck(input?.context);
+            let created = 0, links = 0;
+            for (const [catName, list] of (RECOMMENDED[context] || [])) {
+                const cats = await this.categories(context, ctx.actorId);
+                const nm = (c) => c.data?.name || c.name, pid = (c) => c.data?.parentId || c.parentId || null;
+                const parent = cats.find((c) => nm(c) === 'Služby' && !pid(c)) || null;
+                let cat = cats.find((c) => nm(c) === catName && pid(c) === (parent ? parent.id : null)) || cats.find((c) => nm(c) === catName);
+                if (!cat) {
+                    cat = await this.saveCategory({ context, name: catName, parentId: parent ? parent.id : null, order: 99 }, ctx);
+                    created++;
+                }
+                for (const [title, url, note] of list) {
+                    if (await this.findByUrl(context, url, ctx.actorId))
+                        continue;
+                    await this.saveLink({ context, url, title, note, categoryId: cat.id }, ctx);
+                    links++;
+                }
+            }
+            return { context, created, links };
+        }
         // ---------------- links ----------------
         async findByUrl(context, url, actorId) {
             const { key } = normalizeUrl(url);
@@ -323,7 +347,7 @@ var KXWebLinks;
         const reg = [];
         const defs = [
             ['ACTION.CORE.WEB.CATEGORY.SAVE', 'SAFE_WRITE', (p, c) => svc.saveCategory(p, c)], ['ACTION.CORE.WEB.CATEGORY.DELETE', 'SAFE_WRITE', (p, c) => svc.deleteCategory(p, c)],
-            ['ACTION.CORE.WEB.CATEGORY.SEED', 'SAFE_WRITE', (p, c) => svc.seedDefaults(p, c)], ['ACTION.CORE.WEB.LINK.SAVE', 'SAFE_WRITE', (p, c) => svc.saveLink(p, c)],
+            ['ACTION.CORE.WEB.CATEGORY.SEED', 'SAFE_WRITE', (p, c) => svc.seedDefaults(p, c)], ['ACTION.CORE.WEB.LINK.RECOMMENDED', 'SAFE_WRITE', (p, c) => svc.addRecommended(p, c)], ['ACTION.CORE.WEB.LINK.SAVE', 'SAFE_WRITE', (p, c) => svc.saveLink(p, c)],
             ['ACTION.CORE.WEB.LINK.ARCHIVE', 'SAFE_WRITE', (p, c) => svc.archiveLink(p, c)], ['ACTION.CORE.WEB.LINK.ATTACH', 'SAFE_WRITE', (p, c) => svc.attach(p, c)],
             ['ACTION.CORE.WEB.LINK.DETACH', 'SAFE_WRITE', (p, c) => svc.detach(p, c)]
         ];

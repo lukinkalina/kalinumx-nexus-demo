@@ -133,6 +133,12 @@ var KXDemoSeed;
             for (const [k, d, a, c, cp] of Cm)
                 await mv(com, k, d, a, c, cp);
         }
+        try {
+            await core.actions.invoke('ACTION.CORE.WEB.LINK.RECOMMENDED', { context: 'COMPANY' }, { actorId, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true });
+        }
+        catch (e) {
+            console.warn('DEMO web links', e);
+        }
         if (!n)
             throw new Error('DEMO_SEED_EMPTY');
         await core.entities.save({ id: MARK3, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), movements: n } }, { actorId, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true });
