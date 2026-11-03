@@ -198,11 +198,12 @@ var KXInsights;
         }
         async agendaItems(p, actorId) {
             const snap = await this.core.plannerAgenda.snapshot({ userId: actorId, scope: p.scope || 'ALL', from: new Date(p.from).toISOString(), to: new Date(p.to).toISOString(), types: p.types, limit: 5000 }); /* review fix: aggregates (per day / per hub) need the whole range – 500 silently cut them */
-            return (snap.items || []).filter((x) => !p.hub || x.ownerApp === p.hub).map((x, i) => {
+            const base = (snap.items || []).filter((x) => !p.hub || x.ownerApp === p.hub).map((x, i) => {
                 const at = Date.parse(x.at);
                 const end = x.endsAt ? Date.parse(x.endsAt) : null;
                 return { key: x.id || String(i), title: String(x.title || x.label || x.kind), kind: x.kind, hub: x.ownerApp, at, end: Number.isFinite(end) ? end : null, deepLink: x.deepLink || '' };
             });
+            /* occurrences of recurring events now come from the planner agenda itself (core) */ return base;
         }
         async compare(input, actorId) {
             const ids = Array.isArray(input?.ids) ? [...new Set(input.ids)].slice(0, 4) : [];

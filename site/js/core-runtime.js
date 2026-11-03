@@ -4957,6 +4957,17 @@ var KX;
                     const start = Date.parse(row.startsAt), end = Date.parse(row.endsAt || row.startsAt);
                     if (start <= toMs && end >= fromMs)
                         items.push({ kind: 'CALENDAR_EVENT', id: row.id, title: row.title, at: row.startsAt, endsAt: row.endsAt, eventTypeCode: row.eventTypeCode, subtitle: row.allDay ? 'Celý den' : new Date(row.startsAt).toLocaleString(), ownerApp: row.ownerApp, spaceIds: [...row.spaceIds], deepLink: this.deepLinks.build({ kind: 'CALENDAR_EVENT', id: row.id, appCode: row.ownerApp }), status: row.status });
+                    /* N2.6b (user: repeats everywhere): a recurring event also yields its occurrences inside the range (shared KXRecur engine; same access check as the event; same duration; marked 🔁) */
+                    const RC = globalThis.KXRecur;
+                    if (row.recurrenceRule && RC) {
+                        const dur = Math.max(0, end - start);
+                        for (const iso of RC.occurrences(row.recurrenceRule, row.startsAt, new Date(fromMs - dur).toISOString(), input.to, 400)) {
+                            const at = Date.parse(iso);
+                            if (Math.abs(at - start) < 60000 || at + dur < fromMs)
+                                continue;
+                            items.push({ kind: 'CALENDAR_EVENT', id: row.id, title: `🔁 ${row.title}`, at: iso, endsAt: row.endsAt ? new Date(at + dur).toISOString() : undefined, eventTypeCode: row.eventTypeCode, subtitle: row.allDay ? '' : new Date(iso).toLocaleString(), ownerApp: row.ownerApp, spaceIds: [...row.spaceIds], deepLink: this.deepLinks.build({ kind: 'CALENDAR_EVENT', id: row.id, appCode: row.ownerApp }), status: row.status, occurrenceAt: iso });
+                        }
+                    }
                 }
             if (types.includes('TASK'))
                 for (const row of await this.tasks.list()) {
