@@ -1287,7 +1287,7 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 :is(#modal,#drawer,.inspector) textarea:focus{outline:none;border-color:#e9b54f !important;box-shadow:0 0 0 3px rgba(233,181,79,.18)}
 
 /* ===== N2.6b – jednotná tlačítka v celé aplikaci ===== */
-:is(.inspector,#modal,#drawer,.workspace,.sidebar) :is(.icon-btn,.ag-ico):not([hidden]):not(.tb-overflow):not([data-action="tree-pin"]):not([data-action="tree-open"]){width:30px !important;height:30px !important;min-height:30px !important;padding:0 !important;display:inline-grid !important;place-items:center;font-size:15px !important;line-height:1 !important;border-radius:8px !important;border:1px solid rgba(233,181,79,.3) !important;background:rgba(10,15,24,.7) !important;color:#e8e2d2 !important;box-shadow:none !important}
+:is(.inspector,#modal,#drawer,.workspace,.sidebar) :is(.icon-btn,.ag-ico):not([hidden]):not(.tb-overflow):not([data-action="tree-pin"]):not([data-action="tree-open"]):not(.top-actions [data-tb-tool]):not(.top-actions [data-action="kx-bugs"]){width:30px !important;height:30px !important;min-height:30px !important;padding:0 !important;display:inline-grid !important;place-items:center;font-size:15px !important;line-height:1 !important;border-radius:8px !important;border:1px solid rgba(233,181,79,.3) !important;background:rgba(10,15,24,.7) !important;color:#e8e2d2 !important;box-shadow:none !important}
 :is(.inspector,#modal,#drawer,.workspace,.sidebar) :is(.icon-btn,.ag-ico):not([data-action="tree-pin"]):hover{border-color:#e9b54f !important;background:rgba(233,181,79,.14) !important}
 .topbar :is(.icon-btn,.ag-ico):not([hidden]):not(.tb-overflow){width:34px !important;height:34px !important;min-height:34px !important;font-size:17px !important;border-radius:9px !important}
 .ag-pill{min-height:28px !important;padding:3px 12px !important;border-radius:999px !important;border:1px solid rgba(233,181,79,.28) !important;background:rgba(10,15,24,.6) !important;color:#e8e2d2 !important;font-size:12.5px !important;line-height:1.2 !important;cursor:pointer}
@@ -1339,3 +1339,31 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 /* categories in the collapsed rail: a thin gold divider between icon groups */
 .app-shell.kx-rail>.sidebar:not(:hover):not(:has(:focus-visible)) .kx-tree :is([data-tree-cat],.kx-tree-cat,.kx-tree-group>button:first-child){min-height:0 !important;height:10px !important;padding:0 !important;margin:6px 10px !important;background:none !important;border:0 !important;box-shadow:none !important;border-top:1px solid rgba(233,181,79,.45) !important;overflow:hidden}
 .app-shell.kx-rail>.sidebar:not(:hover):not(:has(:focus-visible)) .kx-tree :is([data-tree-cat],.kx-tree-cat) *{display:none !important}
+
+/* N2.6b (user): top bar keeps only bell, ⋯, language, search, save, profile – every tool lives in ⋯ with a description */
+.top-actions [data-tb-tool]:not([data-tools-menu]){display:none !important}
+.kx-more-menu.kx-more-wide{min-width:340px;max-width:420px;max-height:min(78vh,720px);overflow:auto}
+.kx-more-g{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#c9a35a;font-weight:800;padding:8px 10px 3px}
+.kx-more-rich span{display:grid;gap:1px;text-align:left}.kx-more-rich b{font-size:13.5px;color:#fff3d6}.kx-more-rich small{font-size:11.5px;color:#a39e8e;white-space:normal;line-height:1.3}
+
+:is(#kx-top-hide,.topbar) .top-actions :is([data-tb-tool],[data-action="kx-bugs"]):not([data-tools-menu]):is(button,.icon-btn,.ag-ico){display:none !important}/* id-level weight so it wins over the unified icon rule */
+/* N2.6b (user: the language list hid under some windows and could not be changed): the top bar sits ABOVE windows (100) and side panels (80),
+   so language / profile / ⋯ / bell / search stay clickable and their popups open over any window */
+.topbar{position:relative;z-index:110 !important}
+
+#modal.modal-wrap{top:var(--kx-top,0px) !important}
+
+.kx-lang-portal .kx-lang-menu{position:static !important;display:block}
+
+/* N2.6b (user: the collapsed menu still showed broken text): the ‹ collapse mode (sidebar-collapsed) behaves like the icon rail – icons only, categories as gold dividers */
+.app-shell.sidebar-collapsed>.sidebar :is(.kx-ctx,.kx-pages,.kx-tree-head,.kx-tree-foot,footer,.kx-tree-filter,input,.kx-tree-sort,[data-tree-sort]){display:none !important}
+.app-shell.sidebar-collapsed>.sidebar .kx-tree :is(.kx-tree-label,.kx-tree-tw,.kx-tree-count,.kx-tree-badge,small,em){display:none !important}
+.app-shell.sidebar-collapsed>.sidebar .kx-tree *{font-size:0 !important;line-height:0 !important;letter-spacing:0 !important}
+.app-shell.sidebar-collapsed>.sidebar .kx-tree :is(.kx-tree-row,.kx-tree-hub){display:flex !important;justify-content:center !important;align-items:center;padding:4px 0 !important;min-height:34px;width:100%}
+.app-shell.sidebar-collapsed>.sidebar .kx-tree .kx-tree-hub[data-tree-tab]{display:none !important}
+.app-shell.sidebar-collapsed>.sidebar .kx-tree .ag-tree-ico{margin:0;width:30px;height:30px;flex-basis:30px;border-radius:8px}
+.app-shell.sidebar-collapsed>.sidebar .kx-tree .ag-tree-ico :is(svg,img){width:24px !important;height:24px !important}
+.app-shell.sidebar-collapsed>.sidebar .kx-tree .ag-tree-ico.ag-tree-letter{font-size:14px !important;line-height:30px !important;color:#1a1205 !important}
+.app-shell.sidebar-collapsed>.sidebar .kx-tree :is([data-tree-cat],.kx-tree-cat,.kx-tree-group>button:first-child,.kx-tree-gh,[data-tree-group]){min-height:0 !important;height:10px !important;padding:0 !important;margin:6px 10px !important;background:none !important;border:0 !important;box-shadow:none !important;border-top:1px solid rgba(233,181,79,.45) !important;overflow:hidden}
+.app-shell.sidebar-collapsed>.sidebar .kx-tree :is([data-tree-cat],.kx-tree-cat,.kx-tree-gh,[data-tree-group]) *{display:none !important}
+.app-shell.sidebar-collapsed>.sidebar header{flex-direction:column !important;align-items:center;gap:6px}

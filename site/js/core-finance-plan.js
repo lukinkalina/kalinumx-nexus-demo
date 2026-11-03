@@ -47,7 +47,7 @@ var KXFinancePlan;
             return core.entities.save(cur ? { ...cur, expectedRevision: cur.revision, data } : { type, ownerApp: OWNER, schema: 'KX.' + type + '/1', spaceIds: sp, data }, { ...ctx, appCode: OWNER });
         };
         /* N2.5q: occurrence dates of a planned payment between two dates (any interval) */
-        const occ = (d, from, to) => {
+        const occRaw = (d, from, to) => {
             const out = [];
             const start = d.nextDate;
             const end = d.endDate && d.endDate < to ? d.endDate : to;
@@ -105,8 +105,96 @@ var KXFinancePlan;
             }
             return out;
         };
+        /* N2.6b (user: pay / move to next month / pause / cancel this month / cancel the repeat): per-occurrence exceptions and a pause applied in ONE place – outlook, reserves, matching and My day all read occ() */
+        const occ = (d, from, to) => {
+            const ex = d.exceptions || {};
+            const pz = d.paused && d.paused.from ? String(d.paused.from) : null;
+            const out = [];
+            for (const x of occRaw(d, from, to)) {
+                if (pz && x >= pz)
+                    continue;
+                const e = ex[x];
+                if (e && (e.op === 'SKIP' || e.op === 'MOVE'))
+                    continue;
+                out.push(x);
+            }
+            for (const k of Object.keys(ex)) {
+                const e = ex[k];
+                if (e?.op === 'MOVE' && isoD(e.to) && e.to >= from && e.to <= to && !(pz && e.to >= pz))
+                    out.push(e.to);
+            }
+            return out.sort();
+        }; /* a moved payment is an EXTRA payment on its new date – never merged with the regular one on the same day */
+        const movedFrom = (d, x) => { for (const k of Object.keys(d.exceptions || {})) {
+            const e = d.exceptions[k];
+            if (e?.op === 'MOVE' && e.to === x)
+                return k;
+        } return null; };
+        const nextMonthSameDay = (date) => { const nm = addM(date.slice(0, 7), 1); const y = Number(nm.slice(0, 4)), m = Number(nm.slice(5, 7)); const dim = new Date(Date.UTC(y, m, 0)).getUTCDate(); return `${nm}-${String(Math.min(Number(date.slice(8, 10)), dim)).padStart(2, '0')}`; };
         async function fprefs(u) { const id = PREF_T + '.' + String(u).replace(/[^A-Z0-9_.]/gi, '_'); const r = await core.entities.get(id).catch(() => null); return { id, row: r, data: { outlookMonths: 1, payday: 15, periodMode: 'MONTH_END', ...(r?.data || {}) } }; }
         const svc = { ACC_KINDS, EVERY: [...Object.keys(EVERY), ...EXTRA], occ,
+            async plannedChange(p, ctx) {
+                const id = String(p?.id || '');
+                const cur = await core.entities.get(id);
+                if (!cur || cur.type !== PLN || cur.archivedAt)
+                    throw new Error('FINANCE_PLANNED_NOT_FOUND');
+                const d = { ...cur.data, exceptions: { ...(cur.data?.exceptions || {}) } };
+                const op = String(p?.op || '');
+                const date = String(p?.date || '');
+                const nowIso = new Date().toISOString();
+                const today = nowIso.slice(0, 10);
+                if (op === 'SKIP' || op === 'MOVE') {
+                    if (!isoD(date) || !occRaw(d, date, date).includes(date))
+                        throw new Error('FINANCE_PLANNED_NOT_AN_OCCURRENCE');
+                    let to = null;
+                    if (op === 'MOVE') {
+                        to = p?.to ? String(p.to) : nextMonthSameDay(date);
+                        if (!isoD(to) || to === date)
+                            throw new Error('FINANCE_PLANNED_MOVE_DATE');
+                    }
+                    d.exceptions[date] = { op, to, at: nowIso, by: ctx.actorId };
+                }
+                else if (op === 'RESTORE') {
+                    if (!d.exceptions[date])
+                        throw new Error('FINANCE_PLANNED_NO_CHANGE');
+                    delete d.exceptions[date];
+                }
+                else if (op === 'PAUSE') {
+                    d.paused = { from: isoD(p?.from) ? String(p.from) : today, at: nowIso, by: ctx.actorId };
+                }
+                else if (op === 'RESUME') {
+                    if (!d.paused)
+                        throw new Error('FINANCE_PLANNED_NO_CHANGE');
+                    delete d.paused;
+                }
+                else if (op === 'STOP') {
+                    if (!isoD(date))
+                        throw new Error('FINANCE_PLANNED_STOP_DATE');
+                    d.endDate = new Date(Date.parse(date + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
+                    d.stoppedAt = nowIso;
+                }
+                else
+                    throw new Error('FINANCE_PLANNED_OP');
+                if (!Object.keys(d.exceptions).length)
+                    delete d.exceptions;
+                return put(PLN, { id }, ctx, d);
+            },
+            async plannedChanges(p, ctx) {
+                const out = [];
+                for (const r of await rows(PLN, ctx.actorId, p?.spaceId)) {
+                    const d = r.data || {};
+                    const base = { id: r.id, name: d.name, amount: d.amount, kind: d.kind };
+                    for (const k of Object.keys(d.exceptions || {})) {
+                        const e = d.exceptions[k];
+                        out.push({ ...base, date: k, op: e.op, to: e.to || null, at: e.at });
+                    }
+                    if (d.paused)
+                        out.push({ ...base, date: d.paused.from, op: 'PAUSE', at: d.paused.at });
+                    if (d.stoppedAt)
+                        out.push({ ...base, date: d.endDate, op: 'STOP', at: d.stoppedAt });
+                }
+                return out.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+            },
             async saveAccount(p, ctx) {
                 const d = p?.data || {};
                 if (!String(d.name || '').trim())
@@ -227,7 +315,8 @@ var KXFinancePlan;
                     throw new Error('FINANCE_DATE');
                 if (!['INCOME', 'EXPENSE'].includes(d.kind || 'EXPENSE'))
                     throw new Error('FINANCE_KIND');
-                return put(PLN, p, ctx, { name: String(d.name).slice(0, 120), kind: d.kind || 'EXPENSE', amount: r2(a), currency: /^[A-Z]{3}$/.test(String(d.currency || '')) ? d.currency : 'CZK', category: String(d.category || 'OTHER'), every: d.every, n: d.every === 'EVERY_N' ? Number(d.n) : null, months: d.every === 'MONTHS' ? [...new Set(d.months.map(Number))].sort((a, b) => a - b) : null, rule: d.every === 'RULE' ? globalThis.KXRecur.build(globalThis.KXRecur.parse(String(d.rule))) : null, /* N2.6b: the shared repeat rule is stored (canonical) */ nextDate: d.nextDate, endDate: isoD(d.endDate) ? d.endDate : null, source: d.source || null,
+                const cur0 = p?.id ? await core.entities.get(String(p.id)).catch(() => null) : null; /* keep exceptions / pause / stop when the payment is edited */
+                return put(PLN, p, ctx, { ...(cur0?.data?.exceptions ? { exceptions: cur0.data.exceptions } : {}), ...(cur0?.data?.paused ? { paused: cur0.data.paused } : {}), ...(cur0?.data?.stoppedAt ? { stoppedAt: cur0.data.stoppedAt } : {}), name: String(d.name).slice(0, 120), kind: d.kind || 'EXPENSE', amount: r2(a), currency: /^[A-Z]{3}$/.test(String(d.currency || '')) ? d.currency : 'CZK', category: String(d.category || 'OTHER'), every: d.every, n: d.every === 'EVERY_N' ? Number(d.n) : null, months: d.every === 'MONTHS' ? [...new Set(d.months.map(Number))].sort((a, b) => a - b) : null, rule: d.every === 'RULE' ? globalThis.KXRecur.build(globalThis.KXRecur.parse(String(d.rule))) : null, /* N2.6b: the shared repeat rule is stored (canonical) */ nextDate: d.nextDate, endDate: isoD(d.endDate) ? d.endDate : null, source: d.source || null,
                     /* N2.5q: payee account (CZ number or IBAN) and variable symbol – for pairing and the QR payment */ payeeAccount: String(d.payeeAccount || '').replace(/\s+/g, '').slice(0, 40), vs: /^\d{1,10}$/.test(String(d.vs || '')) ? String(d.vs) : '' });
             },
             /* OUTLOOK: planned payments projected per month (default 36 months – user), + RESERVES for non-monthly expenses */
@@ -254,7 +343,7 @@ var KXFinancePlan;
                         const slot = months.find((q) => q.month === ym(x));
                         if (slot) {
                             slot[d.kind === 'INCOME' ? 'income' : 'expense'] += d.amount;
-                            slot.items.push({ id: r.id, name: d.name, amount: d.amount, kind: d.kind, date: x });
+                            slot.items.push({ id: r.id, name: d.name, amount: d.amount, kind: d.kind, date: x, movedFrom: movedFrom(d, x) });
                         }
                     }
                 }
@@ -585,6 +674,8 @@ var KXFinancePlan;
         reg('ACTION.FINANCE.BUDGET.SAVE', 'SAFE_WRITE', (p, c) => svc.saveBudget(p, c));
         reg('ACTION.FINANCE.BUDGET.GET', 'READ', (p, c) => svc.budget(p, c));
         reg('ACTION.FINANCE.PLANNED.SAVE', 'SAFE_WRITE', (p, c) => svc.savePlanned(p, c));
+        reg('ACTION.FINANCE.PLANNED.CHANGE', 'SAFE_WRITE', (p, c) => svc.plannedChange(p, c));
+        reg('ACTION.FINANCE.PLANNED.CHANGES', 'READ', (p, c) => svc.plannedChanges(p, c));
         reg('ACTION.FINANCE.OUTLOOK', 'READ', (p, c) => svc.outlook(p, c));
         reg('ACTION.FINANCE.GOAL.SAVE', 'SAFE_WRITE', (p, c) => svc.saveGoal(p, c));
         reg('ACTION.FINANCE.GOALS', 'READ', (p, c) => svc.goals(p, c));

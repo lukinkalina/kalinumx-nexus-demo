@@ -1217,6 +1217,39 @@ var KXAPP;
             agTreeIcons();
     }
     catch { } }).observe(document.documentElement, { childList: true, subtree: true });
+    /* N2.6b: the open language list is moved to <body> (above every window), positioned under its button; it goes back when closed */
+    new MutationObserver(muts => {
+        for (const mu of muts) {
+            const m = mu.target;
+            if (!m.matches?.('[data-lang-menu]'))
+                continue;
+            if (!m.hidden && !m.closest('.kx-lang-portal')) {
+                const home = m.parentElement;
+                const btn = home?.querySelector('[data-lang-flag]');
+                const r = (btn || home).getBoundingClientRect();
+                const wrap = document.createElement('span');
+                wrap.className = 'kx-lang kx-lang-portal';
+                wrap.__home = home;
+                wrap.style.cssText = `position:fixed;z-index:100050;top:${Math.round(r.bottom + 4)}px;right:${Math.max(8, Math.round(innerWidth - r.right))}px`;
+                document.body.appendChild(wrap);
+                wrap.appendChild(m);
+            }
+            else if (m.hidden && m.closest('.kx-lang-portal')) {
+                const wrap = m.closest('.kx-lang-portal');
+                const home = wrap.__home;
+                if (home && home.isConnected)
+                    home.appendChild(m);
+                wrap.remove();
+            }
+        }
+    }).observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['hidden'] });
+    /* N2.6b (user: the language list hid under windows): windows start BELOW the top bar, so the bar (language, profile, ⋯, bell, search) stays clickable over any window */
+    const agTopVar = () => { const tb = document.querySelector('.topbar'); const y = tb ? Math.max(0, Math.round(tb.getBoundingClientRect().bottom)) : 0; document.documentElement.style.setProperty('--kx-top', y + 'px'); };
+    window.addEventListener('resize', agTopVar);
+    new MutationObserver(() => { if (!window.__kxTopT)
+        window.__kxTopT = setTimeout(() => { window.__kxTopT = 0; agTopVar(); }, 150); }).observe(document.documentElement, { childList: true, subtree: false, attributes: true, attributeFilter: ['class'] });
+    setTimeout(agTopVar, 500);
+    setInterval(agTopVar, 2000);
     /* N2.6b: own observer – a failing tidy step above must never stop charts / repeat controls from attaching */
     new MutationObserver(() => { try {
         if (document.querySelector('[data-ag-chart]:not([data-ag-done])'))
@@ -8271,11 +8304,15 @@ var KXAPP;
     }
     let fitTopbarRetries = 0;
     function openToolsMenu(anchor) {
-        const tools = Array.from(document.querySelectorAll('.top-actions [data-tb-tool]')).filter(t => !t.matches('[data-kx-tools]'));
+        const tools = Array.from(document.querySelectorAll('.top-actions [data-tb-tool], .top-actions [data-action="kx-bugs"]')).filter((t, i, arr) => !t.matches('[data-kx-tools]') && arr.indexOf(t) === i);
         const ICON = { 'shell-presets': '🗂', 'layout': '🪟', 'theme': '🎨', 'minimize-view': '▁' };
         const icon = (t) => { const x = (t.textContent || '').trim().split(/\s+/)[0] || ''; if (x && !/\p{L}|\p{N}/u.test(x))
             return x + ' '; const k = t.dataset.action || (t.matches('[data-agent-host-toggle]') ? 'agent' : ''); return ICON[k] ? ICON[k] + ' ' : (k === 'agent' || t.matches('[data-agent-host-toggle]') ? '🤖 ' : ''); };
-        kxMoreMenu(anchor, tools.map(t => ({ key: 'tool-' + (t.dataset.action || t.dataset.tbTool || 'agent'), label: `${icon(t)}${t.dataset.tbLabel || t.getAttribute('title') || ''}`.trim(), run: () => t.click() })));
+        const GRP = { 'kx-notes': 'write', 'recorder': 'write', 'prompts': 'write', 'kx-processes': 'write', 'timers': 'write', 'sync-merge': 'data', 'web-links': 'data', 'handoff-inbox': 'data', 'kx-insights': 'data', 'theme': 'view', 'layout': 'view', 'shell-presets': 'view', 'kx-launch': 'view', 'kx-layout': 'view', 'minimize-view': 'view', 'kx-manual': 'help', 'agent': 'help', 'settings-center': 'help', 'kx-bugs': 'help', 'kx-issues': 'help' };
+        const ORD = ['write', 'data', 'view', 'help'];
+        const key = (t) => t.dataset.action || (t.matches('[data-agent-host-toggle]') ? 'agent' : String(t.dataset.tbTool || ''));
+        const rows = tools.map(t => ({ t, k: key(t) })).sort((a, b) => ORD.indexOf(GRP[a.k] || 'help') - ORD.indexOf(GRP[b.k] || 'help'));
+        kxMoreMenu(anchor, rows.map(({ t, k }) => ({ key: 'tool-' + k, group: TL('tbg.' + (GRP[k] || 'help')), label: `${icon(t)}${t.dataset.tbLabel || t.getAttribute('title') || ''}`.trim(), hint: TL('tbd.' + k) !== 'tbd.' + k ? TL('tbd.' + k) : '', run: () => t.click() })));
     }
     /* the bar re-fits on ANY size change of the bar or its parts (window resize, badges, window names, phone ↔ desktop), at most once per frame */
     let fitTopbarFrame = 0, fitTopbarSettle = 0, fitTopbarRO = null;
@@ -12864,7 +12901,11 @@ var KXAPP;
         menu.setAttribute('role', 'menu');
         menu.dataset.moreMenu = '1';
         /* look from app/styles.css (.kx-more-menu, theme variables) — review fix: the inline fallback made it white with light text */
-        menu.innerHTML = items.map(i => `<button type="button" role="menuitem" class="row-btn compact" data-more-item="${esc(i.key)}" style="width:100%;${i.danger ? 'color:#c0392b' : ''}"><span>${esc(i.label)}</span></button>`).join('');
+        /* N2.6b: optional group headings and a one-line description under the label */ let lastG = '';
+        menu.innerHTML = items.map(i => { const g = i.group && i.group !== lastG ? `<div class="kx-more-g">${esc(i.group)}</div>` : ''; if (i.group)
+            lastG = i.group; return g + `<button type="button" role="menuitem" class="row-btn compact${i.hint ? ' kx-more-rich' : ''}" data-more-item="${esc(i.key)}" style="width:100%;${i.danger ? 'color:#c0392b' : ''}"><span>${i.hint ? `<b>${esc(i.label)}</b><small>${esc(i.hint)}</small>` : esc(i.label)}</span></button>`; }).join('');
+        if (items.some(i => i.hint))
+            menu.classList.add('kx-more-wide');
         document.body.appendChild(menu);
         const r = point ? { left: point.x, right: point.x, top: point.y, bottom: point.y } : anchor.getBoundingClientRect();
         if (point)
@@ -14359,8 +14400,8 @@ var KXAPP;
         return true;
     } return false; }
     document.addEventListener('pointerdown', (e) => { const t = e.target; if (!t || !t.closest)
-        return; if (t.closest('.topbar,[data-action],.toast,[role=menu],.kx-more-menu,.menu,.kxs-root,.startup-picker,#kxDemoBar,.kx-popover,[data-keep-open],#agImgBar,#agPreview,#agTblBar'))
-        return; const m = el('#modal'); if (m?.classList.contains('open')) {
+        return; if (t.closest('.topbar,[data-action],.toast,[role=menu],.kx-more-menu,.menu,.kxs-root,.startup-picker,#kxDemoBar,.kx-popover,[data-keep-open],#agImgBar,#agPreview,#agTblBar,.kx-lang,.kx-lang-portal,.ag-combo-panel,[data-profile-menu],.kx-demo-banner'))
+        return; /* N2.6b: popups above windows (language, type-ahead, profile) never close the window */ /* N2.6b: popups above windows (language, type-ahead, profile) never close the window */ const m = el('#modal'); if (m?.classList.contains('open')) {
         const box = m.querySelector('.modal');
         if (box && !box.contains(t)) {
             closeOpenWindow();
