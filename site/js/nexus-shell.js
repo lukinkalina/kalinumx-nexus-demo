@@ -1177,6 +1177,46 @@ var KXAPP;
     }
     new MutationObserver(() => { if (!agBtnT)
         agBtnT = setTimeout(agButtonTidy, 120); }).observe(document.documentElement, { childList: true, subtree: true });
+    /* N2.6b (user: collapsed menu must keep icons, not broken text): every hub row in the tree gets its icon (same icon set as hub headers) and a name tooltip */
+    function agTreeIcons() {
+        document.querySelectorAll('.sidebar .kx-tree-hub:not([data-tree-tab]):not([data-ag-ti])').forEach(r => {
+            r.dataset.agTi = '1';
+            const code = String(r.dataset.treeHub || '');
+            const sc = code.replace(/^APP\.KX\./, '');
+            const name = (r.querySelector('.kx-tree-label')?.textContent || '').trim();
+            const s = document.createElement('span');
+            s.className = 'ag-tree-ico';
+            s.setAttribute('aria-hidden', 'true');
+            let url = '';
+            try {
+                url = String(packIcons?.[KXAppearanceAssets.iconCodeForItem(code)] || '');
+            }
+            catch { }
+            let ic = '';
+            try {
+                ic = String(iconSvg(sc, name) || '');
+            }
+            catch { }
+            if (url) {
+                s.classList.add('ag-tree-img');
+                s.style.backgroundImage = `url("${url}")`;
+            }
+            else if (/<(svg|img)\b/i.test(ic))
+                s.innerHTML = ic;
+            else {
+                s.classList.add('ag-tree-letter');
+                s.textContent = (name.replace(/^[^\p{L}]+/u, '').slice(0, 1) || '•').toUpperCase();
+            }
+            r.insertBefore(s, r.querySelector('.kx-tree-label'));
+            if (name)
+                r.setAttribute('title', name);
+        });
+    }
+    new MutationObserver(() => { try {
+        if (document.querySelector('.sidebar .kx-tree-hub:not([data-tree-tab]):not([data-ag-ti])'))
+            agTreeIcons();
+    }
+    catch { } }).observe(document.documentElement, { childList: true, subtree: true });
     /* N2.6b: own observer – a failing tidy step above must never stop charts / repeat controls from attaching */
     new MutationObserver(() => { try {
         if (document.querySelector('[data-ag-chart]:not([data-ag-done])'))

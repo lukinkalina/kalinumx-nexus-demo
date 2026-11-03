@@ -1319,3 +1319,23 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .ag-combo-list{overflow:auto;display:grid;gap:2px}.ag-combo-o{text-align:left;padding:6px 10px;border-radius:8px;border:0;background:transparent;color:#e8e2d2;font-size:13.5px;cursor:pointer}
 .ag-combo-o:hover,.ag-combo-o.act{background:rgba(233,181,79,.16)}.ag-combo-o.cur{color:#f2c869;font-weight:800}.ag-combo-o mark{background:rgba(233,181,79,.35);color:#fff;border-radius:3px}
 .ag-combo-g{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#c9a35a;padding:6px 10px 2px}.ag-combo-n{color:#8f8a7b;font-size:11px;padding:0 4px}
+
+/* ===== N2.6b – stromové menu: ikony hubů; sbalené menu = jen ikony (bez rozlámaného textu) ===== */
+.sidebar .kx-tree-hub .ag-tree-ico{display:inline-grid;place-items:center;width:20px;height:20px;flex:0 0 20px;margin-right:6px}
+.sidebar .kx-tree-hub .ag-tree-ico :is(svg,img){width:18px !important;height:18px !important}
+.app-shell.kx-rail>.sidebar:not(:hover):not(:has(:focus-visible)) .kx-tree :is(.kx-tree-label,.kx-tree-tw,.kx-tree-count,.kx-tree-badge,small,em,i:not(.ag-tree-ico)){display:none !important}
+.app-shell.kx-rail>.sidebar:not(:hover):not(:has(:focus-visible)) .kx-tree *{font-size:0 !important;line-height:0 !important;letter-spacing:0 !important}
+.app-shell.kx-rail>.sidebar:not(:hover):not(:has(:focus-visible)) .kx-tree :is(.kx-tree-row,.kx-tree-hub,.kx-tree-cat,[data-tree-cat]){display:flex !important;justify-content:center !important;align-items:center;padding:4px 0 !important;min-height:34px;width:100%}
+.app-shell.kx-rail>.sidebar:not(:hover):not(:has(:focus-visible)) .kx-tree .ag-tree-ico{margin:0;width:28px;height:28px;flex-basis:28px;border-radius:8px;background:rgba(233,181,79,.06)}
+.app-shell.kx-rail>.sidebar:not(:hover):not(:has(:focus-visible)) .kx-tree .ag-tree-ico :is(svg,img){width:22px !important;height:22px !important}
+.app-shell.kx-rail>.sidebar:not(:hover):not(:has(:focus-visible)) .kx-tree :is([data-tree-cat],.kx-tree-cat) :is(img,svg){width:30px !important;height:30px !important;border-radius:8px}
+.app-shell.kx-rail>.sidebar:not(:hover):not(:has(:focus-visible)) .kx-tree .kx-tree-hub[data-tree-tab]{display:none !important}
+
+.sidebar .kx-tree-hub .ag-tree-ico.ag-tree-letter{font:800 11px/1 Cinzel,Georgia,serif !important;color:#1a1205;background:linear-gradient(180deg,#f2c869,#c9922e);border-radius:6px}
+.app-shell.kx-rail>.sidebar:not(:hover):not(:has(:focus-visible)) .kx-tree .ag-tree-ico.ag-tree-letter{font-size:14px !important;line-height:28px !important;color:#1a1205 !important;background:linear-gradient(180deg,#f2c869,#c9922e) !important}
+
+.sidebar .kx-tree-hub .ag-tree-ico.ag-tree-img{background:center/contain no-repeat;border-radius:6px}
+.app-shell.kx-rail>.sidebar:not(:hover):not(:has(:focus-visible)) .kx-tree .ag-tree-ico.ag-tree-img{width:30px;height:30px;flex-basis:30px;background-size:contain;background-color:transparent !important}
+/* categories in the collapsed rail: a thin gold divider between icon groups */
+.app-shell.kx-rail>.sidebar:not(:hover):not(:has(:focus-visible)) .kx-tree :is([data-tree-cat],.kx-tree-cat,.kx-tree-group>button:first-child){min-height:0 !important;height:10px !important;padding:0 !important;margin:6px 10px !important;background:none !important;border:0 !important;box-shadow:none !important;border-top:1px solid rgba(233,181,79,.45) !important;overflow:hidden}
+.app-shell.kx-rail>.sidebar:not(:hover):not(:has(:focus-visible)) .kx-tree :is([data-tree-cat],.kx-tree-cat) *{display:none !important}
