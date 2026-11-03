@@ -88,8 +88,29 @@ var KXProcesses;
             const ownerApp = typeof input?.ownerApp === 'string' && /^APP\.[A-Z0-9_.]+$/.test(input.ownerApp) ? input.ownerApp : tpl?.hub || OWNER;
             const r = await this.core.entities.save({ type: TYPE, ownerApp, schema: 'KX.CORE_PROCESS/1',
                 spaceIds,
-                data: { name: name || tpl?.name || 'Postup', templateId: tpl?.id || null, target, steps: this.steps(input?.steps || tpl?.steps || []), createdBy: ctx.actorId, status: 'OPEN' } }, ctx);
+                data: { name: name || tpl?.name || 'Postup', templateId: tpl?.id || null, target, steps: this.steps(input?.steps || tpl?.steps || []), createdBy: ctx.actorId, status: 'OPEN', ...this.extra(input) } }, ctx);
             return this.view(r);
+        }
+        /* N2.6b (user: name etc. missing when creating): optional description, start, due date and responsible person – validated, old processes stay valid */
+        extra(input) {
+            const o = {};
+            const d = String(input?.description ?? '').trim();
+            if (d)
+                o.description = d.slice(0, 2000);
+            const iso = (v) => { const s = String(v ?? '').trim(); if (!s)
+                return null; const t = Date.parse(s); if (isNaN(t))
+                throw new Error('PROCESS_DATE_INVALID'); return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : new Date(t).toISOString(); };
+            const st = iso(input?.startAt), du = iso(input?.dueAt);
+            if (st)
+                o.startAt = st;
+            if (du)
+                o.dueAt = du;
+            if (st && du && Date.parse(du) < Date.parse(st))
+                throw new Error('PROCESS_DUE_BEFORE_START');
+            const r = String(input?.responsible ?? '').trim();
+            if (r)
+                o.responsible = r.slice(0, 120);
+            return o;
         }
         async load(id, ctx, level = 'EDIT') { const r = await this.core.entities.get(id); if (!r || r.type !== TYPE || r.archivedAt)
             throw new Error('PROCESS_NOT_FOUND'); if (!await this.can(r, ctx.actorId, level))
@@ -319,7 +340,7 @@ var KXProcesses;
                     segs.push({ key: s.id, row: s.title, label: `${s.title} · ${s.status === 'RUNNING' ? 'běží' : 'hotovo'}`, start: Date.parse(s.startedAt || s.doneAt || this.iso(at)), end: s.status === 'RUNNING' ? at : Date.parse(s.doneAt), planned: false });
             }
             const forecast = steps.length ? Math.max(...steps.map(endOf)) : at;
-            return { id: r.id, revision: r.revision, name: r.data.name, status: r.data.status, spaceIds: [...(r.spaceIds || [])], target: r.data.target, templateId: r.data.templateId, ownerApp: r.ownerApp, steps,
+            return { id: r.id, revision: r.revision, name: r.data.name, description: r.data.description || '', startAt: r.data.startAt || null, dueAt: r.data.dueAt || null, responsible: r.data.responsible || '', status: r.data.status, spaceIds: [...(r.spaceIds || [])], target: r.data.target, templateId: r.data.templateId, ownerApp: r.ownerApp, steps,
                 progress: total ? Math.round(done / total * 100) : 0, running: steps.filter((s) => s.status === 'RUNNING').length, plannedMin: steps.filter((s) => s.status !== 'SKIPPED').reduce((a, s) => a + s.plannedMin, 0), forecastEnd: new Date(forecast).toISOString(), segments: segs };
         }
         // N2.2a: "Moje kroky" — open steps assigned to me across processes (ready / running / overdue first)

@@ -2381,6 +2381,50 @@ var KXAPP;
         }
         openHubAt('APP.KX.FINANCE');
     }, true);
+    /* N2.6b (user: the process name etc. was only a browser prompt): an in-window dialog – name, description, space, start, due date, responsible person; also an empty process without a template */
+    async function agProcDialog(m, tpl, done) {
+        m.querySelector('.ag-proc-dlg')?.remove();
+        const C = lyCtx();
+        let sp = [];
+        try {
+            sp = await runtime.actions.invoke('ACTION.CORE.PROCESS.SPACES', {}, C);
+        }
+        catch { }
+        const box = document.createElement('div');
+        box.className = 'ag-card ag-proc-dlg';
+        const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        box.innerHTML = `<h3>${esc(tpl ? TL('proc.fromTpl').replace('{t}', tpl.name) : TL('proc.empty'))}</h3><div class="ag-vault-form"><label class="kx-lf"><span>${esc(TL('proc.name'))}*</span><input data-pd="name" maxlength="160" value="${esc(tpl?.name || '')}"></label>
+        <label class="kx-lf"><span>${esc(TL('proc.space'))}</span><select data-pd="space">${sp.map((x) => `<option value="${esc(x.id)}" data-kind="${esc(x.kind || '')}">${x.kind === 'PERSONAL' ? '👤' : x.kind === 'FAMILY' ? '👪' : '🏢'} ${esc(x.name)}</option>`).join('')}</select></label>
+        <label class="kx-lf"><span>${esc(TL('proc.start'))}</span><input type="datetime-local" data-pd="start" value="${now}"></label><label class="kx-lf"><span>${esc(TL('proc.due'))}</span><input type="date" data-pd="due"></label>
+        <label class="kx-lf"><span>${esc(TL('proc.resp'))}</span><input data-pd="resp" maxlength="120"></label><label class="kx-lf wide"><span>${esc(TL('proc.desc'))}</span><textarea data-pd="desc" rows="3" maxlength="2000"></textarea></label></div>
+        <small class="ag-proc-err" data-pd="err"></small><div class="ag-aimcp-row"><button type="button" class="btn" data-pd="ok">✓ ${esc(TL('proc.create'))}</button><button type="button" class="btn ghost" data-pd="cancel">${esc(TL('vault.cancel'))}</button></div>`;
+        const head = m.querySelector('.studio-toolbar');
+        if (head)
+            head.after(box);
+        else
+            m.querySelector('.modal')?.appendChild(box);
+        const g = (k) => box.querySelector(`[data-pd="${k}"]`);
+        g('name').focus();
+        g('name').select();
+        g('cancel').onclick = () => box.remove();
+        g('ok').onclick = async () => {
+            const name = g('name').value.trim();
+            if (!name) {
+                g('err').textContent = TL('proc.needName');
+                g('name').focus();
+                return;
+            }
+            try {
+                const x = await runtime.actions.invoke('ACTION.CORE.PROCESS.CREATE', { templateId: tpl?.id || undefined, name, description: g('desc').value, startAt: g('start').value ? new Date(g('start').value).toISOString() : undefined, dueAt: g('due').value || undefined, responsible: g('resp').value, spaceIds: g('space').value ? [g('space').value] : undefined }, C);
+                box.remove();
+                toast(TL('proc.created'));
+                done(x);
+            }
+            catch (e) {
+                g('err').textContent = TL('proc.err.' + String(e?.message || '')) !== 'proc.err.' + String(e?.message || '') ? TL('proc.err.' + String(e?.message)) : String(e?.message || e);
+            }
+        };
+    }
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -12156,7 +12200,7 @@ var KXAPP;
         }
         catch { }
         host.dataset.hubProcesses = hub;
-        host.innerHTML = `<div class="studio-toolbar"><b>🧩 Postupy hubu</b><small>${list.length}</small><span style="flex:1"></span><button class="btn ghost compact" data-hub-process-new aria-haspopup="menu">＋ Postup</button></div>${list.map((x) => `<button class="row-btn compact" data-hub-process-open="${esc(x.id)}"><span><b>${esc(x.name)}</b><small>${x.steps.length} kroků · ${x.running} běží</small></span><em>${x.progress} %</em></button>`).join('') || '<p class="empty" data-hub-process-none>Žádné postupy tohoto hubu.</p>'}`;
+        host.innerHTML = `<div class="studio-toolbar"><b>🧩 Postupy hubu</b><small>${list.length}</small><span style="flex:1"></span><button class="btn ghost compact" data-hub-process-new aria-haspopup="menu">＋ Postup</button></div>${list.map((x) => `<button class="row-btn compact" data-hub-process-open="${esc(x.id)}"><span><b>${esc(x.name)}</b>${x.description ? `<small class="ag-proc-desc">${esc(String(x.description).slice(0, 140))}</small>` : ''}${x.dueAt || x.responsible ? `<small class="ag-proc-meta">${x.dueAt ? `📅 ${esc(new Date(x.dueAt).toLocaleDateString())}` : ''}${x.dueAt && x.responsible ? ' · ' : ''}${x.responsible ? `👤 ${esc(x.responsible)}` : ''}</small>` : ''}<small>${x.steps.length} kroků · ${x.running} běží</small></span><em>${x.progress} %</em></button>`).join('') || '<p class="empty" data-hub-process-none>Žádné postupy tohoto hubu.</p>'}`;
         const nb = host.querySelector('[data-hub-process-new]');
         nb.onclick = () => kxMoreMenu(nb, tpl.filter((t) => t.hub === hub).concat(tpl.filter((t) => !t.hub)).map((t) => ({ key: 'htpl-' + t.id, label: `${t.hub ? '▣' : '▤'} ${t.name}`, run: async () => {
                 const n = prompt('Název postupu', t.name);
@@ -12194,7 +12238,7 @@ var KXAPP;
               <td style="white-space:nowrap">${x.status === 'TODO' ? `<button class="btn ghost compact" data-step-start="${esc(x.id)}">▶</button>` : ''}${x.status === 'RUNNING' ? `<button class="btn compact" data-step-done="${esc(x.id)}">✓ Hotovo</button>` : ''}<button class="icon-btn" data-kx-propagate-source="STEP" data-kx-propagate-id="${esc(cur.id)}#${esc(x.id)}" title="${esc(TL('propagate.title'))}">↗</button>${['TODO', 'RUNNING'].includes(x.status) ? `<button class="icon-btn" data-step-skip="${esc(x.id)}" title="Přeskočit">⤼</button>` : ''}<button class="icon-btn" data-step-move="${esc(x.id)}|-1">↑</button><button class="icon-btn" data-step-move="${esc(x.id)}|1">↓</button>${x.status !== 'RUNNING' ? `<button class="icon-btn" data-step-remove="${esc(x.id)}" title="Odebrat">🗑</button>` : ''}</td></tr>`).join('')}</tbody></table>
             <div class="studio-toolbar"><input data-step-new placeholder="Nový krok" style="flex:1"><input type="number" min="0" data-step-new-plan placeholder="min" style="width:64px"><button class="btn compact" data-step-add>＋ Krok</button></div>
             <h3>Gantt postupu</h3><small>Plánovaný (šedý) pruh přetáhněte = posunout začátek; tažením za pravý okraj = změnit délku.</small><div data-process-gantt>${KXInsights.render('GANTT', { segments: cur.segments }, { title: 'Gantt – ' + cur.name })}</div></div>`
-            : `<div data-process-list>${mine.length ? `<h3>Moje kroky (${mine.length})</h3><div data-process-mine>${mine.map((x) => `<button class="row-btn compact" data-mine-open="${esc(x.processId)}"><span><b>${esc(x.title)}</b><small>${esc(x.process)}</small></span><em data-mine-state="${x.overdue ? 'OVERDUE' : x.status === 'RUNNING' ? 'RUNNING' : x.ready ? 'READY' : 'WAIT'}">${x.overdue ? '⚠ po plánu' : x.status === 'RUNNING' ? '▶ běží' : x.ready ? 'připraven' : 'čeká'}</em></button>`).join('')}</div>` : ''}<div class="studio-toolbar"><button class="btn compact" data-process-new aria-haspopup="menu">＋ Nový postup</button><small>${tpl.length} šablon</small></div>${list.map((x) => `<button class="row-btn" data-process-open="${esc(x.id)}"><span><b>${esc(x.name)}</b><small>${x.steps.length} kroků · ${x.running} běží · ${x.status === 'DONE' ? 'dokončeno' : 'otevřený'}</small></span><em>${bar(x)}</em></button>`).join('') || '<p class="empty" data-process-none>Zatím žádné postupy.</p>'}</div>`;
+            : `<div data-process-list>${mine.length ? `<h3>Moje kroky (${mine.length})</h3><div data-process-mine>${mine.map((x) => `<button class="row-btn compact" data-mine-open="${esc(x.processId)}"><span><b>${esc(x.title)}</b><small>${esc(x.process)}</small></span><em data-mine-state="${x.overdue ? 'OVERDUE' : x.status === 'RUNNING' ? 'RUNNING' : x.ready ? 'READY' : 'WAIT'}">${x.overdue ? '⚠ po plánu' : x.status === 'RUNNING' ? '▶ běží' : x.ready ? 'připraven' : 'čeká'}</em></button>`).join('')}</div>` : ''}<div class="studio-toolbar"><button class="btn compact" data-process-new aria-haspopup="menu">＋ Nový postup</button><small>${tpl.length} šablon</small></div>${list.map((x) => `<button class="row-btn" data-process-open="${esc(x.id)}"><span><b>${esc(x.name)}</b>${x.description ? `<small class="ag-proc-desc">${esc(String(x.description).slice(0, 140))}</small>` : ''}${x.dueAt || x.responsible ? `<small class="ag-proc-meta">${x.dueAt ? `📅 ${esc(new Date(x.dueAt).toLocaleDateString())}` : ''}${x.dueAt && x.responsible ? ' · ' : ''}${x.responsible ? `👤 ${esc(x.responsible)}` : ''}</small>` : ''}<small>${x.steps.length} kroků · ${x.running} běží · ${x.status === 'DONE' ? 'dokončeno' : 'otevřený'}</small></span><em>${bar(x)}</em></button>`).join('') || '<p class="empty" data-process-none>Zatím žádné postupy.</p>'}</div>`;
         m.innerHTML = `<div class="modal" data-processes-tool style="max-width:1100px;width:96vw"><div class="drawer-head"><div><b>Pracovní postupy</b><small>Kroky libovolně přidávejte a ubírejte · každý krok má vlastní stopky · souběh i závislosti · Gantt</small></div><button class="icon-btn" data-close>×</button></div><div style="max-height:74vh;overflow:auto">${body}</div></div>`;
         m.querySelector('[data-close]').onclick = () => m.classList.remove('open');
         m.querySelector('[data-processes-tool]').addEventListener('click', e => e.stopPropagation());
@@ -12210,8 +12254,7 @@ var KXAPP;
             else
                 toast(msg);
         } re(); void refreshTimerBadge(); };
-        m.querySelector('[data-process-new]')?.addEventListener('click', (e) => { const b = e.currentTarget; kxMoreMenu(b, tpl.map((t) => ({ key: 'tpl-' + t.id, label: `${t.user ? '☆' : t.hub ? '▣' : '▤'} ${t.name} (${t.steps.length})${t.hub ? ' · ' + hubLabel(t.hub) : ''}`, run: async () => { const n = prompt('Název postupu', t.name); if (n === null)
-                return; await createProcessIn(b, { templateId: t.id, name: n }, (x) => { procUi.open = x.id; re(); }); } }))); });
+        m.querySelector('[data-process-new]')?.addEventListener('click', (e) => { const b = e.currentTarget; const openDlg = (t) => void agProcDialog(m, t, (x) => { procUi.open = x.id; re(); }); kxMoreMenu(b, [{ key: 'tpl-empty', label: `📄 ${TL('proc.empty')}`, run: () => openDlg(null) }, ...tpl.map((t) => ({ key: 'tpl-' + t.id, label: `${t.user ? '⭐' : t.hub ? '🧩' : '📋'} ${t.name} (${t.steps.length})${t.hub ? ' · ' + hubLabel(t.hub) : ''}`, run: () => openDlg(t) }))]); });
         m.querySelectorAll('[data-process-open]').forEach((b) => b.onclick = () => { procUi.open = b.dataset.processOpen; re(); });
         m.querySelectorAll('[data-mine-open]').forEach((b) => b.onclick = () => { procUi.open = b.dataset.mineOpen; re(); });
         m.querySelector('[data-process-back]')?.addEventListener('click', () => { procUi.open = null; re(); });
