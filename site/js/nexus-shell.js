@@ -1158,6 +1158,8 @@ var KXAPP;
         alpineRecordTidy();
         agSizeWindow();
         agNavRecord();
+        if (document.querySelector('[data-ag-chart]:not([data-ag-done])'))
+            void agHydrateCharts();
     }
     catch { } }).observe(document.documentElement, { childList: true, subtree: true });
     function personalGreeting() { const h = new Date().getHours(); const part = h < 5 ? TL('greet.g0') : h < 10 ? TL('greet.g1') : h < 12 ? TL('greet.g2') : h < 18 ? TL('greet.g3') : TL('greet.g4'); return `${part}, ${userGreetName}`; }
@@ -1194,7 +1196,7 @@ var KXAPP;
     function widget(w) {
         const liveId = w.id === 'W.KPI.TODAY' ? 'myDayStatus' : w.id === 'W.LIST.ACTIONS' ? 'myDayActions' : w.id === 'W.ACTIVITY' ? 'myDayActivity' : w.id === 'W.MIX.DAY' ? 'myDayFamily' : w.id === 'W.MIX.WORK' ? 'myDayCompany' : w.id === 'W.MIX.DESK' ? 'myDayDeskQuick' : '';
         const liveBody = liveId ? `<div id="${liveId}" class="myday-live-panel"><div class="desk-card-loading">Načítám canonical data…</div></div>` : '';
-        const body = w.kind === 'GREETING' ? greetingBody() : w.kind === 'FEED' ? feedBody(w) : liveBody || (w.kind === 'CHART' ? `<div class="chart-wrap preview-only">${spark()}<div class="legend">${(w.series || []).map(s => `<span><i></i>${esc(s.label)}</span>`).join('')}<button data-add-series="${w.id}">＋ linie</button></div><small class="prototype-note">NÁHLED VIZUALIZACE · Data Map série ještě nejsou živě napojené</small></div>` : w.kind === 'KPI' ? `<div class="kpi prototype-only"><strong>—</strong><span>Datový zdroj není zatím napojen</span></div>` : w.kind === 'LIST' ? `<ul class="mini-list prototype-only"><li><b>—</b><span>Datový seznam není zatím napojen</span></li></ul>` : w.kind === 'ACTIVITY' ? `<div class="activity prototype-only"><p><i></i><b>NÁHLED</b> bez živého zdroje</p></div>` : `<div class="quick-grid"><button disabled>＋ Nový</button><button disabled>Rozpracované</button><button disabled>Připnuté</button><button disabled>Inbox</button></div>`);
+        const body = w.kind === 'GREETING' ? greetingBody() : w.kind === 'FEED' ? feedBody(w) : liveBody || (w.kind === 'CHART' && (w.series || []).some((s) => AG_SERIES[s.code || s.id]) ? `<div class="chart-wrap ag-live-chart" data-ag-chart="${esc(w.id)}"><div class="desk-card-loading">${esc(TL('viz.loading'))}</div><div class="legend">${(w.series || []).map(s => `<span><i></i>${esc(s.label)}</span>`).join('')}<button data-add-series="${w.id}">＋ linie</button></div></div>` : w.kind === 'CHART' ? `<div class="chart-wrap preview-only">${spark()}<div class="legend">${(w.series || []).map(s => `<span><i></i>${esc(s.label)}</span>`).join('')}<button data-add-series="${w.id}">＋ linie</button></div><small class="prototype-note">NÁHLED VIZUALIZACE · Data Map série ještě nejsou živě napojené</small></div>` : w.kind === 'KPI' ? `<div class="kpi prototype-only"><strong>—</strong><span>Datový zdroj není zatím napojen</span></div>` : w.kind === 'LIST' ? `<ul class="mini-list prototype-only"><li><b>—</b><span>Datový seznam není zatím napojen</span></li></ul>` : w.kind === 'ACTIVITY' ? `<div class="activity prototype-only"><p><i></i><b>NÁHLED</b> bez živého zdroje</p></div>` : `<div class="quick-grid"><button disabled>＋ Nový</button><button disabled>Rozpracované</button><button disabled>Připnuté</button><button disabled>Inbox</button></div>`);
         return `<article class="widget size-${w.size.toLowerCase()} ${w.private ? 'private' : ''}" draggable="true" data-widget="${w.id}"><header><div><h3>${esc(w.title)}</h3><p>${esc(w.subtitle)}</p></div><div class="widget-actions">${w.private ? '<span class="lock">●</span>' : ''}<button class="icon-btn" data-widget-menu="${w.id}">⋯</button></div></header>${body}</article>`;
     }
     const myDayLocalRange = () => { const start = new Date(); start.setHours(0, 0, 0, 0); const end = new Date(start); end.setHours(23, 59, 59, 999); return { from: start.toISOString(), to: end.toISOString(), label: start.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }; };
@@ -2142,6 +2144,146 @@ var KXAPP;
             msg(/NotFound/.test(String(e?.name)) ? TL('aimcp.noProposals') : String(e?.message || e));
         } };
     }
+    /* N2.6b (user: charts did nothing) – LIVE chart data: curated series that really load from the hubs, drawn per chart family */
+    const AG_SERIES = { 'LIVE.FIN.EXPENSE.MONTH': { label: 'viz.s.expMonth', unit: 'CZK' }, 'LIVE.FIN.INCOME.MONTH': { label: 'viz.s.incMonth', unit: 'CZK' }, 'LIVE.FIN.EXPENSE.CATEGORY': { label: 'viz.s.expCat', unit: 'CZK' }, 'LIVE.TASKS.STATUS': { label: 'viz.s.tasks', unit: '' }, 'LIVE.EVENTS.DAYS': { label: 'viz.s.events', unit: '' } };
+    async function agFinMovements() {
+        const C = { actorId: CURRENT_USER_ID, appCode: 'APP.KX.FINANCE', deviceId: activeDevice?.id, permissions: [], confirmed: true };
+        const out = [];
+        for (const sp of await runtime.memberships.listSpaces()) {
+            try {
+                const rows = await runtime.actions.invoke('ACTION.FINANCE.MOVEMENT.LIST', { spaceId: sp.id }, C);
+                for (const r of (rows || []))
+                    out.push(r.data || r);
+            }
+            catch { }
+        }
+        return out;
+    }
+    const monthKey = (d) => String(d || '').slice(0, 7);
+    const lastMonths = (n) => { const a = []; const d = new Date(); d.setDate(1); for (let i = n - 1; i >= 0; i--) {
+        const x = new Date(d.getFullYear(), d.getMonth() - i, 1);
+        a.push(`${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}`);
+    } return a; };
+    async function agSeriesData(code) {
+        const label = TL(AG_SERIES[code]?.label || code);
+        if (code === 'LIVE.FIN.EXPENSE.MONTH' || code === 'LIVE.FIN.INCOME.MONTH') {
+            const want = code.includes('EXPENSE') ? 'EXPENSE' : 'INCOME';
+            const mv = await agFinMovements();
+            const ms = lastMonths(6);
+            return { label, points: ms.map(m => ({ x: m.slice(5) + '/' + m.slice(2, 4), y: Math.round(mv.filter((r) => String(r.kind) === want && monthKey(r.date) === m).reduce((s, r) => s + Math.abs(Number(r.amount) || 0), 0)) })) };
+        }
+        if (code === 'LIVE.FIN.EXPENSE.CATEGORY') {
+            const mv = (await agFinMovements()).filter((r) => String(r.kind) === 'EXPENSE');
+            const g = {};
+            for (const r of mv) {
+                const k = String(r.category || '—');
+                g[k] = (g[k] || 0) + Math.abs(Number(r.amount) || 0);
+            }
+            const catName = (k) => { const l = TL('fin.cat.' + k); return l && l !== 'fin.cat.' + k ? l : k; };
+            return { label, points: Object.entries(g).sort((a, b) => b[1] - a[1]).slice(0, 7).map(([x, y]) => ({ x: catName(x), y: Math.round(y) })) };
+        }
+        if (code === 'LIVE.TASKS.STATUS') {
+            let open = 0, done = 0;
+            try {
+                const L = await runtime.tasks.list?.() || [];
+                for (const x of L) {
+                    if (x.archivedAt)
+                        continue;
+                    if (x.completedAt || x.status === 'DONE')
+                        done++;
+                    else
+                        open++;
+                }
+            }
+            catch { }
+            return { label, points: [{ x: TL('viz.open'), y: open }, { x: TL('viz.done'), y: done }] };
+        }
+        if (code === 'LIVE.EVENTS.DAYS') {
+            const days = [];
+            const t0 = new Date();
+            t0.setHours(0, 0, 0, 0);
+            let ev = [];
+            try {
+                ev = await runtime.calendar.list() || [];
+            }
+            catch { }
+            for (let i = 0; i < 14; i++) {
+                const d = new Date(t0.getTime() + i * 86400000);
+                const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                days.push({ x: `${d.getDate()}.${d.getMonth() + 1}.`, y: ev.filter((e) => { if (e.archivedAt)
+                        return false; const s = e.startAt ?? e.start ?? e.startsAt; const d0 = typeof s === 'number' ? new Date(s) : new Date(String(s || '')); return !isNaN(d0.getTime()) && `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}` === k; }).length });
+            }
+            return { label, points: days };
+        }
+        return { label, points: [] };
+    }
+    function agChartSvg(viz, sets, unit) {
+        const n = String((KXUI.VISUALIZATIONS.find((v) => v.code === viz) || {}).name || '').toLowerCase();
+        const COL = ['#e9b54f', '#4fb0ff', '#ff8a8d', '#7fe0a5', '#c79bff', '#ffc77a', '#6fe3e0'];
+        const pts = sets[0]?.points || [];
+        const fmt = (v) => v.toLocaleString('cs-CZ') + (unit ? ` ${unit === 'CZK' ? TL('viz.czk') : unit}` : '');
+        if (!sets.length || sets.every(s => !s.points.length || s.points.every(p => !p.y)))
+            return `<p class="empty">${esc(TL('viz.noData'))}</p>`;
+        if (/kpi|delta|sparkline/.test(n)) {
+            const v = pts.reduce((s, p) => s + p.y, 0);
+            return `<div class="ag-kpi-big"><strong>${esc(fmt(v))}</strong><small>${esc(sets[0].label)}</small></div>`;
+        }
+        if (/pie|donut|ring|gauge|proportion|composition|treemap/.test(n)) {
+            const tot = pts.reduce((s, p) => s + p.y, 0) || 1;
+            let a = -Math.PI / 2;
+            const arcs = pts.map((p, i) => { const da = p.y / tot * Math.PI * 2; const x1 = 110 + 80 * Math.cos(a), y1 = 100 + 80 * Math.sin(a); a += da; const x2 = 110 + 80 * Math.cos(a), y2 = 100 + 80 * Math.sin(a); return `<path d="M110 100 L${x1.toFixed(1)} ${y1.toFixed(1)} A80 80 0 ${da > Math.PI ? 1 : 0} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} Z" fill="${COL[i % 7]}"><title>${esc(p.x)}: ${esc(fmt(p.y))}</title></path>`; }).join('');
+            return `<div class="ag-pie"><svg viewBox="0 0 220 200">${arcs}${/donut|ring/.test(n) ? '<circle cx="110" cy="100" r="44" fill="#0b0f16"/>' : ''}</svg><ul>${pts.map((p, i) => `<li><i style="background:${COL[i % 7]}"></i>${esc(p.x)} <b>${esc(fmt(p.y))}</b></li>`).join('')}</ul></div>`;
+        }
+        if (/table|list|rank/.test(n))
+            return `<table class="ag-live-table"><tr><th></th>${sets.map(s => `<th>${esc(s.label)}</th>`).join('')}</tr>${pts.map((p, i) => `<tr><td>${esc(p.x)}</td>${sets.map(s => `<td>${esc(fmt(s.points[i]?.y || 0))}</td>`).join('')}</tr>`).join('')}</table>`;
+        const W = 560, H = 200, pad = 34, max = Math.max(1, ...sets.flatMap(s => s.points.map(p => p.y)));
+        const xs = (i, c) => pad + i * ((W - pad * 2) / Math.max(1, c - (/bar|histogram|column/.test(n) ? 0 : 1)));
+        const ys = (v) => H - 24 - (v / max) * (H - 44);
+        let body = '';
+        if (/bar|histogram|column/.test(n)) {
+            const c = pts.length, bw = (W - pad * 2) / c / (sets.length + .6);
+            sets.forEach((s, si) => s.points.forEach((p, i) => { body += `<rect x="${(xs(i, c) + si * bw + bw * .3).toFixed(1)}" y="${ys(p.y).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - 24 - ys(p.y)).toFixed(1)}" rx="3" fill="${COL[si % 7]}"><title>${esc(p.x)}: ${esc(fmt(p.y))}</title></rect>`; }));
+        }
+        else
+            sets.forEach((s, si) => { const c = s.points.length; const d = s.points.map((p, i) => `${i ? 'L' : 'M'}${xs(i, c).toFixed(1)} ${ys(p.y).toFixed(1)}`).join(' '); if (/area/.test(n))
+                body += `<path d="${d} L${xs(c - 1, c)} ${H - 24} L${xs(0, c)} ${H - 24} Z" fill="${COL[si % 7]}" opacity=".25"/>`; body += `<path d="${d}" fill="none" stroke="${COL[si % 7]}" stroke-width="3"/>` + s.points.map((p, i) => `<circle cx="${xs(i, c).toFixed(1)}" cy="${ys(p.y).toFixed(1)}" r="3.5" fill="${COL[si % 7]}"><title>${esc(p.x)}: ${esc(fmt(p.y))}</title></circle>`).join(''); });
+        const labels = pts.map((p, i) => `<text x="${(xs(i, pts.length) + (/bar|histogram|column/.test(n) ? ((W - pad * 2) / pts.length) / 2 : 0)).toFixed(1)}" y="${H - 6}" font-size="10" text-anchor="middle" fill="#a39e8e">${esc(p.x)}</text>`).join('');
+        return `<svg class="ag-live-svg" viewBox="0 0 ${W} ${H}"><line x1="${pad}" y1="${H - 24}" x2="${W - pad}" y2="${H - 24}" stroke="rgba(255,255,255,.15)"/><text x="${pad}" y="12" font-size="10" fill="#a39e8e">${esc(fmt(max))}</text>${body}${labels}</svg>`;
+    }
+    async function agHydrateCharts() {
+        for (const el of Array.from(document.querySelectorAll('[data-ag-chart]:not([data-ag-done])'))) {
+            el.dataset.agDone = '1';
+            const w = (currentWindow()?.widgets || []).find((x) => x.id === el.dataset.agChart);
+            if (!w)
+                continue;
+            try {
+                const live = (w.series || []).filter((s) => AG_SERIES[s.code || s.id]);
+                const sets = await Promise.all(live.map((s) => agSeriesData(s.code || s.id)));
+                const unit = AG_SERIES[live[0]?.code || live[0]?.id]?.unit || '';
+                const box = el.querySelector('.desk-card-loading');
+                if (box)
+                    box.outerHTML = agChartSvg(w.viz, sets, unit);
+            }
+            catch (e) {
+                const box = el.querySelector('.desk-card-loading');
+                if (box)
+                    box.textContent = String(e?.message || e);
+            }
+        }
+    }
+    function agSeriesQuick(m, w) {
+        const head = m.querySelector('.drawer-head');
+        if (!head || m.querySelector('[data-ag-live-series]'))
+            return;
+        const box = document.createElement('div');
+        box.className = 'ag-live-series';
+        box.dataset.agLiveSeries = '1';
+        box.innerHTML = `<b>✨ ${esc(TL('viz.liveTitle'))}</b><div>${Object.entries(AG_SERIES).map(([c, v]) => `<button type="button" class="btn compact" data-ag-add-live="${c}">＋ ${esc(TL(v.label))}</button>`).join('')}</div><small>${esc(TL('viz.liveHelp'))}</small>`;
+        head.after(box);
+        box.querySelectorAll('[data-ag-add-live]').forEach(b => b.onclick = () => { const c = String(b.dataset.agAddLive); if (!(w.series || []).some((s) => (s.code || s.id) === c)) {
+            w.series = [...(w.series || []), { id: c, code: c, label: TL(AG_SERIES[c].label), source: 'LIVE' }];
+        } w.subtitle = TL('viz.liveSub'); save(); m.className = 'modal-wrap'; m.innerHTML = ''; render(); });
+    }
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -2856,7 +2998,49 @@ var KXAPP;
             host.innerHTML = `<div class="empty">Navigace chyba: ${esc(error?.message || error)}</div>`;
         }
     }
-    function analytics() { return pageSimple('Analýzy a vizualizace', '48 grafů a porovnávačů napříč KalinumX', `<div class="viz-grid">${KXUI.VISUALIZATIONS.map(v => `<button class="viz-card" data-viz="${v.code}"><div>${spark()}</div><b>${esc(v.name)}</b><small>${esc(v.description)}</small><em>${v.multiSeries ? 'více linií' : '1 sada'}${v.compare ? ' · porovnání' : ''}</em></button>`).join('')}</div>`); }
+    /* N2.6b (user: all 48 previews looked the same) – a small preview drawn per chart family */
+    function vizPreview(v) {
+        const n = String(v?.name || '').toLowerCase();
+        const A = 'var(--ag-gold-solid,#e9b54f)', B = '#4fb0ff', C2 = '#ff8a8d', G = '#7fe0a5';
+        const s = (body) => `<svg viewBox="0 0 320 120" class="spark">${body}</svg>`;
+        const bars = (h, col = A) => h.map((y, i) => `<rect x="${20 + i * 36}" y="${110 - y}" width="24" height="${y}" rx="3" fill="${col}" opacity="${.55 + i * .05}"/>`).join('');
+        if (/kpi|delta|sparkline/.test(n))
+            return s(`<text x="20" y="62" font-size="44" font-weight="800" fill="${A}">128</text><text x="150" y="62" font-size="20" fill="${G}">▲ 12 %</text><path d="M20 100 L80 92 L140 96 L200 80 L260 84 L300 70" fill="none" stroke="${A}" stroke-width="3"/>`);
+        if (/progress ring|donut/.test(n))
+            return s(`<circle cx="160" cy="60" r="42" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="16"/><circle cx="160" cy="60" r="42" fill="none" stroke="${A}" stroke-width="16" stroke-dasharray="190 264" transform="rotate(-90 160 60)"/>${/donut/.test(n) ? `<circle cx="160" cy="60" r="42" fill="none" stroke="${B}" stroke-width="16" stroke-dasharray="50 264" stroke-dashoffset="-190" transform="rotate(-90 160 60)"/>` : ''}`);
+        if (/pie/.test(n))
+            return s(`<circle cx="160" cy="60" r="50" fill="${B}"/><path d="M160 60 L160 10 A50 50 0 0 1 207 77 Z" fill="${A}"/><path d="M160 60 L207 77 A50 50 0 0 1 140 106 Z" fill="${C2}"/>`);
+        if (/gauge/.test(n))
+            return s(`<path d="M80 100 A80 80 0 0 1 240 100" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="16"/><path d="M80 100 A80 80 0 0 1 205 40" fill="none" stroke="${A}" stroke-width="16"/><line x1="160" y1="100" x2="200" y2="52" stroke="#fff3d6" stroke-width="4"/>`);
+        if (/treemap|proportion|composition|block/.test(n))
+            return s(`<rect x="10" y="10" width="160" height="100" rx="4" fill="${A}" opacity=".8"/><rect x="174" y="10" width="136" height="56" rx="4" fill="${B}" opacity=".75"/><rect x="174" y="70" width="70" height="40" rx="4" fill="${C2}" opacity=".75"/><rect x="248" y="70" width="62" height="40" rx="4" fill="${G}" opacity=".75"/>`);
+        if (/heat/.test(n))
+            return s(Array.from({ length: 24 }, (_, i) => `<rect x="${14 + (i % 8) * 37}" y="${12 + Math.floor(i / 8) * 34}" width="33" height="30" rx="3" fill="${A}" opacity="${(.15 + ((i * 37) % 10) / 12).toFixed(2)}"/>`).join(''));
+        if (/scatter|bubble/.test(n))
+            return s([[40, 80, 6], [80, 50, 10], [120, 70, 8], [170, 35, 14], [210, 60, 7], [260, 25, 11], [290, 55, 6]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${/bubble/.test(n) ? r : 5}" fill="${A}" opacity=".8"/>`).join(''));
+        if (/funnel/.test(n))
+            return s(`<path d="M40 12 H280 L250 42 H70 Z" fill="${A}"/><path d="M74 46 H246 L222 76 H98 Z" fill="${A}" opacity=".75"/><path d="M102 80 H218 L196 108 H124 Z" fill="${A}" opacity=".5"/>`);
+        if (/radar|spider/.test(n))
+            return s(`<polygon points="160,10 230,45 210,105 110,105 90,45" fill="none" stroke="rgba(255,255,255,.2)"/><polygon points="160,30 205,50 190,90 125,95 115,52" fill="${A}" opacity=".45" stroke="${A}"/>`);
+        if (/table|matrix|list/.test(n))
+            return s(Array.from({ length: 4 }, (_, i) => `<rect x="14" y="${12 + i * 26}" width="292" height="20" rx="3" fill="${i ? 'rgba(255,255,255,.06)' : A}" opacity="${i ? 1 : .7}"/>`).join(''));
+        if (/rank|top|bottom|horizontal/.test(n))
+            return s([290, 230, 180, 120, 70].map((w, i) => `<rect x="14" y="${10 + i * 22}" width="${w}" height="16" rx="3" fill="${A}" opacity="${1 - i * .13}"/>`).join(''));
+        if (/stacked bar|grouped/.test(n))
+            return s([[40, 30], [60, 25], [30, 45], [70, 20], [50, 35], [65, 30], [45, 40], [75, 15]].map(([a, b], i) => `<rect x="${20 + i * 36}" y="${110 - a - b}" width="24" height="${b}" fill="${B}"/><rect x="${20 + i * 36}" y="${110 - a}" width="24" height="${a}" fill="${A}"/>`).join(''));
+        if (/bar|histogram|column|waterfall/.test(n))
+            return s(bars([40, 70, 55, 90, 62, 80, 45, 100]));
+        if (/area/.test(n))
+            return s(`<path d="M4 100 L60 70 L120 82 L180 48 L240 60 L316 26 L316 118 L4 118 Z" fill="${A}" opacity=".35"/>${/stacked/.test(n) ? `<path d="M4 110 L60 92 L120 98 L180 80 L240 86 L316 66 L316 118 L4 118 Z" fill="${B}" opacity=".45"/>` : ''}<path d="M4 100 L60 70 L120 82 L180 48 L240 60 L316 26" fill="none" stroke="${A}" stroke-width="3"/>`);
+        if (/step/.test(n))
+            return s(`<path d="M4 96 H60 V70 H120 V84 H180 V48 H240 V60 H316" fill="none" stroke="${A}" stroke-width="3"/>`);
+        if (/timeline|gantt|calendar/.test(n))
+            return s(`<line x1="10" y1="60" x2="310" y2="60" stroke="rgba(255,255,255,.25)" stroke-width="2"/>${[40, 110, 180, 250].map((x, i) => `<circle cx="${x}" cy="60" r="8" fill="${[A, B, C2, G][i]}"/><rect x="${x - 24}" y="${i % 2 ? 72 : 28}" width="48" height="16" rx="4" fill="${[A, B, C2, G][i]}" opacity=".35"/>`).join('')}`);
+        if (/line|trend|compar/.test(n))
+            return s(`<path d="M4 90 L60 70 L120 80 L180 46 L240 56 L316 22" fill="none" stroke="${A}" stroke-width="3"/><path d="M4 100 L60 92 L120 70 L180 76 L240 50 L316 58" fill="none" stroke="${B}" stroke-width="3" opacity=".8"/>`);
+        return spark();
+    }
+    function analytics() { return pageSimple('Analýzy a vizualizace', '48 grafů a porovnávačů napříč KalinumX', `${(() => { const mine = (currentWindow()?.widgets || []).filter((w) => w.kind === 'CHART'); return mine.length ? `<section class="ag-mycharts"><h3>${esc(TL('viz.mine'))}</h3><div class="dashboard cols-2">${mine.map((w) => widget(w)).join('')}</div></section>` : ''; })()}<h3 class="ag-gallery-h">${esc(TL('viz.gallery'))}</h3><div class="viz-grid">${KXUI.VISUALIZATIONS.map(v => `<button class="viz-card" data-viz="${v.code}"><div>${vizPreview(v)}</div><b>${esc(v.name)}</b><small>${esc(v.description)}</small><em>${v.multiSeries ? 'více linií' : '1 sada'}${v.compare ? ' · porovnání' : ''}</em></button>`).join('')}</div>`); }
     function aiWidgetMarkup(size = aiUi.size) {
         const sizes = ['MINI', 'SMALL', 'MEDIUM', 'LARGE', 'MAXI'];
         return `<section class="ai-widget ai-size-${esc(size.toLowerCase())}" id="aiWorkspace" data-ai-current-size="${esc(size)}">
@@ -10325,15 +10509,21 @@ var KXAPP;
         const v = KXUI.VISUALIZATIONS.find(x => x.code === code);
         if (!v)
             return;
-        currentWindow().widgets.push({ id: `W.${Date.now()}`, title: v.name, subtitle: 'Nová vizualizace – vyber datové linie', kind: 'CHART', size: 'L', viz: code, series: [] });
-        state.activeSection = 'today';
+        const nw = { id: `W.${Date.now()}`, title: v.name, subtitle: 'Nová vizualizace – vyber datové linie', kind: 'CHART', size: 'L', viz: code, series: [] };
+        currentWindow().widgets.push(nw); /* N2.6b: stay in Analytics (the overview no longer shows tiles) and ask for the data right away */
+        state.activeSection = 'analytics';
         save();
         render();
+        setTimeout(() => { try {
+            seriesPicker(nw);
+        }
+        catch { } }, 50);
     }
     function seriesPicker(w) {
         const m = el('#modal');
         m.className = 'modal-wrap open';
         m.innerHTML = `<div class="modal"><div class="drawer-head"><div><b>Přidat datovou linii</b><small>${esc(w.title)} · zdroj může být z libovolné aplikace</small></div><button class="icon-btn" data-close>×</button></div><input class="search-input" id="seriesSearch" placeholder="Hledat aplikaci, kategorii nebo FIELD.CODE…"><div class="series-sources" id="seriesSources">${seriesSources('')}</div><div class="manual-series"><input id="manualSeries" placeholder="např. FIELD.FINANCE.EXPENSE.AMOUNT"><button class="btn" data-manual>＋ Přidat FIELD.CODE</button></div></div>`;
+        agSeriesQuick(m, w);
         const close = () => m.classList.remove('open');
         m.querySelector('[data-close]').addEventListener('click', close);
         const input = el('#seriesSearch');
