@@ -1158,6 +1158,25 @@ var KXAPP;
         agNavRecord();
     }
     catch { } }).observe(document.documentElement, { childList: true, subtree: true });
+    /* N2.6b (user: same function, different look – unify across the app): icon-only buttons → one 30 px icon style; tiny unstyled text buttons (tabs, toggles) → one 28 px pill; runs debounced after DOM changes */
+    let agBtnT = 0;
+    function agButtonTidy() {
+        agBtnT = 0;
+        for (const b of Array.from(document.querySelectorAll('button:not([data-ag-b])'))) {
+            if (!b.isConnected || b.offsetParent === null)
+                continue;
+            b.dataset.agB = '1';
+            const tx = (b.textContent || '').trim();
+            if (b.matches('[data-action="tree-pin"],[data-action="tree-open"],[data-action*="collapse"],.kx-tree-pin,.kx-split-handle,[data-resize]'))
+                continue; /* layout controls keep their own shape and position */
+            if (!b.classList.contains('icon-btn') && tx && tx.length <= 3 && !/[\p{L}\p{N}]/u.test(tx) && !b.closest('.kx-seg,.ag-recur-days,.ag-g-mem,.ag-g-board,.ag-filters,.kx-pk-dh'))
+                b.classList.add('ag-ico');
+            else if (!String(b.className).trim() && b.closest('.inspector,#modal,#drawer,.workspace') && !b.closest('.kx-seg,.ag-recur-days,.ag-g-board') && b.getBoundingClientRect().height < 24)
+                b.classList.add('ag-pill');
+        }
+    }
+    new MutationObserver(() => { if (!agBtnT)
+        agBtnT = setTimeout(agButtonTidy, 120); }).observe(document.documentElement, { childList: true, subtree: true });
     /* N2.6b: own observer – a failing tidy step above must never stop charts / repeat controls from attaching */
     new MutationObserver(() => { try {
         if (document.querySelector('[data-ag-chart]:not([data-ag-done])'))
@@ -2425,6 +2444,161 @@ var KXAPP;
             }
         };
     }
+    /* N2.6b (user): under ⋯ of every item – a QR code to open the SAME item on a phone / another computer, plus copy / share / send to my devices / download */
+    async function agItemQr(it) {
+        const H = runtime?.handoff;
+        const deepLink = String(it.deepLink || runtime.deepLinks.build({ kind: 'ENTITY', id: String(it.id || '').split('#')[0] }));
+        const title = String(it.title || '');
+        const u = H ? H.recordUrl(deepLink) : { available: false };
+        let qr = '';
+        if (u.available) {
+            try {
+                qr = KXHandoff.qrSvg(u.url, { label: 'QR ' + title });
+            }
+            catch {
+                qr = '';
+            }
+        }
+        const m = el('#modal');
+        m.className = 'modal-wrap open';
+        m.innerHTML = `<div class="modal ag-qr-share" data-qr-share><div class="drawer-head"><div><b>📱 ${esc(TL('qr2.title'))}</b><small>${esc(title)}</small></div><button class="icon-btn" data-close>×</button></div>
+        <div class="ag-qr-share-body"><div class="ag-qr-share-code">${qr || `<p class="muted">${esc(TL('qr2.unavailable'))}</p>`}</div><div class="ag-qr-share-side"><p>${esc(TL('qr2.help'))}</p>
+          <div class="ag-qr-share-btns">${u.available ? `<button class="btn" data-qs="copy">📋 ${esc(TL('qr2.copy'))}</button>${navigator.share ? `<button class="btn ghost" data-qs="share">📤 ${esc(TL('qr2.share'))}</button>` : ''}<button class="btn ghost" data-qs="png">⬇ ${esc(TL('qr2.png'))}</button>` : ''}<button class="btn ghost" data-qs="send">📲 ${esc(TL('qr2.send'))}</button></div>
+          <small class="muted">${esc(TL('qr2.note'))}</small></div></div></div>`;
+        const close = () => { m.className = 'modal-wrap'; m.innerHTML = ''; };
+        m.querySelector('[data-close]').onclick = close;
+        const b = (k) => m.querySelector(`[data-qs="${k}"]`);
+        b('copy') && (b('copy').onclick = async () => { try {
+            await navigator.clipboard.writeText(u.url);
+            toast(TL('qr2.copied'));
+        }
+        catch {
+            toast(TL('qr2.copyFail'));
+        } });
+        b('share') && (b('share').onclick = async () => { try {
+            await navigator.share({ title, url: u.url });
+        }
+        catch { } });
+        b('png') && (b('png').onclick = () => { const svg = m.querySelector('.ag-qr-share-code svg'); if (!svg)
+            return; const img = new Image(); img.onload = () => { const c = document.createElement('canvas'); c.width = 1024; c.height = 1024; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 1024, 1024); g.drawImage(img, 0, 0, 1024, 1024); c.toBlob(bl => { if (!bl)
+            return; const a = document.createElement('a'); a.href = URL.createObjectURL(bl); a.download = `QR ${title || 'NEXUS'}.png`; a.addEventListener('click', (ev) => ev.stopPropagation()); document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 600); }, 'image/png'); }; img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(svg)); });
+        b('send').onclick = async () => { try {
+            await runtime.actions.invoke('ACTION.CORE.HANDOFF.SEND', { deepLink, title }, handoffCtx());
+            toast(TL('qr2.sent'));
+        }
+        catch (e) {
+            toast(String(e?.message || e));
+        } };
+    }
+    /* N2.6b (user: every choice list with type-ahead, all options visible): selects with 5+ options open ONE searchable panel instead of the tiny native list –
+       full list with groups, ✓ current, typing filters (diacritics-insensitive), ↑ ↓ Enter Esc; the native select stays the source of truth (value + change) */
+    const agFold = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    let agComboOpen = null;
+    function agComboClose() { if (!agComboOpen)
+        return; agComboOpen.panel.remove(); agComboOpen.sel.focus?.(); agComboOpen = null; }
+    function agComboEligible(sel) { return sel && sel.tagName === 'SELECT' && !sel.multiple && !sel.disabled && !sel.dataset.kxSeg && sel.options.length >= 5 && !!sel.closest('.inspector,#modal,#drawer,.workspace,.content'); }
+    function agComboOpenFor(sel, initial = '') {
+        agComboClose();
+        const r = sel.getBoundingClientRect();
+        const panel = document.createElement('div');
+        panel.className = 'ag-combo-panel';
+        panel.setAttribute('role', 'listbox');
+        const w = Math.max(r.width, 260);
+        panel.style.cssText = `left:${Math.min(r.left, innerWidth - w - 8)}px;top:${r.bottom + 4 + 320 > innerHeight ? Math.max(8, r.top - 330) : r.bottom + 4}px;width:${w}px`;
+        panel.innerHTML = `<input class="ag-combo-q" placeholder="${esc(TL('combo.search'))}" value="${esc(initial)}"><div class="ag-combo-list"></div><small class="ag-combo-n"></small>`;
+        document.body.appendChild(panel);
+        const qi = panel.querySelector('.ag-combo-q'), list = panel.querySelector('.ag-combo-list'), cnt = panel.querySelector('.ag-combo-n');
+        let act = -1;
+        let rows = [];
+        const draw = () => {
+            const f = agFold(qi.value.trim());
+            let h = '', lastG = null;
+            rows = [];
+            let n = 0;
+            Array.from(sel.options).forEach((o, i) => {
+                if (o.hidden || o.disabled && !o.value)
+                    return;
+                const txt = (o.textContent || '').trim();
+                const hit = !f || agFold(txt).includes(f);
+                if (!hit)
+                    return;
+                n++;
+                const g = o.parentElement?.tagName === 'OPTGROUP' ? o.parentElement.label : '';
+                if (g && g !== lastG) {
+                    h += `<div class="ag-combo-g">${esc(g)}</div>`;
+                    lastG = g;
+                }
+                let lab = esc(txt);
+                if (f) {
+                    const k = agFold(txt).indexOf(f);
+                    if (k >= 0)
+                        lab = esc(txt.slice(0, k)) + '<mark>' + esc(txt.slice(k, k + f.length)) + '</mark>' + esc(txt.slice(k + f.length));
+                }
+                h += `<button type="button" class="ag-combo-o ${i === sel.selectedIndex ? 'cur' : ''}" data-i="${i}" role="option" title="${esc(txt)}">${i === sel.selectedIndex ? '✓ ' : ''}${lab}</button>`;
+            });
+            list.innerHTML = h || `<p class="muted">${esc(TL('combo.none'))}</p>`;
+            rows = Array.from(list.querySelectorAll('.ag-combo-o'));
+            cnt.textContent = TL('combo.count').replace('{n}', String(n)).replace('{t}', String(sel.options.length));
+            act = Math.max(0, rows.findIndex(x => x.classList.contains('cur')));
+            if (f)
+                act = 0;
+            mark();
+        };
+        const mark = () => { rows.forEach((x, i) => x.classList.toggle('act', i === act)); rows[act]?.scrollIntoView({ block: 'nearest' }); };
+        const pick = (i) => { sel.selectedIndex = i; sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true })); agComboClose(); };
+        list.addEventListener('mousedown', (e) => { const b = e.target.closest('.ag-combo-o'); if (!b)
+            return; e.preventDefault(); pick(Number(b.dataset.i)); });
+        qi.addEventListener('input', draw);
+        qi.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown') {
+                act = Math.min(rows.length - 1, act + 1);
+                mark();
+                e.preventDefault();
+            }
+            else if (e.key === 'ArrowUp') {
+                act = Math.max(0, act - 1);
+                mark();
+                e.preventDefault();
+            }
+            else if (e.key === 'Enter') {
+                if (rows[act])
+                    pick(Number(rows[act].dataset.i));
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            else if (e.key === 'Escape') {
+                agComboClose();
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            else if (e.key === 'Tab')
+                agComboClose();
+        });
+        agComboOpen = { sel, panel };
+        draw();
+        setTimeout(() => qi.focus(), 0);
+    }
+    document.addEventListener('mousedown', (e) => { const s = e.target?.closest?.('select'); if (s && agComboEligible(s)) {
+        e.preventDefault();
+        if (agComboOpen?.sel === s)
+            agComboClose();
+        else
+            agComboOpenFor(s);
+        return;
+    } if (agComboOpen && !e.target?.closest?.('.ag-combo-panel'))
+        agComboClose(); }, true);
+    document.addEventListener('keydown', (e) => { const s = e.target; if (!agComboEligible(s) || agComboOpen)
+        return; if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowDown' && e.altKey) {
+        e.preventDefault();
+        agComboOpenFor(s);
+    }
+    else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        agComboOpenFor(s, e.key);
+    } }, true);
+    window.addEventListener('resize', agComboClose);
+    document.addEventListener('scroll', (e) => { if (agComboOpen && !e.target?.closest?.('.ag-combo-panel'))
+        agComboClose(); }, true);
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -8234,14 +8408,30 @@ var KXAPP;
         def.setMinutes(0, 0, 0);
         const dv = new Date(def.getTime() - def.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
         const chip = (x, extra = '') => `<button type="button" class="chip" data-propagate-pick="${esc(x.key)}" ${linked.has(x.key) ? 'disabled' : ''}>${PROP_ICON[x.kind]} ${esc(x.label)}${linked.has(x.key) ? ' ✓' : ''}</button>${extra}`;
-        host.innerHTML = `<div class="kx-propagate" data-propagate-panel><b>${esc(TL('propagate.title'))}</b>
-        <div class="kx-propagate-kinds">${PROP_KINDS.filter(k => !exclude.includes(k)).map(k => `<label><input type="checkbox" data-propagate-kind="${k}" ${linked.has(k + ':') ? 'checked disabled' : ''}> ${PROP_ICON[k]} ${esc(TL('notes.link.' + k))}${linked.has(k + ':') ? ' ✓' : ''}</label>`).join('')}</div>
-        <div class="kx-propagate-at"><label>${esc(TL('propagate.when'))} <input type="datetime-local" data-propagate-at value="${dv}"></label>
-          <label>${esc(TL('propagate.space'))} <select data-propagate-space><option value="">${esc(TL('propagate.spaceSame'))}</option>${(places.spaces || []).map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select></label></div>
-        <div class="kx-propagate-where" data-propagate-where><b>${esc(TL('propagate.where'))}</b>
-          <div data-propagate-quick></div><input data-propagate-search placeholder="${esc(TL('propagate.search'))}"><div class="kx-propagate-results" data-propagate-results></div>
-          <div class="kx-propagate-selected" data-propagate-selected></div></div>
-        <div><button class="btn compact" data-propagate-go>${esc(TL('propagate.go'))}</button> <button class="btn ghost compact" data-propagate-cancel>×</button></div></div>`;
+        host.innerHTML = `<div class="kx-propagate ag-prop" data-propagate-panel><p class="ag-prop-intro">${esc(TL('prop2.intro'))}</p>
+         <section class="ag-prop-step"><h4>① ${esc(TL('prop2.what'))}</h4><div class="kx-propagate-kinds ag-prop-kinds">${PROP_KINDS.filter(k => !exclude.includes(k)).map(k => `<label class="ag-prop-kind"><input type="checkbox" data-propagate-kind="${k}" ${linked.has(k + ':') ? 'checked disabled' : ''}><span><b>${PROP_ICON[k]} ${esc(TL('notes.link.' + k))}${linked.has(k + ':') ? ' ✓' : ''}</b><small>${esc(TL('prop2.k.' + k))}</small></span></label>`).join('')}</div></section>
+         <section class="ag-prop-step"><h4>② ${esc(TL('prop2.whenWho'))}</h4><div class="kx-propagate-at ag-prop-at"><label class="kx-lf"><span>${esc(TL('prop2.when'))}</span><input type="datetime-local" data-propagate-at value="${dv}"><small>${esc(TL('prop2.whenHelp'))}</small></label>
+           <label class="kx-lf"><span>${esc(TL('prop2.space'))}</span><select data-propagate-space><option value="">${esc(TL('prop2.spaceSame'))}</option>${(places.spaces || []).map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select><small>${esc(TL('prop2.spaceHelp'))}</small></label></div></section>
+         <section class="ag-prop-step kx-propagate-where" data-propagate-where><h4>③ ${esc(TL('prop2.where'))}</h4><p class="muted">${esc(TL('prop2.whereHelp'))}</p>
+           <div data-propagate-quick></div><input data-propagate-search placeholder="${esc(TL('propagate.search'))}"><div class="kx-propagate-results" data-propagate-results></div>
+           <div class="kx-propagate-selected" data-propagate-selected></div></section>
+         <div class="ag-prop-summary" data-prop-summary></div>
+         <div class="ag-aimcp-row"><button class="btn" data-propagate-go>↗ ${esc(TL('propagate.go'))}</button> <button class="btn ghost" data-propagate-cancel>${esc(TL('vault.cancel'))}</button></div></div>`;
+        /* live summary – what will be created, when, where (recomputed on any change in the panel) */
+        const agPropSum = () => {
+            const box = host.querySelector('[data-prop-summary]');
+            if (!box)
+                return;
+            const kinds = Array.from(host.querySelectorAll('[data-propagate-kind]:checked:not(:disabled)')).map(i => `${PROP_ICON[String(i.dataset.propagateKind)]} ${TL('notes.link.' + i.dataset.propagateKind)}`);
+            const at = host.querySelector('[data-propagate-at]')?.value;
+            const sp = host.querySelector('[data-propagate-space]');
+            const timed = Array.from(host.querySelectorAll('[data-propagate-kind]:checked')).some(i => /EVENT|REMINDER/.test(String(i.dataset.propagateKind)));
+            const hubs = Array.from(host.querySelectorAll('[data-propagate-selected] .chip')).map(c => (c.textContent || '').replace('×', '').trim()).filter(Boolean);
+            box.innerHTML = kinds.length || hubs.length ? `<b>${esc(TL('prop2.willCreate'))}</b> ${esc(kinds.join(', '))}${timed && at ? ` · ${esc(new Date(at).toLocaleString())}` : ''} · ${esc(TL('prop2.inSpace'))}: ${esc(sp?.selectedOptions[0]?.textContent || '')}${hubs.length ? ` · ${esc(TL('prop2.inHubs'))}: ${esc(hubs.join(', '))}` : ''}` : `<span class="muted">${esc(TL('prop2.nothing'))}</span>`;
+        };
+        host.addEventListener('change', agPropSum);
+        host.addEventListener('click', () => setTimeout(agPropSum, 0));
+        setTimeout(agPropSum, 0);
         const q = (s) => host.querySelector(s);
         const drawQuick = () => {
             const rec = st.propagateRecent.map((k) => byKey.get(k)).filter(Boolean).slice(0, 6), fav = st.propagateFav.map((k) => byKey.get(k)).filter(Boolean);
@@ -9304,7 +9494,7 @@ var KXAPP;
             void openRecordInspector(runtime.deepLinks.build({ kind: 'APP', id: it.ownerApp }));
         else
             render(); };
-        void (String(it.kind).startsWith('HUB_') ? hubQuickActions(it, after) : itemQuickActions(it, after)).then(items => kxMoreMenu(b, items));
+        void (String(it.kind).startsWith('HUB_') ? hubQuickActions(it, after) : itemQuickActions(it, after)).then(items => kxMoreMenu(b, [...items.map((x) => ({ ...x, label: String(x.label || '').replace(/^(\S+)\s+\1(\s)/u, '$1$2') })), { key: 'qr-share', label: `📱 ${TL('qr2.menu')}`, run: () => void agItemQr(it) }]));
     }, true);
     const itemMenuAttr = (it) => esc(JSON.stringify({ kind: it.kind, id: it.id, ownerApp: it.ownerApp, deepLink: it.deepLink, status: it.status, title: String(it.title || '').slice(0, 80) }));
     // ---------------- N2.3l (R75): one HUB BAR in every hub, same place, same order – 🔍 search · Vše / Osobní / Rodina / Firma · ＋ Nový · 📖 · ⚙ · 🔔 ----------------
