@@ -132,7 +132,7 @@ const PROP_T = () => globalThis.KXI18n?.UI?.['propagate.title']?.cs || 'Propagat
         function normalizeItem(input) {
             if (!input || typeof input !== 'object')
                 throw new Error(M.invalidItem);
-            const allowed = ['kind', 'label', 'dueAt', 'intervalDays'];
+            const allowed = ['kind', 'label', 'dueAt', 'intervalDays', 'repeat'];
             const unknown = Object.keys(input).filter(k => !allowed.includes(k));
             if (unknown.length)
                 throw new Error(`${M.unknownItemFields}: ${unknown.join(',')}`);
@@ -149,7 +149,15 @@ const PROP_T = () => globalThis.KXI18n?.UI?.['propagate.title']?.cs || 'Propagat
                     throw new Error(M.itemInterval);
                 out.intervalDays = input.intervalDays;
             }
-            if (!out.dueAt && !out.intervalDays)
+            if (input.repeat !== undefined && input.repeat !== '') {
+                const RC = globalThis.KXRecur;
+                const rr = RC?.parse?.(String(input.repeat).slice(0, 200));
+                if (!rr)
+                    throw new Error(M.itemInterval);
+                out.repeat = RC.build(rr);
+                out.repeatFrom = out.dueAt || localDate(Date.now());
+            } /* the rule's ORIGINAL start – COUNT / UNTIL / interval parity are counted from here, never from the moved due date */ /* N2.6b: shared repeat rule (every N hours–years, weekdays, until / count) */
+            if (!out.dueAt && !out.intervalDays && !out.repeat)
                 throw new Error(M.itemNeedsDue);
             return out;
         }
@@ -206,6 +214,16 @@ const PROP_T = () => globalThis.KXI18n?.UI?.['propagate.title']?.cs || 'Propagat
                     if (!isDate(input.nextDueAt) || input.nextDueAt <= doneAt)
                         throw new Error(M.nextAfterDone);
                     c.dueAt = input.nextDueAt;
+                }
+                else if (c.repeat && globalThis.KXRecur) { /* the next occurrence AFTER the later of (current due, done) – done early still moves to the following occurrence */
+                    const after = c.dueAt && c.dueAt > doneAt ? c.dueAt : doneAt;
+                    const nx = globalThis.KXRecur.next(c.repeat, `${c.repeatFrom || c.dueAt || doneAt}T12:00:00`, `${after}T23:59:59`);
+                    if (nx) {
+                        const d = new Date(nx);
+                        c.dueAt = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    }
+                    else
+                        delete c.dueAt;
                 }
                 else if (Number.isInteger(c.intervalDays))
                     c.dueAt = addDays(doneAt, c.intervalDays);
@@ -361,8 +379,8 @@ const PROP_T = () => globalThis.KXI18n?.UI?.['propagate.title']?.cs || 'Propagat
                         return `<article class="veh-card" data-${P}-card="${esc(p.id)}" data-${P}-rev="${esc(p.revision)}"><header><b>${esc(d.name)}${d.disambiguation ? (/^\d+$/.test(String(d.disambiguation)) ? ` .${esc(d.disambiguation)}` : ` (${esc(d.disambiguation)})`) : ''}</b><small>${esc(U.subtitle(d, fmtDate))} · rev ${esc(p.revision)}</small><button class="btn ghost compact" data-kx-propagate-source="ENTITY" data-kx-propagate-id="${esc(p.id)}" title="${esc(PROP_T())}">↗</button><button class="btn ghost compact" data-item-menu="${esc(JSON.stringify({ kind: 'HUB_RECORD', id: p.id, ownerApp: OWNER, title: String(d.name || '').slice(0, 80) }))}" title="⋯">⋯</button></header>`
                             + `<div class="veh-badges">${items.length ? items.map(badge).join('') : '<span class="veh-badge veh-ok">V pořádku</span>'}</div>`
                             + (rc ? `<div class="veh-actions kx-record-controls" data-${P}-controls="${esc(p.id)}"><label><input type="checkbox" data-${P}-sensitive="${esc(p.id)}" ${esc(d.kxControls?.sensitive === true ? 'checked' : '')}> Citlivé (skrýt v upozorněních a přehledech)</label><label><input type="checkbox" data-${P}-share-family="${esc(p.id)}" ${esc(famId && (p.spaceIds || []).includes(famId) ? 'checked' : '')} ${esc(famId ? '' : 'disabled')}> Rodina</label><label><input type="checkbox" data-${P}-share-company="${esc(p.id)}" ${esc(comId && (p.spaceIds || []).includes(comId) ? 'checked' : '')} ${esc(comId ? '' : 'disabled')}> Firma</label></div>` : '')
-                            + `<ul class="pet-care">${(d[ITEMS] || []).map((c) => `<li data-${P}-${I}="${esc(c.id)}"><span><b>${esc(c.label)}</b><small>${esc(cfg.itemKinds[c.kind] || c.kind)} · termín ${esc(fmtDate(c.dueAt))}${c.intervalDays ? ` · každých ${esc(c.intervalDays)} dní` : ''}${c.lastDoneAt ? ` · naposledy ${esc(fmtDate(c.lastDoneAt))}` : ''}</small></span><span class="veh-actions">${rc ? `<label><input type="checkbox" data-${P}-item-sensitive="${esc(c.id)}" data-${P}-of="${esc(p.id)}" ${esc(d.kxControls?.sensitive === true || d.kxControls?.items?.[c.id] === true ? 'checked' : '')} ${esc(d.kxControls?.sensitive === true ? 'disabled' : '')}> Citlivé</label>` : ''}<input type="date" aria-label="Příští termín (volitelně)" data-${P}-next="${esc(c.id)}"><button class="btn ghost" data-kx-propagate-source="ITEM" data-kx-propagate-id="${esc(p.id)}#${esc(c.id)}" title="${esc(PROP_T())}">↗</button><button class="btn ghost" data-item-menu="${esc(JSON.stringify({ kind: 'HUB_ITEM', id: p.id + '#' + c.id, ownerApp: OWNER, title: String(c.label || '').slice(0, 80) }))}" title="⋯">⋯</button><button class="btn ghost" data-${P}-done="${esc(c.id)}" data-${P}-of="${esc(p.id)}">Hotovo</button><button class="btn ghost danger" data-${P}-remove="${esc(c.id)}" data-${P}-of="${esc(p.id)}">Odebrat</button></span></li>`).join('') || `<li class="desk-empty">${esc(U.noItems)}</li>`}</ul>`
-                            + (ui.itemFor === p.id ? `<div class="veh-form" data-${P}-${I}-form><label>Typ<select data-${C}="kind">${Object.entries(cfg.itemKinds).map(([k, l]) => `<option value="${esc(k)}">${esc(l)}</option>`).join('')}</select></label><label>Název<input data-${C}="label" maxlength="80" placeholder="${esc(U.itemPlaceholder)}"></label><label>Termín<input type="date" data-${C}="dueAt"></label><label>Interval (dny)<input type="number" min="1" max="3650" step="1" data-${C}="intervalDays"></label><button class="btn" data-${P}-${I}-save="${esc(p.id)}">${esc(U.addItemLabel)}</button></div>` : '')
+                            + `<ul class="pet-care">${(d[ITEMS] || []).map((c) => `<li data-${P}-${I}="${esc(c.id)}"><span><b>${esc(c.label)}</b><small>${esc(cfg.itemKinds[c.kind] || c.kind)} · termín ${esc(fmtDate(c.dueAt))}${c.repeat && globalThis.KXRecur ? ` · ${esc(globalThis.KXRecur.describe(c.repeat))}` : c.intervalDays ? ` · každých ${esc(c.intervalDays)} dní` : ''}${c.lastDoneAt ? ` · naposledy ${esc(fmtDate(c.lastDoneAt))}` : ''}</small></span><span class="veh-actions">${rc ? `<label><input type="checkbox" data-${P}-item-sensitive="${esc(c.id)}" data-${P}-of="${esc(p.id)}" ${esc(d.kxControls?.sensitive === true || d.kxControls?.items?.[c.id] === true ? 'checked' : '')} ${esc(d.kxControls?.sensitive === true ? 'disabled' : '')}> Citlivé</label>` : ''}<input type="date" aria-label="Příští termín (volitelně)" data-${P}-next="${esc(c.id)}"><button class="btn ghost" data-kx-propagate-source="ITEM" data-kx-propagate-id="${esc(p.id)}#${esc(c.id)}" title="${esc(PROP_T())}">↗</button><button class="btn ghost" data-item-menu="${esc(JSON.stringify({ kind: 'HUB_ITEM', id: p.id + '#' + c.id, ownerApp: OWNER, title: String(c.label || '').slice(0, 80) }))}" title="⋯">⋯</button><button class="btn ghost" data-${P}-done="${esc(c.id)}" data-${P}-of="${esc(p.id)}">Hotovo</button><button class="btn ghost danger" data-${P}-remove="${esc(c.id)}" data-${P}-of="${esc(p.id)}">Odebrat</button></span></li>`).join('') || `<li class="desk-empty">${esc(U.noItems)}</li>`}</ul>`
+                            + (ui.itemFor === p.id ? `<div class="veh-form" data-${P}-${I}-form><label>Typ<select data-${C}="kind">${Object.entries(cfg.itemKinds).map(([k, l]) => `<option value="${esc(k)}">${esc(l)}</option>`).join('')}</select></label><label>Název<input data-${C}="label" maxlength="80" placeholder="${esc(U.itemPlaceholder)}"></label><label>Termín<input type="date" data-${C}="dueAt"></label><label>Interval (dny)<input type="number" min="1" max="3650" step="1" data-${C}="intervalDays"></label><label>${esc(globalThis.KXTL?.('recur.label') || 'Opakování')}<select data-${C}="repeat" data-kx-recur><option value="">${esc(globalThis.KXTL?.('rw.byInterval') || '—')}</option><option value="FREQ=WEEKLY">${esc(globalThis.KXTL?.('rw.one.WEEKLY') || '')}</option><option value="FREQ=MONTHLY">${esc(globalThis.KXTL?.('rw.one.MONTHLY') || '')}</option><option value="FREQ=YEARLY">${esc(globalThis.KXTL?.('rw.one.YEARLY') || '')}</option></select></label><button class="btn" data-${P}-${I}-save="${esc(p.id)}">${esc(U.addItemLabel)}</button></div>` : '')
                             + `<div class="veh-actions"><button class="btn ghost" data-${P}-${I}-open="${esc(p.id)}">${ui.itemFor === p.id ? 'Zavřít' : esc(U.openItemLabel)}</button><button class="btn ghost" data-${P}-history="${esc(p.id)}">Historie</button><button class="btn ghost danger" data-${P}-archive="${esc(p.id)}">Archivovat</button></div>`
                             + (ui.history === p.id ? `<ol class="veh-history">${[...(d.history || [])].reverse().map((h) => `<li><b>${esc(U.historyText[h.kind] || h.kind)}</b> · ${esc(new Date(h.at).toLocaleString())}${h.label ? ` · ${esc(h.label)}` : ''}${h.next ? ` · příště ${esc(fmtDate(h.next))}` : ''}</li>`).join('')}</ol>` : '')
                             + `</article>`;
@@ -411,6 +429,11 @@ const PROP_T = () => globalThis.KXI18n?.UI?.['propagate.title']?.cs || 'Propagat
                     const item = { kind: val(`[data-${C}="kind"]`), label: val(`[data-${C}="label"]`), dueAt: val(`[data-${C}="dueAt"]`) };
                     if (interval)
                         item.intervalDays = Number(interval);
+                    {
+                        const rp = val(`[data-${C}="repeat"]`).trim();
+                        if (rp && rp !== '__custom')
+                            item.repeat = rp;
+                    }
                     if (await run(A.addItem, { id, expectedRevision: rev(id), [cfg.itemPayloadKey]: item }, U.itemAddedToast)) {
                         ui.itemFor = '';
                         await render();

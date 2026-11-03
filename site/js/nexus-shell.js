@@ -634,7 +634,7 @@ var KXAPP;
     ${liveBackgroundLayers()}
     <aside class="sidebar"><header>${brand()}<button class="icon-btn" data-action="tree-pin" title="📌">📌</button><button class="icon-btn kx-sheet-close" data-action="tree-open" title="✕">✕</button><button class="icon-btn" data-action="sidebar">${sidebarMode === 'EXPANDED' ? '‹' : '›'}</button></header><div class="kx-ctx" data-tree-ctx>${['WORK', 'HOME', 'ALL'].map(c => `<button class="kx-ctx-btn" data-tree-context="${c}">${esc(CTX(c))}</button>`).join('')}</div><div class="kx-tree-head"><input data-tree-filter placeholder="${esc(TL('tree.filter'))}" value="${esc(treeFilter)}"></div><nav class="kx-tree"><div class="kx-tree-cat">NEXUS</div>${navItems.map(([id, n, i]) => `<button class="nav-btn ${state.activeSection === id ? 'active' : ''}" data-section="${id}"><span>${iconSvg(i, n)}</span><em>${n}</em></button>`).join('')}<div data-nexus-tree-hubs></div></nav><div class="kx-tree-foot"><button class="btn ghost compact" data-tree-arrange>${treeArrange ? '✓ ' + esc(TL('tree.done')) : '⇅ ' + esc(TL('tree.arrange'))}</button>${treeArrange ? `<button class="btn ghost compact" data-tree-reset>↺ ${esc(TL('tree.reset'))}</button>` : ''}</div><footer><button class="nav-btn" data-action="theme"><span>${iconSvg('settings', 'Vzhled')}</span><em>Vzhled</em></button><div class="sync-pill"><i></i><span>${esc(activeWorkspace?.mode || "LOCAL")} · ${esc(activeWorkspace?.name || "KalinumX")}</span></div></footer></aside>
     ${sidebarMode === 'HIDDEN' ? `<button class="sidebar-restore-handle" data-action="sidebar" title="Zobrazit hlavní panel">›</button>` : ''}
-    <main class="workspace"><div class="topbar"><div class="top-left"><button class="icon-btn kx-tree-burger" data-action="tree-open" title="☰">☰</button><button type="button" class="icon-btn ag-navbtn" data-ag-back title="${esc(TL('agd.nav.back'))}" aria-label="${esc(TL('agd.nav.back'))}">←</button><button type="button" class="icon-btn ag-navbtn" data-ag-home title="${esc(TL('agd.nav.home'))}" aria-label="${esc(TL('agd.nav.home'))}">🏠</button><nav class="kx-sections" aria-label="NEXUS">${navItems.filter(([id]) => !['trash', 'settings'].includes(id)).map(([id, n]) => `<button class="kx-sec ${state.activeSection === id ? 'active' : ''}" data-top-section="${id}" title="${esc(n)}">${esc((TLX('sec.' + id)) || n)}</button>`).join('')}</nav></div><div class="ag-wordmark" data-ag-wordmark aria-hidden="true">NEXUS</div><div class="top-actions"><button class="btn ghost compact kx-tools-btn" data-kx-tools>${esc(TL('tools.menu'))} ▾</button><button class="chip agent-host-trigger" data-agent-host-toggle data-tb-tool="16" data-tb-label="${esc(TL('tools.agent'))}">AI kontext</button><button class="chip" data-action="shell-presets" data-tb-tool="1" data-tb-label="${esc(TL('tools.shell-presets'))}">Plocha: ${esc(shellPreset()?.name || 'Vlastní')} ▾</button><button class="chip" data-action="layout" data-tb-tool="2" data-tb-label="${esc(TL('tools.layout'))}">${esc(layout().name)} ▾</button><button class="chip" data-action="theme" data-tb-tool="3" data-tb-label="${esc(TL('tools.theme'))}">${esc(theme().name)} ▾</button><button class="icon-btn" data-action="minimize-view" data-tb-tool="15" data-tb-label="${esc(TL('tools.minimize-view'))}" title="Minimalizovat aktuální pohled">${iconSvg('minimize', 'Minimalizovat')}</button><button class="icon-btn" data-action="web-links" data-tb-tool="4" data-tb-label="${esc(TL('tools.web-links'))}" title="Weby a odkazy">🔗</button><button class="icon-btn" data-action="sync-merge" data-tb-tool="5" data-tb-label="${esc(TL('tools.sync-merge'))}" title="Synchronizace a zálohy">⇅</button><button class="icon-btn" data-action="recorder" data-tb-tool="7" data-tb-label="${esc(TL('tools.recorder'))}" title="Diktafon a nahrávky">🎙</button><button class="icon-btn" data-action="prompts" data-tb-tool="11" data-tb-label="${esc(TL('tools.prompts'))}" title="Prompty">📝</button><button class="icon-btn" data-action="kx-bugs" title="${esc(TL('bugs.title'))}">🐞</button><button class="icon-btn kx-bell" data-action="kx-issues" data-issues-bell data-sev="NONE" title="${esc(TL('issues.ui.title'))}">🔔<span class="kx-bell-count" data-issues-count></span></button><button class="icon-btn" data-action="kx-manual" data-tb-tool="13" data-tb-label="${esc(TL('tools.manual'))}" title="${esc(TL('tools.manual'))}">📖</button><button class="icon-btn" data-action="kx-notes" data-tb-tool="12" data-tb-label="${esc(TL('tools.notes'))}" title="${esc(TL('tools.notes'))}">🗒</button><button class="icon-btn" data-action="kx-processes" data-tb-tool="12" data-tb-label="${esc(TL('tools.kx-processes'))}" title="Pracovní postupy (kroky, stopky, Gantt)">🧩</button><button class="icon-btn" data-action="kx-insights" data-tb-tool="8" data-tb-label="${esc(TL('tools.kx-insights'))}" title="Přehledy: kalendář, den, grafy, Gantt, porovnání">📊</button><button class="icon-btn" data-action="kx-launch" data-tb-tool="9" data-tb-label="${esc(TL('tools.kx-launch'))}" title="Spustit hub nebo nástroj vedle (rozložení se přizpůsobí)">＋</button><button class="icon-btn" data-action="kx-layout" data-tb-tool="10" data-tb-label="${esc(TL('tools.kx-layout'))}" title="Rozložení: okna, panely a záložky">⊞</button><button class="icon-btn" data-action="settings-center" data-tb-tool="14" data-tb-label="${esc(TL('tools.settings-center'))}" title="Centrum nastavení (proklik do všech nastavení)">⚙︎</button><button class="icon-btn" data-action="timers" data-tb-tool="13" data-tb-label="${esc(TL('tools.timers'))}" title="Stopky a odpočty">⏱<span class="badge" data-timer-count></span></button><button class="icon-btn" data-action="handoff-inbox" data-tb-tool="6" data-tb-label="${esc(TL('tools.handoff-inbox'))}" title="Přijaté odkazy z jiných zařízení">📲<span class="badge" data-handoff-count></span></button><span class="kx-lb-top" id="linkBarsTop"></span><button class="icon-btn" data-action="tools-menu" data-tools-menu hidden title="${esc(TL('tools.menu'))}" aria-haspopup="menu">⋯</button><span class="kx-lang"><button class="icon-btn kx-lang-btn" data-lang-flag title="${esc(TL('lang.choose'))}" aria-haspopup="menu">${flagSvg(UI_LOCALE)}</button><span class="kx-lang-menu" data-lang-menu hidden></span></span><button class="icon-btn" data-action="search">⌕</button><button class="icon-btn" data-action="save">✓</button><button class="avatar" data-action="profile">LK</button></div></div><section id="content" class="content"></section></main><nav class="kx-bottom-nav" aria-label="NEXUS"><button class="${state.activeSection === 'today' ? 'active' : ''}" data-top-section="today"><b>☀</b>${esc(TL('mob.today'))}</button><button class="${state.activeSection === 'calendar' ? 'active' : ''}" data-top-section="calendar"><b>📅</b>${esc(TL('mob.calendar'))}</button><button data-action="tree-open"><b>▦</b>${esc(TL('mob.hubs'))}</button><button data-action="kx-issues"><b>🔔</b>${esc(TL('mob.issues'))}</button><button data-kx-tools><b>⋯</b>${esc(TL('mob.more'))}</button></nav><button class="kx-fab" data-kx-fab title="＋">＋</button>
+    <main class="workspace"><div class="topbar"><div class="top-left"><button class="icon-btn kx-tree-burger" data-action="tree-open" title="☰">☰</button><button type="button" class="icon-btn ag-navbtn" data-ag-back title="${esc(TL('agd.nav.back'))}" aria-label="${esc(TL('agd.nav.back'))}">←</button><button type="button" class="icon-btn ag-navbtn" data-ag-home title="${esc(TL('agd.nav.home'))}" aria-label="${esc(TL('agd.nav.home'))}">🏠</button><nav class="kx-sections" aria-label="NEXUS">${navItems.filter(([id]) => !['trash', 'settings'].includes(id)).map(([id, n]) => `<button class="kx-sec ${state.activeSection === id ? 'active' : ''}" data-top-section="${id}" title="${esc(n)}">${esc((TLX('sec.' + id)) || n)}</button>`).join('')}</nav></div><div class="ag-wordmark" data-ag-wordmark aria-hidden="true">NEXUS</div><div class="top-actions"><button class="chip agent-host-trigger" data-agent-host-toggle data-tb-tool="16" data-tb-label="${esc(TL('tools.agent'))}">AI kontext</button><button class="chip" data-action="shell-presets" data-tb-tool="1" data-tb-label="${esc(TL('tools.shell-presets'))}">Plocha: ${esc(shellPreset()?.name || 'Vlastní')} ▾</button><button class="chip" data-action="layout" data-tb-tool="2" data-tb-label="${esc(TL('tools.layout'))}">${esc(layout().name)} ▾</button><button class="chip" data-action="theme" data-tb-tool="3" data-tb-label="${esc(TL('tools.theme'))}">${esc(theme().name)} ▾</button><button class="icon-btn" data-action="minimize-view" data-tb-tool="15" data-tb-label="${esc(TL('tools.minimize-view'))}" title="Minimalizovat aktuální pohled">${iconSvg('minimize', 'Minimalizovat')}</button><button class="icon-btn" data-action="web-links" data-tb-tool="4" data-tb-label="${esc(TL('tools.web-links'))}" title="Weby a odkazy">🔗</button><button class="icon-btn" data-action="sync-merge" data-tb-tool="5" data-tb-label="${esc(TL('tools.sync-merge'))}" title="Synchronizace a zálohy">⇅</button><button class="icon-btn" data-action="recorder" data-tb-tool="7" data-tb-label="${esc(TL('tools.recorder'))}" title="Diktafon a nahrávky">🎙</button><button class="icon-btn" data-action="prompts" data-tb-tool="11" data-tb-label="${esc(TL('tools.prompts'))}" title="Prompty">📝</button><button class="icon-btn" data-action="kx-bugs" title="${esc(TL('bugs.title'))}">🐞</button><button class="icon-btn kx-bell" data-action="kx-issues" data-issues-bell data-sev="NONE" title="${esc(TL('issues.ui.title'))}">🔔<span class="kx-bell-count" data-issues-count></span></button><button class="icon-btn" data-action="kx-manual" data-tb-tool="13" data-tb-label="${esc(TL('tools.manual'))}" title="${esc(TL('tools.manual'))}">📖</button><button class="icon-btn" data-action="kx-notes" data-tb-tool="12" data-tb-label="${esc(TL('tools.notes'))}" title="${esc(TL('tools.notes'))}">🗒</button><button class="icon-btn" data-action="kx-processes" data-tb-tool="12" data-tb-label="${esc(TL('tools.kx-processes'))}" title="Pracovní postupy (kroky, stopky, Gantt)">🧩</button><button class="icon-btn" data-action="kx-insights" data-tb-tool="8" data-tb-label="${esc(TL('tools.kx-insights'))}" title="Přehledy: kalendář, den, grafy, Gantt, porovnání">📊</button><button class="icon-btn" data-action="kx-launch" data-tb-tool="9" data-tb-label="${esc(TL('tools.kx-launch'))}" title="Spustit hub nebo nástroj vedle (rozložení se přizpůsobí)">＋</button><button class="icon-btn" data-action="kx-layout" data-tb-tool="10" data-tb-label="${esc(TL('tools.kx-layout'))}" title="Rozložení: okna, panely a záložky">⊞</button><button class="icon-btn" data-action="settings-center" data-tb-tool="14" data-tb-label="${esc(TL('tools.settings-center'))}" title="Centrum nastavení (proklik do všech nastavení)">⚙︎</button><button class="icon-btn" data-action="timers" data-tb-tool="13" data-tb-label="${esc(TL('tools.timers'))}" title="Stopky a odpočty">⏱<span class="badge" data-timer-count></span></button><button class="icon-btn" data-action="handoff-inbox" data-tb-tool="6" data-tb-label="${esc(TL('tools.handoff-inbox'))}" title="Přijaté odkazy z jiných zařízení">📲<span class="badge" data-handoff-count></span></button><span class="kx-lb-top" id="linkBarsTop"></span><button class="icon-btn" data-action="tools-menu" data-tools-menu hidden title="${esc(TL('tools.menu'))}" aria-haspopup="menu">⋯</button><span class="kx-lang"><button class="icon-btn kx-lang-btn" data-lang-flag title="${esc(TL('lang.choose'))}" aria-haspopup="menu">${flagSvg(UI_LOCALE)}</button><span class="kx-lang-menu" data-lang-menu hidden></span></span><button class="icon-btn" data-action="search">⌕</button><button class="icon-btn" data-action="save">✓</button><button class="avatar" data-action="profile">LK</button></div></div><section id="content" class="content"></section></main><nav class="kx-bottom-nav" aria-label="NEXUS"><button class="${state.activeSection === 'today' ? 'active' : ''}" data-top-section="today"><b>☀</b>${esc(TL('mob.today'))}</button><button class="${state.activeSection === 'calendar' ? 'active' : ''}" data-top-section="calendar"><b>📅</b>${esc(TL('mob.calendar'))}</button><button data-action="tree-open"><b>▦</b>${esc(TL('mob.hubs'))}</button><button data-action="kx-issues"><b>🔔</b>${esc(TL('mob.issues'))}</button><button data-kx-tools><b>⋯</b>${esc(TL('mob.more'))}</button></nav><button class="kx-fab" data-kx-fab title="＋">＋</button>
     <aside id="agentHost" class="agent-context-host ${agentHostUi.open ? 'open' : ''}"><div id="agentHostBody"><div class="empty">Načítám kontextového asistenta…</div></div></aside>
     <aside id="inspector" class="inspector ${state.inspector ? 'open' : ''}"></aside><div id="drawer" class="drawer"></div><div id="modal" class="modal-wrap"></div>
     ${viewDock()}
@@ -733,9 +733,7 @@ var KXAPP;
         const L = host.querySelector('[data-ag-list]');
         if (L)
             L.innerHTML = list.length ? list.slice(0, 6).map((x) => { const isTask = x.kind === 'TASK'; const a = amt(x); return `<div class="ag-it"><span>${isTask ? '☑' : '📅'}</span><b>${esc(String(x.title || ''))}</b>${a ? `<em>${esc(fmt(a))}</em>` : ''}<i class="ag-tag ${isTask ? (open(x) ? 'red' : 'green') : 'blue'}">${esc(isTask ? (open(x) ? (at(x) < day0 ? TL('agd.late') : TL('agd.todo')) : TL('agd.done')) : TL('agd.event'))}</i></div>`; }).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
-        host.querySelectorAll('[data-ag-filter]').forEach(b => b.onclick = () => { agUi.filter = String(b.dataset.agFilter); render(); });
-        host.querySelectorAll('[data-ag-open]').forEach(b => b.onclick = (e) => { e.stopPropagation(); openHubAt(String(b.dataset.agOpen)); });
-        host.querySelectorAll('[data-ag-kpi]').forEach(b => b.onclick = (e) => { e.stopPropagation(); const k = String(b.dataset.agKpi); openHubAt(k === 'free' || k === 'reserve' ? 'APP.KX.FINANCE' : 'APP.KX.CALENDAR'); });
+        /* N2.6b: KPI cards use one delegated listener (bound once) – per-card onclick was lost after the plan re-rendered, so only the first card click worked */ void 0;
         /* pás kalendáře 31 dní */
         const cal = host.querySelector('[data-ag-cal]');
         if (cal) {
@@ -1158,10 +1156,22 @@ var KXAPP;
         alpineRecordTidy();
         agSizeWindow();
         agNavRecord();
+    }
+    catch { } }).observe(document.documentElement, { childList: true, subtree: true });
+    /* N2.6b: own observer – a failing tidy step above must never stop charts / repeat controls from attaching */
+    new MutationObserver(() => { try {
         if (document.querySelector('[data-ag-chart]:not([data-ag-done])'))
             void agHydrateCharts();
     }
-    catch { } }).observe(document.documentElement, { childList: true, subtree: true });
+    catch (e) {
+        console.warn('charts', e);
+    } try {
+        if (document.querySelector('select[data-kx-recur]:not([data-kx-recur-done])'))
+            agRecurScan();
+    }
+    catch (e) {
+        console.warn('recur', e);
+    } }).observe(document.documentElement, { childList: true, subtree: true });
     function personalGreeting() { const h = new Date().getHours(); const part = h < 5 ? TL('greet.g0') : h < 10 ? TL('greet.g1') : h < 12 ? TL('greet.g2') : h < 18 ? TL('greet.g3') : TL('greet.g4'); return `${part}, ${userGreetName}`; }
     function greetingBody() { const now = new Date(); return `<div class="greeting-card"><div class="greeting-mark">${iconSvg('today', 'Dnes')}</div><div><strong>${esc(personalGreeting())}</strong><span>${esc(now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</span><small>${esc(activeWorkspace?.name || 'KalinumX')} · data se ukládají průběžně</small></div></div>`; }
     function feedPref(code) { return state.feedPrefs?.[code] || defaultFeedPrefs()[code] || {}; }
@@ -1678,7 +1688,7 @@ var KXAPP;
         m.className = 'modal-wrap open';
         const defaultAt = new Date(Date.now() + 60 * 60 * 1000);
         const localAt = new Date(defaultAt.getTime() - defaultAt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-        m.innerHTML = `<div class="modal small"><div class="drawer-head"><div><b>Nová položka</b><small>Vytvoří canonical Event / Task / Alarm přes ActionBus</small></div><button class="icon-btn" data-close>×</button></div><div class="ins-section"><label>Typ<select id="calendarCreateType"><option value="CALENDAR_EVENT">Událost</option><option value="TASK">Úkol</option><option value="ALARM">Alarm</option></select></label><label data-et-wrap>${esc(TL('et.label'))}<select id="calendarCreateEType" data-keep-select><option value="">${esc(TL('et.none'))}</option>${(await eventTypes()).map((x) => `<option value="${esc(x.code)}">${esc(x.icon)} ${esc(x.name)}</option>`).join('')}</select></label><label>${esc(TL('cc.title'))}<input id="calendarCreateTitle" placeholder="Název položky"></label><label>Prostor<select id="calendarCreateSpace">${editable.map(x => `<option value="${esc(x.id)}" title="${esc(x.kind)}" ${x.id === preferred.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label><label>${esc(TL('cc.owner'))}<select id="calendarCreateOwner" data-calendar-create-owner>${plannerOwnerOptions().map(([code, label]) => `<option value="${esc(code)}">${esc(label)}</option>`).join('')}</select></label><label>${esc(TL('rep.dateTime'))}<input id="calendarCreateAt" type="datetime-local" value="${localAt}"></label><label>${esc(TL('rep.label'))}<select id="calendarCreateRepeat"><option value="">${esc(TL('rep.none'))}</option><option value="FREQ=WEEKLY">${esc(TL('rep.weekly'))}</option><option value="FREQ=MONTHLY">${esc(TL('rep.monthly'))}</option><option value="FREQ=YEARLY">${esc(TL('rep.yearly'))}</option></select></label><span data-kx-draft-own hidden></span>${reminderPickerHtml()}<button class="btn" data-calendar-create-save>${esc(TL('cc.create'))}</button> <button class="btn ghost" data-calendar-create-draft>💾 ${esc(TL('draft.save'))}</button></div></div>`;
+        m.innerHTML = `<div class="modal small"><div class="drawer-head"><div><b>Nová položka</b><small>Vytvoří canonical Event / Task / Alarm přes ActionBus</small></div><button class="icon-btn" data-close>×</button></div><div class="ins-section"><label>Typ<select id="calendarCreateType"><option value="CALENDAR_EVENT">Událost</option><option value="TASK">Úkol</option><option value="ALARM">Alarm</option></select></label><label data-et-wrap>${esc(TL('et.label'))}<select id="calendarCreateEType" data-keep-select><option value="">${esc(TL('et.none'))}</option>${(await eventTypes()).map((x) => `<option value="${esc(x.code)}">${esc(x.icon)} ${esc(x.name)}</option>`).join('')}</select></label><label>${esc(TL('cc.title'))}<input id="calendarCreateTitle" placeholder="Název položky"></label><label>Prostor<select id="calendarCreateSpace">${editable.map(x => `<option value="${esc(x.id)}" title="${esc(x.kind)}" ${x.id === preferred.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label><label>${esc(TL('cc.owner'))}<select id="calendarCreateOwner" data-calendar-create-owner>${plannerOwnerOptions().map(([code, label]) => `<option value="${esc(code)}">${esc(label)}</option>`).join('')}</select></label><label>${esc(TL('rep.dateTime'))}<input id="calendarCreateAt" type="datetime-local" value="${localAt}"></label><label>${esc(TL('rep.label'))}<select id="calendarCreateRepeat" data-kx-recur><option value="">${esc(TL('rep.none'))}</option><option value="FREQ=WEEKLY">${esc(TL('rep.weekly'))}</option><option value="FREQ=MONTHLY">${esc(TL('rep.monthly'))}</option><option value="FREQ=YEARLY">${esc(TL('rep.yearly'))}</option></select></label><span data-kx-draft-own hidden></span>${reminderPickerHtml()}<button class="btn" data-calendar-create-save>${esc(TL('cc.create'))}</button> <button class="btn ghost" data-calendar-create-draft>💾 ${esc(TL('draft.save'))}</button></div></div>`;
         /* N2.4y: drafts – „Uložit jako návrh“, auto-save when the form is closed with content, continue prefilled */
         const vals = () => ({ type: el('#calendarCreateType')?.value, title: el('#calendarCreateTitle')?.value || '', spaceId: el('#calendarCreateSpace')?.value, owner: el('#calendarCreateOwner')?.value, at: el('#calendarCreateAt')?.value, repeat: m.querySelector('#calendarCreateRepeat')?.value || '' });
         /* the window element is reused – flags of the previous use must not survive (else a second draft would never be saved) */ delete m.dataset.created;
@@ -2284,6 +2294,93 @@ var KXAPP;
             w.series = [...(w.series || []), { id: c, code: c, label: TL(AG_SERIES[c].label), source: 'LIVE' }];
         } w.subtitle = TL('viz.liveSub'); save(); m.className = 'modal-wrap'; m.innerHTML = ''; render(); });
     }
+    /* N2.6b · shared "Jak často" control: any <select> with data-kx-recur gets a "Vlastní…" option opening a custom rule editor (every N hours/days/weeks/months/years, weekdays, end); the chosen rule is stored as the select value (standard FREQ rule) */
+    function agRecurEnhance(sel) {
+        if (sel.dataset.kxRecurDone)
+            return;
+        sel.dataset.kxRecurDone = '1';
+        const R = globalThis.KXRecur;
+        if (!R)
+            return;
+        agRecurWords();
+        const lang = String(document.documentElement.lang || 'cs').startsWith('en') ? 'en' : 'cs';
+        if (!Array.from(sel.options).some(o => o.value === '__custom'))
+            sel.add(new Option(`⚙ ${TL('recur.custom')}`, '__custom'));
+        const panel = document.createElement('div');
+        panel.className = 'ag-recur';
+        panel.hidden = true;
+        const lab = sel.closest('label');
+        if (lab)
+            lab.after(panel);
+        else
+            sel.after(panel);
+        let prev = sel.value;
+        const draw = (rule) => {
+            const o = R.parse(rule) || { freq: 'WEEKLY', interval: 1, byday: [] };
+            const ends = o.until ? 'UNTIL' : o.count ? 'COUNT' : 'NEVER';
+            panel.innerHTML = `<div class="ag-recur-row"><span>${esc(TL('recur.every'))}</span><input type="number" min="1" max="999" value="${o.interval}" data-r="n"><select data-r="freq">${R.FREQS.map((f) => `<option value="${f}" ${o.freq === f ? 'selected' : ''}>${esc(TL('recur.u.' + f))}</option>`).join('')}</select></div>
+          <div class="ag-recur-days" ${o.freq === 'WEEKLY' || o.freq === 'DAILY' ? '' : 'hidden'}>${R.DAYS.map((d) => `<button type="button" class="${o.byday.includes(d) ? 'on' : ''}" data-r-day="${d}">${esc(TL('recur.d.' + d))}</button>`).join('')}</div>
+          <div class="ag-recur-row"><span>${esc(TL('recur.end'))}</span><select data-r="ends"><option value="NEVER" ${ends === 'NEVER' ? 'selected' : ''}>${esc(TL('recur.never'))}</option><option value="UNTIL" ${ends === 'UNTIL' ? 'selected' : ''}>${esc(TL('recur.until'))}</option><option value="COUNT" ${ends === 'COUNT' ? 'selected' : ''}>${esc(TL('recur.count'))}</option></select><input type="date" data-r="until" value="${o.until || ''}" ${ends === 'UNTIL' ? '' : 'hidden'}><input type="number" min="1" max="9999" data-r="count" value="${o.count || 10}" ${ends === 'COUNT' ? '' : 'hidden'}></div>
+          <p class="ag-recur-text" data-r="text"></p><button type="button" class="btn compact" data-r="ok">✓ ${esc(TL('recur.apply'))}</button>`;
+            const g = (k) => panel.querySelector(`[data-r="${k}"]`);
+            const read = () => { const days = Array.from(panel.querySelectorAll('[data-r-day].on')).map(b => String(b.dataset.rDay)); const e = g('ends').value; return R.build({ freq: g('freq').value, interval: g('n').value, byday: days, until: e === 'UNTIL' ? g('until').value : '', count: e === 'COUNT' ? g('count').value : '' }); };
+            const upd = () => { panel.querySelector('.ag-recur-days').hidden = !['WEEKLY', 'DAILY'].includes(g('freq').value); g('until').hidden = g('ends').value !== 'UNTIL'; g('count').hidden = g('ends').value !== 'COUNT'; g('text').textContent = R.describe(read(), lang); };
+            panel.querySelectorAll('[data-r-day]').forEach(b => b.onclick = () => { b.classList.toggle('on'); upd(); });
+            panel.querySelectorAll('input,select').forEach(x => x.addEventListener('input', upd));
+            upd();
+            g('ok').onclick = () => { const rule = read(); let opt = Array.from(sel.options).find(x => x.dataset.kxRecurCustom === '1'); if (!opt) {
+                opt = new Option('', rule);
+                opt.dataset.kxRecurCustom = '1';
+                sel.add(opt, sel.options[sel.options.length - 1]);
+            } opt.value = rule; opt.text = R.describe(rule, lang); sel.value = rule; prev = rule; panel.hidden = true; sel.dispatchEvent(new Event('change', { bubbles: true })); };
+        };
+        sel.addEventListener('change', () => { if (sel.value === '__custom') {
+            draw(prev && prev !== '__custom' ? prev : 'FREQ=WEEKLY');
+            panel.hidden = false;
+            sel.value = prev || '';
+        }
+        else {
+            prev = sel.value;
+        } });
+        if (sel.value && !Array.from(sel.options).some(o => o.value === sel.value))
+            void 0;
+    }
+    /* catalogue words for the recurrence sentences (cs plural forms: 1 / 2–4 / 5+) */
+    const agRecurWords = () => {
+        globalThis.KXRecurWords = { once: TL('rw.once'), one: { HOURLY: TL('rw.one.HOURLY'), DAILY: TL('rw.one.DAILY'), WEEKLY: TL('rw.one.WEEKLY'), MONTHLY: TL('rw.one.MONTHLY'), YEARLY: TL('rw.one.YEARLY') }, few: TL('rw.few'), many: TL('rw.many'),
+            units: Object.fromEntries(['HOURLY', 'DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'].map(f => [f, [TL('rw.u1.' + f), TL('rw.u2.' + f), TL('rw.u5.' + f)]])), days: Object.fromEntries(['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].map(d => [d, TL('rw.d.' + d)])), on: TL('rw.on'), until: TL('rw.until'), times: TL('rw.times') };
+    }; /* built on first use (TL is defined later in the shell) */
+    function agRecurScan() { document.querySelectorAll('select[data-kx-recur]:not([data-kx-recur-done])').forEach(agRecurEnhance); }
+    /* N2.6b: plan filters and item links delegated too (they were bound only after the async fill → dead for a moment after each render) */
+    document.addEventListener('click', (e) => { const f = e.target?.closest?.('[data-ag-filter]'); if (f) {
+        e.stopPropagation();
+        agUi.filter = String(f.dataset.agFilter);
+        render();
+        return;
+    } const o = e.target?.closest?.('[data-ag-open]'); if (o) {
+        e.stopPropagation();
+        openHubAt(String(o.dataset.agOpen));
+    } }, true);
+    document.addEventListener('click', (e) => {
+        const b = e.target?.closest?.('[data-ag-kpi]');
+        if (!b)
+            return;
+        const host = b.closest('[data-ag-dash],.ag-dash') || document.body;
+        e.stopPropagation();
+        const k = String(b.dataset.agKpi);
+        if (/today|akce|action/i.test(k) || /pay|due|remain/i.test(k)) {
+            const fk = /today|akce|action/i.test(k) ? 'all' : 'pay';
+            host.querySelector(`[data-ag-filter="${fk}"]`)?.click();
+            setTimeout(() => { const pl = document.querySelector('.ag-plan'); if (pl)
+                pl.scrollIntoView({ behavior: 'auto', block: 'start' });
+            else {
+                state.activeSection = 'calendar';
+                render();
+            } }, 60);
+            return;
+        }
+        openHubAt('APP.KX.FINANCE');
+    }, true);
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -3154,6 +3251,73 @@ var KXAPP;
         KXInbox.drafts.register('CALENDAR_CREATE', (v, id) => void calendarCreateModal({ values: v, draftId: id }));
     }
     catch { }
+    /* N2.6b (user: no way to continue a draft from the Inbox): GENERIC drafts captured on leaving a hub – reopen that hub and put the typed values back into the fields with the same labels */
+    try {
+        KXInbox.drafts.register('GENERIC', (v, id, x) => void agContinueGeneric(v, id, x));
+    }
+    catch { }
+    async function agContinueGeneric(vals, id, x) {
+        const hub = String(x?.target?.hub || '');
+        if (!hub) {
+            toast(TL('draft.noHub'));
+            return;
+        }
+        openHubAt(hub);
+        const norm = (s) => String(s || '').replace(/[*:]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+        let ins = null;
+        for (let i = 0; i < 40 && !(ins = document.querySelector('.inspector.open #hubWorkspace')?.closest('.inspector')); i++)
+            await new Promise(r => setTimeout(r, 100));
+        if (!ins) {
+            toast(TL('draft.noHub'));
+            return;
+        }
+        await new Promise(r => setTimeout(r, 300));
+        let first = null, n = 0;
+        for (const [k, val] of Object.entries(vals || {})) {
+            const want = norm(k);
+            let field = null;
+            for (const lab of Array.from(ins.querySelectorAll('label,.kx-lf'))) {
+                const own = (lab.querySelector(':scope > span')?.textContent || lab.childNodes[0]?.textContent || lab.textContent || '');
+                if (norm(own) === want || norm(lab.textContent || '').startsWith(want)) {
+                    field = lab.querySelector("input,select,textarea") || (lab.htmlFor ? document.getElementById(lab.htmlFor) : null);
+                    if (field)
+                        break;
+                }
+            }
+            if (!field)
+                field = ins.querySelector(`[name="${CSS.escape(k)}"],[placeholder="${CSS.escape(String(k))}"]`);
+            if (!field)
+                continue;
+            let p = field.parentElement;
+            while (p && p !== ins) {
+                if (p.tagName === 'DETAILS')
+                    p.open = true;
+                p = p.parentElement;
+            }
+            if (field.type === 'checkbox')
+                field.checked = /^(1|true|ano|yes|on)$/i.test(String(val));
+            else
+                field.value = String(val);
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+            field.dispatchEvent(new Event('change', { bubbles: true }));
+            if (!first)
+                first = field;
+            n++;
+        }
+        if (first) {
+            first.scrollIntoView({ block: 'center' });
+            first.focus();
+            first.classList.add('ag-restored');
+            setTimeout(() => first?.classList.remove('ag-restored'), 3500);
+        }
+        toast(n ? TL('draft.restored').replace('{n}', String(n)) : TL('draft.notMatched'));
+        if (n) {
+            try {
+                await runtime.inbox.done?.({ id }, { actorId: CURRENT_USER_ID, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true });
+            }
+            catch { }
+        }
+    }
     const DRAFT_OPENERS = new Proxy({}, { get: (_t, k) => KXInbox.drafts.opener(k) });
     async function saveFormDraft(form, values, title, draftId) { return KXInbox.drafts.save(runtime, { actorId: CURRENT_USER_ID, deviceId: activeDevice?.id }, form, 'APP.NEXUS', values, title, draftId); }
     /* N2.4z: the card of anything – path from the tree categories (treeLast.groups), the record's hub and spaces; quick fields saved
@@ -4381,6 +4545,8 @@ var KXAPP;
        (one click instead of open + pick). The select stays (hidden) and is the source of truth: a click sets it and fires change / input,
        a change from anywhere updates the buttons. Long lists, long labels, multiple selects and [data-keep-select] stay as they are. */
     function kxSegEligible(sel) {
+        if (sel.hasAttribute('data-kx-recur'))
+            return false; /* N2.6b: repeat selects stay dropdowns (they carry the Custom… option) */
         if (sel.multiple || sel.dataset.kxSeg || sel.closest('[data-keep-select]') || sel.hasAttribute('data-keep-select'))
             return false;
         const o = Array.from(sel.options);
@@ -6722,7 +6888,7 @@ var KXAPP;
         } void inboxModal(); };
         m.querySelectorAll('[data-inbox-retry]').forEach(b => b.onclick = () => act(() => IB.retry({ id: b.dataset.inboxRetry }, C)));
         m.querySelectorAll('[data-inbox-continue]').forEach(b => b.onclick = () => { const x = items.find((y) => y.id === b.dataset.inboxContinue); if (!x)
-            return; m.className = 'modal-wrap'; m.innerHTML = ''; DRAFT_OPENERS[x.target.payload.form](x.target.payload.values, x.id); });
+            return; m.className = 'modal-wrap'; m.innerHTML = ''; DRAFT_OPENERS[x.target.payload.form](x.target.payload.values, x.id, x); });
         m.querySelectorAll('[data-inbox-done]').forEach(b => b.onclick = () => act(() => IB.resolve({ id: b.dataset.inboxDone, status: 'DONE' }, C)));
         m.querySelectorAll('[data-inbox-discard]').forEach(b => b.onclick = () => act(() => IB.resolve({ id: b.dataset.inboxDiscard, status: 'DISCARDED' }, C)));
         m.querySelectorAll('[data-inbox-approve]').forEach(b => b.onclick = () => act(async () => { const r = await runtime.entities.get(String(b.dataset.inboxApprove)); const def = runtime.actions.list().find((d) => d.code === r?.data?.actionCode); return runtime.actions.invoke('ACTION.CORE.AI.ACTION.EXECUTE', { id: b.dataset.inboxApprove }, { ...C, permissions: ['CORE.AI.ACTION.EXECUTE', ...(def?.permission ? [def.permission] : [])] }); }));
@@ -7847,8 +8013,11 @@ var KXAPP;
     }
     let fitTopbarRetries = 0;
     function openToolsMenu(anchor) {
-        const tools = Array.from(document.querySelectorAll('.top-actions [data-tb-tool]')).filter(t => t.classList.contains('tb-overflow') || t.offsetParent === null).sort((a, b) => Number(b.dataset.tbTool) - Number(a.dataset.tbTool));
-        kxMoreMenu(anchor, tools.map(t => ({ key: 'tool-' + (t.dataset.action || 'agent'), label: t.dataset.tbLabel || t.title || t.textContent || '', run: () => t.click() })));
+        const tools = Array.from(document.querySelectorAll('.top-actions [data-tb-tool]')).filter(t => !t.matches('[data-kx-tools]'));
+        const ICON = { 'shell-presets': '🗂', 'layout': '🪟', 'theme': '🎨', 'minimize-view': '▁' };
+        const icon = (t) => { const x = (t.textContent || '').trim().split(/\s+/)[0] || ''; if (x && !/\p{L}|\p{N}/u.test(x))
+            return x + ' '; const k = t.dataset.action || (t.matches('[data-agent-host-toggle]') ? 'agent' : ''); return ICON[k] ? ICON[k] + ' ' : (k === 'agent' || t.matches('[data-agent-host-toggle]') ? '🤖 ' : ''); };
+        kxMoreMenu(anchor, tools.map(t => ({ key: 'tool-' + (t.dataset.action || t.dataset.tbTool || 'agent'), label: `${icon(t)}${t.dataset.tbLabel || t.getAttribute('title') || ''}`.trim(), run: () => t.click() })));
     }
     /* the bar re-fits on ANY size change of the bar or its parts (window resize, badges, window names, phone ↔ desktop), at most once per frame */
     let fitTopbarFrame = 0, fitTopbarSettle = 0, fitTopbarRO = null;
@@ -9577,7 +9746,7 @@ var KXAPP;
         e.preventDefault();
         e.stopPropagation();
         const src = Array.from(document.querySelectorAll('.top-actions [data-tb-tool]')).filter(b => !b.matches('[data-kx-tools]'));
-        kxMoreMenu(t, src.map(b => ({ key: 'tool:' + (b.dataset.action || b.dataset.tbTool || ''), label: `${(b.textContent || '').trim().slice(0, 3)} ${b.dataset.tbLabel || b.getAttribute('title') || ''}`.trim(), run: () => b.click() })));
+        kxMoreMenu(t, src.map(b => ({ key: 'tool:' + (b.dataset.action || b.dataset.tbTool || ''), label: `${(() => { const x = (b.textContent || '').trim().split(/\s+/)[0] || ''; return x && !/\p{L}|\p{N}/u.test(x) ? x + ' ' : ''; })()}${b.dataset.tbLabel || b.getAttribute('title') || ''}`.trim(), run: () => b.click() })));
     }, true);
     document.addEventListener('click', (e) => { const b = e.target?.closest?.('[data-top-section]'); if (!b)
         return; e.preventDefault(); document.querySelector(`.sidebar [data-section="${b.dataset.topSection}"]`)?.click(); }, true);

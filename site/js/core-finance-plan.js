@@ -8,7 +8,7 @@ var KXFinancePlan;
     const OWNER = 'APP.KX.FINANCE', MOV = 'APP.FINANCE.MOVEMENT', ACC = 'APP.FINANCE.ACCOUNT', BAL = 'APP.FINANCE.BALANCE', BUD = 'APP.FINANCE.BUDGET', PLN = 'APP.FINANCE.PLANNED', GOAL = 'APP.FINANCE.GOAL';
     const ACC_KINDS = ['BANK', 'CASH', 'CARD', 'SAVINGS', 'LOAN'];
     const EVERY = { MONTHLY: 1, QUARTERLY: 3, HALFYEAR: 6, YEARLY: 12, ONCE: 0 };
-    /* N2.5q: more intervals – weekly, every 14 days, every N months, chosen months (e.g. September + January) */ const EXTRA = ['WEEKLY', 'BIWEEKLY', 'EVERY_N', 'MONTHS'];
+    /* N2.5q: more intervals – weekly, every 14 days, every N months, chosen months (e.g. September + January) */ const EXTRA = ['WEEKLY', 'BIWEEKLY', 'EVERY_N', 'MONTHS', 'RULE']; /* N2.6b: RULE = shared repeat rule (KXRecur) */
     const CAPEX_T = 'APP.FINANCE.CAPEX', CASE_T = 'APP.FINANCE.CASE', PREF_T = 'APP.FINANCE.PREFS';
     const r2 = (n) => Math.round(n * 100) / 100;
     const CT = (k, d) => String(globalThis.KXI18n?.UI?.[k]?.cs || d);
@@ -54,6 +54,18 @@ var KXFinancePlan;
             if (start > end)
                 return out;
             let guard = 0;
+            if (d.every === 'RULE') {
+                const RC = globalThis.KXRecur;
+                if (!RC)
+                    return out;
+                for (const iso of RC.occurrences(String(d.rule || ''), start + 'T12:00:00', from + 'T00:00:00', end + 'T23:59:59', 2000)) {
+                    const x = new Date(iso);
+                    const ds = `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+                    if (ds >= from && ds <= end && !out.includes(ds))
+                        out.push(ds);
+                }
+                return out;
+            }
             if (d.every === 'WEEKLY' || d.every === 'BIWEEKLY') {
                 const step = (d.every === 'WEEKLY' ? 7 : 14) * 86400000;
                 for (let t = Date.parse(start + 'T00:00:00Z'); guard++ < 2000; t += step) {
@@ -207,13 +219,15 @@ var KXFinancePlan;
                     throw new Error('FINANCE_PLANNED_EVERY');
                 if (d.every === 'EVERY_N' && !(Number(d.n) >= 1 && Number(d.n) <= 60))
                     throw new Error('FINANCE_PLANNED_N');
+                if (d.every === 'RULE' && !globalThis.KXRecur?.parse?.(String(d.rule || '')))
+                    throw new Error('FINANCE_PLANNED_EVERY');
                 if (d.every === 'MONTHS' && !(Array.isArray(d.months) && d.months.length && d.months.every((m) => Number(m) >= 1 && Number(m) <= 12)))
                     throw new Error('FINANCE_PLANNED_MONTHS');
                 if (!isoD(d.nextDate))
                     throw new Error('FINANCE_DATE');
                 if (!['INCOME', 'EXPENSE'].includes(d.kind || 'EXPENSE'))
                     throw new Error('FINANCE_KIND');
-                return put(PLN, p, ctx, { name: String(d.name).slice(0, 120), kind: d.kind || 'EXPENSE', amount: r2(a), currency: /^[A-Z]{3}$/.test(String(d.currency || '')) ? d.currency : 'CZK', category: String(d.category || 'OTHER'), every: d.every, n: d.every === 'EVERY_N' ? Number(d.n) : null, months: d.every === 'MONTHS' ? [...new Set(d.months.map(Number))].sort((a, b) => a - b) : null, nextDate: d.nextDate, endDate: isoD(d.endDate) ? d.endDate : null, source: d.source || null,
+                return put(PLN, p, ctx, { name: String(d.name).slice(0, 120), kind: d.kind || 'EXPENSE', amount: r2(a), currency: /^[A-Z]{3}$/.test(String(d.currency || '')) ? d.currency : 'CZK', category: String(d.category || 'OTHER'), every: d.every, n: d.every === 'EVERY_N' ? Number(d.n) : null, months: d.every === 'MONTHS' ? [...new Set(d.months.map(Number))].sort((a, b) => a - b) : null, rule: d.every === 'RULE' ? globalThis.KXRecur.build(globalThis.KXRecur.parse(String(d.rule))) : null, /* N2.6b: the shared repeat rule is stored (canonical) */ nextDate: d.nextDate, endDate: isoD(d.endDate) ? d.endDate : null, source: d.source || null,
                     /* N2.5q: payee account (CZ number or IBAN) and variable symbol – for pairing and the QR payment */ payeeAccount: String(d.payeeAccount || '').replace(/\s+/g, '').slice(0, 40), vs: /^\d{1,10}$/.test(String(d.vs || '')) ? String(d.vs) : '' });
             },
             /* OUTLOOK: planned payments projected per month (default 36 months – user), + RESERVES for non-monthly expenses */

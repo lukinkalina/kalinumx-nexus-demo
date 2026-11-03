@@ -78,6 +78,10 @@ var KXReminders;
             const d = fn(rest.join(':'), day);
             return d ? `${d}${e.startsAt.slice(10)}` : null;
         }
+        /* N2.6b: richer rules (interval, weekdays, daily / hourly, until, count) – first occurrence on or after the day via the shared engine; simple rules keep the original path below */
+        if (e.recurrenceRule && /INTERVAL=|BYDAY=|FREQ=(DAILY|HOURLY)|COUNT=|UNTIL=/.test(e.recurrenceRule) && globalThis.KXRecur) {
+            return globalThis.KXRecur.next(e.recurrenceRule, e.startsAt, new Date(Date.parse(day + 'T00:00:00') - 1).toISOString());
+        }
         /* monthly / yearly count from the ORIGINAL day (31. 1. → 28. 2. → 31. 3. …), never from the previous, shortened occurrence */
         if (e.recurrenceRule && /FREQ=(MONTHLY|YEARLY)/.test(e.recurrenceRule)) {
             const o = new Date(e.startsAt);
@@ -213,4 +217,156 @@ var KXReminders;
     }
     KXReminders = { install, LEADS, ORDER, TEMPLATES, triggerFor, occurrence, minusMonths, leadLabel, registerDateRule, nextStart, stepFreq };
     globalThis.KXReminders = KXReminders;
+})();
+/* N2.6b (user: custom repeat schedules everywhere) – ONE shared recurrence engine for calendar, hub deadlines and planned payments.
+   Standard calendar rules (RFC 5545 subset): FREQ=HOURLY|DAILY|WEEKLY|MONTHLY|YEARLY;INTERVAL=n;BYDAY=MO,TU,…;UNTIL=YYYYMMDD;COUNT=n. Local time; month ends clamp (31 Jan + 1 month = 28/29 Feb). */
+var KXRecur;
+(function () {
+    const FREQS = ['HOURLY', 'DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'], DAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+    function parse(rule) {
+        const r = String(rule || '').trim().replace(/^RRULE:/i, '');
+        if (!r)
+            return null;
+        const o = { freq: '', interval: 1, byday: [] };
+        for (const part of r.split(';')) {
+            const [k, v] = part.split('=');
+            const K = String(k || '').toUpperCase(), V = String(v || '').toUpperCase();
+            if (K === 'FREQ' && FREQS.includes(V))
+                o.freq = V;
+            else if (K === 'INTERVAL') {
+                const n = parseInt(V, 10);
+                if (n >= 1 && n <= 999)
+                    o.interval = n;
+            }
+            else if (K === 'BYDAY')
+                o.byday = V.split(',').map(x => x.replace(/^[+-]?\d+/, '')).filter(x => DAYS.includes(x));
+            else if (K === 'UNTIL' && /^\d{8}/.test(V))
+                o.until = `${V.slice(0, 4)}-${V.slice(4, 6)}-${V.slice(6, 8)}`;
+            else if (K === 'COUNT') {
+                const n = parseInt(V, 10);
+                if (n >= 1 && n <= 9999)
+                    o.count = n;
+            }
+        }
+        if (!o.freq)
+            return null;
+        o.byday = DAYS.filter(d => o.byday.includes(d));
+        return o;
+    }
+    function build(o) {
+        if (!o || !FREQS.includes(o.freq))
+            return '';
+        const a = [`FREQ=${o.freq}`];
+        const n = Math.max(1, Math.min(999, parseInt(o.interval, 10) || 1));
+        if (n > 1)
+            a.push(`INTERVAL=${n}`);
+        const bd = DAYS.filter(d => (o.byday || []).includes(d));
+        if (bd.length && (o.freq === 'WEEKLY' || o.freq === 'DAILY'))
+            a.push(`BYDAY=${bd.join(',')}`);
+        if (o.until && /^\d{4}-\d{2}-\d{2}$/.test(o.until))
+            a.push(`UNTIL=${o.until.replace(/-/g, '')}`);
+        else if (o.count)
+            a.push(`COUNT=${Math.max(1, Math.min(9999, parseInt(o.count, 10) || 1))}`);
+        return a.join(';');
+    }
+    const dim = (y, m) => new Date(y, m + 1, 0).getDate();
+    const dow = (d) => DAYS[(d.getDay() + 6) % 7];
+    function addMonths(a, k) { const y = a.getFullYear(), m = a.getMonth() + k; const Y = y + Math.floor(m / 12), M = ((m % 12) + 12) % 12; const d = new Date(a); d.setFullYear(Y, M, Math.min(a.getDate(), dim(Y, M))); return d; }
+    /* generator of occurrences from the anchor (inclusive), in order */
+    function* gen(o, anchor) {
+        const n = o.interval || 1;
+        let emitted = 0;
+        const untilEnd = o.until ? new Date(`${o.until}T23:59:59`) : null;
+        const ok = (d) => { if (untilEnd && d > untilEnd)
+            return false; if (o.count && emitted >= o.count)
+            return false; return true; };
+        if (o.freq === 'WEEKLY' && o.byday.length) {
+            const ws = new Date(anchor);
+            ws.setDate(ws.getDate() - ((ws.getDay() + 6) % 7));
+            for (let w = 0; w < 5200; w++) {
+                for (const dd of o.byday) {
+                    const d = new Date(ws);
+                    d.setDate(ws.getDate() + w * 7 * n + DAYS.indexOf(dd));
+                    if (d < anchor)
+                        continue;
+                    if (!ok(d))
+                        return;
+                    emitted++;
+                    yield d;
+                }
+            }
+            return;
+        }
+        for (let k = 0; k < 100000; k++) {
+            let d;
+            if (o.freq === 'HOURLY')
+                d = new Date(anchor.getTime() + k * n * 3600000);
+            else if (o.freq === 'DAILY') {
+                d = new Date(anchor);
+                d.setDate(anchor.getDate() + k * n);
+            }
+            else if (o.freq === 'WEEKLY') {
+                d = new Date(anchor);
+                d.setDate(anchor.getDate() + k * 7 * n);
+            }
+            else if (o.freq === 'MONTHLY')
+                d = addMonths(anchor, k * n);
+            else
+                d = addMonths(anchor, k * 12 * n);
+            if (o.freq === 'DAILY' && o.byday.length && !o.byday.includes(dow(d)))
+                continue;
+            if (!ok(d))
+                return;
+            emitted++;
+            yield d;
+        }
+    }
+    function next(rule, anchorIso, afterIso) {
+        const o = typeof rule === 'string' ? parse(rule) : rule;
+        const a = new Date(anchorIso);
+        if (!o || isNaN(a.getTime()))
+            return null;
+        const after = afterIso ? new Date(afterIso) : new Date(a.getTime() - 1);
+        for (const d of gen(o, a)) {
+            if (d > after)
+                return d.toISOString();
+        }
+        return null;
+    }
+    function occurrences(rule, anchorIso, fromIso, toIso, max = 500) {
+        const o = typeof rule === 'string' ? parse(rule) : rule;
+        const a = new Date(anchorIso);
+        if (!o || isNaN(a.getTime()))
+            return [];
+        const f = new Date(fromIso), t = new Date(toIso);
+        const out = [];
+        for (const d of gen(o, a)) {
+            if (d > t || out.length >= max)
+                break;
+            if (d >= f)
+                out.push(d.toISOString());
+        }
+        return out;
+    }
+    /* words come from the app catalogue (globalThis.KXRecurWords, set by the shell from TL); English fallback only – no hard-coded Czech here */
+    const EN_W = { once: 'Once', one: { HOURLY: 'Every hour', DAILY: 'Every day', WEEKLY: 'Every week', MONTHLY: 'Every month', YEARLY: 'Every year' }, few: 'Every {n} {u}', many: 'Every {n} {u}',
+        units: { HOURLY: ['hour', 'hours', 'hours'], DAILY: ['day', 'days', 'days'], WEEKLY: ['week', 'weeks', 'weeks'], MONTHLY: ['month', 'months', 'months'], YEARLY: ['year', 'years', 'years'] }, days: { MO: 'Mon', TU: 'Tue', WE: 'Wed', TH: 'Thu', FR: 'Fri', SA: 'Sat', SU: 'Sun' }, on: ' on {d}', until: ', until {d}', times: ', {n} times' };
+    function describe(rule, lang = 'cs') {
+        const W = (lang !== 'en' && globalThis.KXRecurWords) || EN_W;
+        const o = typeof rule === 'string' ? parse(rule) : rule;
+        if (!o)
+            return W.once;
+        const n = o.interval || 1;
+        let t = n === 1 ? W.one[o.freq] : String(n >= 2 && n <= 4 ? W.few : W.many).replace('{n}', String(n)).replace('{u}', W.units[o.freq][n >= 2 && n <= 4 ? 1 : 2]);
+        if (o.byday.length)
+            t += String(W.on).replace('{d}', o.byday.map((d) => W.days[d]).join(', '));
+        if (o.until) {
+            const [y, m, d] = o.until.split('-');
+            t += String(W.until).replace('{d}', lang === 'en' ? o.until : `${+d}. ${+m}. ${y}`);
+        }
+        else if (o.count)
+            t += String(W.times).replace('{n}', String(o.count));
+        return t;
+    }
+    KXRecur = { parse, build, next, occurrences, describe, FREQS, DAYS };
 })();

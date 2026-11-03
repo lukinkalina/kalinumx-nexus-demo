@@ -1270,3 +1270,13 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .ag-live-svg{width:100%;height:auto}.ag-kpi-big{text-align:center;padding:14px}.ag-kpi-big strong{display:block;font-size:34px;color:#f2c869}.ag-kpi-big small{color:#a39e8e}
 .ag-pie{display:grid;grid-template-columns:200px 1fr;gap:12px;align-items:center}.ag-pie ul{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13px}.ag-pie li i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
 .ag-live-table{width:100%;font-size:13px}.ag-live-table th{color:#c9a35a;text-align:left}
+
+.ag-recur{margin:8px 0;padding:10px 12px;border-radius:12px;border:1px solid rgba(233,181,79,.4);background:rgba(233,181,79,.06);display:grid;gap:8px}
+.ag-recur-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.ag-recur-row input[type=number]{width:80px}.ag-recur-days{display:flex;gap:4px;flex-wrap:wrap}
+.ag-recur-days button{min-width:38px;min-height:30px;border-radius:999px;border:1px solid rgba(233,181,79,.35);background:rgba(10,15,24,.7);color:#e8e2d2;cursor:pointer}
+.ag-recur-days button.on{background:linear-gradient(180deg,#f2c869,#c9922e);color:#1a1205;font-weight:800}.ag-recur-text{margin:0;color:#f2c869;font-weight:700}
+
+.ag-restored{outline:3px solid #e9b54f !important;box-shadow:0 0 0 6px rgba(233,181,79,.25) !important;transition:outline .3s}
+
+/* one ⋯ tools button, always visible, same look as the other top-bar icons */
+.top-actions [data-tools-menu],.top-actions [data-tools-menu][hidden]{display:inline-grid !important;place-items:center}
