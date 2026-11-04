@@ -200,6 +200,20 @@ const PROP_T = () => globalThis.KXI18n?.UI?.['propagate.title']?.cs || 'Propagat
                 const item = { id: cfg.itemIdPrefix + crypto.randomUUID(), ...normalizeItem(input[cfg.itemPayloadKey]) };
                 return this.save(r, this.push({ ...r.data, [ITEMS]: [...list, item] }, { kind: cfg.history.added, [cfg.itemIdKey]: item.id, label: item.label }), ctx);
             }
+            /* N2.6b (user: quick actions everywhere): move a deadline to another date – one occurrence only, the repeat rule stays */
+            async rescheduleItem(input, ctx) {
+                const r = await this.access.existing(input?.id, ctx.actorId, input?.expectedRevision, EX);
+                const list = [...(r.data[ITEMS] || [])];
+                const i = list.findIndex((c) => c.id === input[cfg.itemIdKey]);
+                if (i < 0)
+                    throw new Error(M.itemMissing);
+                const due = String(input?.dueAt || '');
+                if (!isDate(due))
+                    throw new Error(M.itemDate);
+                const prev = list[i].dueAt || null;
+                list[i] = { ...list[i], dueAt: due };
+                return this.save(r, this.push({ ...r.data, [ITEMS]: list }, { kind: 'ITEM_RESCHEDULED', [cfg.itemIdKey]: list[i].id, label: list[i].label, from: prev, to: due }), ctx);
+            }
             async completeItem(input, ctx) {
                 const r = await this.access.existing(input?.id, ctx.actorId, input?.expectedRevision, EX);
                 const list = [...(r.data[ITEMS] || [])];
@@ -299,6 +313,8 @@ const PROP_T = () => globalThis.KXI18n?.UI?.['propagate.title']?.cs || 'Propagat
                 reg(A.update, 'SAFE_WRITE', (p, c) => service.update(p, c));
                 reg(A.addItem, 'SAFE_WRITE', (p, c) => service.addItem(p, c));
                 reg(A.completeItem, 'SAFE_WRITE', (p, c) => service.completeItem(p, c));
+                if (typeof A.completeItem === 'string' && /\.COMPLETE$/.test(A.completeItem))
+                    reg(A.completeItem.replace(/\.COMPLETE$/, '.RESCHEDULE'), 'SAFE_WRITE', (p, c) => service.rescheduleItem(p, c));
                 reg(A.removeItem, 'SENSITIVE_WRITE', (p, c) => service.removeItem(p, c));
                 reg(A.archive, 'SENSITIVE_WRITE', (p, c) => service.archive(p, c));
                 let projection = 'NOT_INSTALLED';

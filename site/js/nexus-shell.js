@@ -9673,6 +9673,21 @@ var KXAPP;
         if (it.kind === 'HUB_ITEM' && cfg && rec) {
             items.push({ key: 'done', label: '✓ ' + Q('done'), run: () => run(async () => { const r = await runtime.entities.get(rid); return runtime.actions.invoke(cfg.actions.completeItem, { id: rid, expectedRevision: r.revision, [cfg.itemIdKey]: iid }, C); }, Q('doneToast')) });
             items.push({ key: 'propagate', label: '↗ ' + TL('propagate.title'), run: () => void propagateWindow({ kind: 'ITEM', id: it.id }) });
+            /* N2.6b (user: quick actions everywhere): move this deadline – tomorrow / in a week / in a month / pick a date (one occurrence; the repeat rule stays) */
+            if (typeof cfg.actions.completeItem === 'string' && /\.COMPLETE$/.test(cfg.actions.completeItem)) {
+                const RS = cfg.actions.completeItem.replace(/\.COMPLETE$/, '.RESCHEDULE');
+                const cur = (rec.data?.[Object.keys(rec.data || {}).find(k => Array.isArray(rec.data[k]) && rec.data[k].some((x) => x?.id === iid)) || ''] || []).find((x) => x?.id === iid);
+                const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                const base = new Date(Math.max(Date.now(), cur?.dueAt ? Date.parse(cur.dueAt + 'T12:00:00') : 0));
+                const plus = (d, m = 0) => { const x = new Date(base); x.setDate(x.getDate() + d); if (m)
+                    x.setMonth(x.getMonth() + m); return ymd(x); };
+                const mv = (due) => run(async () => { const r = await runtime.entities.get(rid); return runtime.actions.invoke(RS, { id: rid, expectedRevision: r.revision, [cfg.itemIdKey]: iid, dueAt: due }, C); }, TL('tq.moved').replace('{d}', new Date(due + 'T12:00:00').toLocaleDateString()));
+                items.push({ key: 'rs1', group: TL('tq.move'), label: `📅 ${TL('tq.tomorrow')}`, hint: new Date(plus(1) + 'T12:00:00').toLocaleDateString(), run: () => mv(plus(1)) });
+                items.push({ key: 'rs7', group: TL('tq.move'), label: `📅 ${TL('tq.week')}`, hint: new Date(plus(7) + 'T12:00:00').toLocaleDateString(), run: () => mv(plus(7)) });
+                items.push({ key: 'rsm', group: TL('tq.move'), label: `📅 ${TL('tq.month')}`, hint: new Date(plus(0, 1) + 'T12:00:00').toLocaleDateString(), run: () => mv(plus(0, 1)) });
+                items.push({ key: 'rsx', group: TL('tq.move'), label: `📅 ${TL('tq.pick')}`, run: async () => { const v = await agAskDate(TL('tq.pickT').replace('{n}', String(it.title || cur?.label || '')), String(cur?.dueAt || '').slice(0, 10)); if (v)
+                        await mv(v); } });
+            }
         }
         if (it.kind === 'HUB_RECORD')
             items.push({ key: 'propagate', label: '↗ ' + TL('propagate.title'), run: () => void propagateWindow({ kind: 'ENTITY', id: rid }) });
@@ -13048,8 +13063,7 @@ var KXAPP;
         menu.dataset.moreMenu = '1';
         /* look from app/styles.css (.kx-more-menu, theme variables) — review fix: the inline fallback made it white with light text */
         /* N2.6b: optional group headings and a one-line description under the label */ let lastG = '';
-        menu.innerHTML = items.map(i => { const g = i.group && i.group !== lastG ? `<div class="kx-more-g">${esc(i.group)}</div>` : ''; if (i.group)
-            lastG = i.group; return g + `<button type="button" role="menuitem" class="row-btn compact${i.hint ? ' kx-more-rich' : ''}" data-more-item="${esc(i.key)}" style="width:100%;${i.danger ? 'color:#c0392b' : ''}"><span>${i.hint ? `<b>${esc(i.label)}</b><small>${esc(i.hint)}</small>` : esc(i.label)}</span></button>`; }).join('');
+        menu.innerHTML = items.map(i => { const g = i.group && i.group !== lastG ? `<div class="kx-more-g">${esc(i.group)}</div>` : (!i.group && lastG ? '<div class="kx-more-sep" role="separator"></div>' : ''); lastG = i.group || ''; return g + `<button type="button" role="menuitem" class="row-btn compact${i.hint ? ' kx-more-rich' : ''}" data-more-item="${esc(i.key)}" style="width:100%;${i.danger ? 'color:#c0392b' : ''}"><span>${i.hint ? `<b>${esc(i.label)}</b><small>${esc(i.hint)}</small>` : esc(i.label)}</span></button>`; }).join('');
         if (items.some(i => i.hint))
             menu.classList.add('kx-more-wide');
         document.body.appendChild(menu);
