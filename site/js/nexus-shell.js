@@ -782,7 +782,7 @@ var KXAPP;
                 by.get(k).push(x);
             }
             const lbl = (k) => k === day0 ? TL('agd.t.today') : k === day0 + D ? TL('agd.tomorrow') : new Date(k).toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'numeric' });
-            pl.innerHTML = rows.length ? [...by.entries()].slice(0, 6).map(([k, arr]) => `<div class="ag-pday"><div class="ag-pdate"><b>${esc(lbl(k))}</b><small>${new Date(k).toLocaleDateString('cs-CZ')}</small><em>● ${arr.length} ${esc(TL('agd.items'))}</em></div><div class="ag-prows">${arr.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow"><span>${kd === 'pay' ? '💳' : kd === 'task' ? '☑' : '📅'}</span><b>${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : kd === 'task' ? 'blue' : 'teal'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em>${x.kind === 'PLANNED_PAY' ? `${x.movedFrom ? `<small class="ag-moved">↪ ${esc(TL('pq.movedFrom'))} ${esc(new Date(x.movedFrom + 'T12:00:00').toLocaleDateString())}</small>` : ''}<button type="button" class="ag-done ag-pmenu" data-ag-pmenu data-ag-pid="${esc(x.plannedId)}" data-ag-date="${esc(x.date)}" data-ag-amt="${esc(String(x.amount))}" data-ag-name="${esc(String(x.title || ''))}" data-ag-sp="${esc(x.spaceId)}">${esc(TL('pq.btn'))} ▾</button>` : x.kind === 'TASK' ? `<button type="button" class="ag-done" data-ag-done="${esc(String(x.id || x.entityId || ''))}">✓ ${esc(TL(kd === 'pay' ? 'agd.paid' : 'agd.done'))}</button>` : '<span></span>'}</div>`; }).join('')}</div></div>`).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
+            pl.innerHTML = rows.length ? [...by.entries()].slice(0, 6).map(([k, arr]) => `<div class="ag-pday"><div class="ag-pdate"><b>${esc(lbl(k))}</b><small>${new Date(k).toLocaleDateString('cs-CZ')}</small><em>● ${arr.length} ${esc(TL('agd.items'))}</em></div><div class="ag-prows">${arr.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow"><span>${kd === 'pay' ? '💳' : kd === 'task' ? '☑' : '📅'}</span><b>${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : kd === 'task' ? 'blue' : 'teal'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em>${x.kind === 'PLANNED_PAY' ? `${x.movedFrom ? `<small class="ag-moved">↪ ${esc(TL('pq.movedFrom'))} ${esc(new Date(x.movedFrom + 'T12:00:00').toLocaleDateString())}</small>` : ''}<button type="button" class="ag-done ag-pmenu" data-ag-pmenu data-ag-pid="${esc(x.plannedId)}" data-ag-date="${esc(x.date)}" data-ag-amt="${esc(String(x.amount))}" data-ag-name="${esc(String(x.title || ''))}" data-ag-sp="${esc(x.spaceId)}">${esc(TL('pq.btn'))} ▾</button>` : x.kind === 'TASK' ? `<button type="button" class="ag-done ag-tmenu" data-ag-tmenu data-ag-tid="${esc(String(x.id || x.entityId || ''))}" title="${esc(TL('tq.more'))}">⋯</button><button type="button" class="ag-done" data-ag-done="${esc(String(x.id || x.entityId || ''))}">✓ ${esc(TL(kd === 'pay' ? 'agd.paid' : 'agd.done'))}</button>` : '<span></span>'}</div>`; }).join('')}</div></div>`).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
             pl.querySelectorAll('[data-ag-done]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); const id = String(b.dataset.agDone || ''); if (!id)
                 return; try {
                 await runtime.actions.invoke('ACTION.CORE.TASK.COMPLETE', { id }, { actorId: CURRENT_USER_ID, appCode: 'APP.KX.NEXUS', permissions: ['CORE.TASK.EDIT'], confirmed: true });
@@ -2767,6 +2767,57 @@ var KXAPP;
     document.addEventListener('click', (e) => { const b = e.target?.closest?.('[data-ag-pmenu]'); if (!b)
         return; if (!b.matches('[data-ag-pid][data-ag-date][data-ag-amt][data-ag-name][data-ag-sp]'))
         return; /* the payment button must carry plan id, date, amount, name and space */ /* the payment button must carry plan id, date, amount, name and space */ e.preventDefault(); e.stopPropagation(); void agPayAction(b); }, true);
+    /* N2.6b (user: tasks – move to…, pause, end): quick task menu on My day using the core task states (WAITING = paused, CANCELLED = ended) */
+    function agAskDate(title, def) {
+        return new Promise(res => {
+            const w = document.createElement('div');
+            w.className = 'ag-confirm-wrap';
+            w.innerHTML = `<div class="ag-confirm" role="dialog" aria-modal="true"><b>${esc(title)}</b><input type="date" data-ad value="${esc(def)}"><div><button type="button" class="btn" data-c="ok">✓ ${esc(TL('tq.set'))}</button><button type="button" class="btn ghost" data-c="no">${esc(TL('vault.cancel'))}</button></div></div>`;
+            document.body.appendChild(w);
+            const inp = w.querySelector('[data-ad]');
+            const done = (v) => { w.remove(); res(v); };
+            w.querySelector('[data-c="ok"]').onclick = () => done(inp.value || null);
+            w.querySelector('[data-c="no"]').onclick = () => done(null);
+            inp.addEventListener('keydown', e => { if (e.key === 'Enter')
+                done(inp.value || null); if (e.key === 'Escape')
+                done(null); });
+            setTimeout(() => inp.focus(), 0);
+        });
+    }
+    async function agTaskAction(b) {
+        const id = String(b.dataset.agTid || '');
+        const TC = { actorId: CURRENT_USER_ID, appCode: 'APP.NEXUS', deviceId: activeDevice?.id, permissions: ['CORE.TASK.EDIT'], confirmed: true };
+        const t = await runtime.tasks?.get?.(id);
+        if (!t) {
+            toast(TL('tq.missing'));
+            return;
+        }
+        const save = async (patch, msg) => { try {
+            await runtime.actions.invoke('ACTION.CORE.TASK.SAVE', { id, title: t.title, ownerApp: t.ownerApp, spaceIds: t.spaceIds, expectedRevision: t.revision, ...patch }, TC);
+            toast(msg);
+            render();
+        }
+        catch (e) {
+            toast(String(e?.message || e));
+        } };
+        const base = new Date(t.dueAt || Date.now());
+        const at = (days, months = 0) => { const d = new Date(Math.max(Date.now(), base.getTime())); d.setDate(d.getDate() + days); if (months)
+            d.setMonth(d.getMonth() + months); return d.toISOString(); };
+        const dl = (iso) => new Date(iso).toLocaleDateString();
+        kxMoreMenu(b, [
+            { key: 'd1', group: TL('tq.move'), label: `📅 ${TL('tq.tomorrow')}`, hint: dl(at(1)), run: () => save({ dueAt: at(1) }, TL('tq.moved').replace('{d}', dl(at(1)))) },
+            { key: 'd7', group: TL('tq.move'), label: `📅 ${TL('tq.week')}`, hint: dl(at(7)), run: () => save({ dueAt: at(7) }, TL('tq.moved').replace('{d}', dl(at(7)))) },
+            { key: 'm1', group: TL('tq.move'), label: `📅 ${TL('tq.month')}`, hint: dl(at(0, 1)), run: () => save({ dueAt: at(0, 1) }, TL('tq.moved').replace('{d}', dl(at(0, 1)))) },
+            { key: 'dx', group: TL('tq.move'), label: `📅 ${TL('tq.pick')}`, run: async () => { const v = await agAskDate(TL('tq.pickT').replace('{n}', t.title), String(t.dueAt || '').slice(0, 10)); if (!v)
+                    return; const iso = new Date(v + 'T09:00:00').toISOString(); await save({ dueAt: iso }, TL('tq.moved').replace('{d}', dl(iso))); } },
+            { key: 'wait', group: TL('tq.state'), label: `⏸ ${t.status === 'WAITING' ? TL('tq.resume') : TL('tq.pause')}`, hint: t.status === 'WAITING' ? TL('tq.resumeHint') : TL('tq.pauseHint'), run: () => save({ status: t.status === 'WAITING' ? 'TODO' : 'WAITING' }, t.status === 'WAITING' ? TL('tq.resumed') : TL('tq.paused')) },
+            { key: 'end', group: TL('tq.state'), label: `⛔ ${TL('tq.end')}`, hint: TL('tq.endHint'), danger: true, run: async () => { if (!await agConfirm(TL('tq.endT'), TL('tq.endQ').replace('{n}', t.title), `⛔ ${TL('tq.end')}`, true))
+                    return; await save({ status: 'CANCELLED' }, TL('tq.ended')); } }
+        ]);
+    }
+    document.addEventListener('click', (e) => { const b = e.target?.closest?.('[data-ag-tmenu]'); if (!b)
+        return; if (!b.matches('[data-ag-tid]'))
+        return; e.preventDefault(); e.stopPropagation(); void agTaskAction(b); }, true);
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)

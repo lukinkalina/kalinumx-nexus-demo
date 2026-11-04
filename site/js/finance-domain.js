@@ -354,6 +354,42 @@ var KXFinanceHub;
         }
         root.innerHTML = `<div class="kx-fin" data-fin-hub data-fin-view="${esc(v)}">${head}${body}</div>`;
         bindSpaces(root, core, opts);
+        /* N2.6b (user: overview of moved / paused / cancelled payments): changes of planned payments with Undo / Resume – the outlook recomputes right away */
+        if (v === 'OUTLOOK') {
+            void (async () => {
+                let ch = [];
+                try {
+                    ch = await IV('ACTION.FINANCE.PLANNED.CHANGES', {});
+                }
+                catch { } /* all spaces the user may see – it is a summary */
+                const host = root.querySelector('[data-fin-hub]');
+                if (!host)
+                    return;
+                const dd = (x) => x ? new Date(String(x) + 'T12:00:00').toLocaleDateString() : '';
+                const L = { MOVE: (x) => TL('fin.ch.move', '').replace('{a}', dd(x.date)).replace('{b}', dd(x.to)), SKIP: (x) => TL('fin.ch.skip', '').replace('{a}', dd(x.date)), PAID: (x) => TL('fin.ch.paid', '').replace('{a}', dd(x.date)), PAUSE: (x) => TL('fin.ch.pause', '').replace('{a}', dd(x.date)), STOP: (x) => TL('fin.ch.stop', '').replace('{a}', dd(x.date)) };
+                const sec = document.createElement('section');
+                sec.className = 'kx-fin-changes';
+                sec.dataset.finChanges = '1';
+                sec.innerHTML = `<h3>${esc(TL('fin.ch.title', ''))}</h3>${ch.length ? `<ul>${ch.map((x) => `<li><b>${esc(String(x.name || ''))}</b><span class="kx-fin-ch-op op-${esc(x.op)}">${esc((L[x.op] || (() => x.op))(x))}</span><em>${esc(Number(x.amount || 0).toLocaleString('cs-CZ'))} ${esc(TL('viz.czk', ''))}</em>${x.op === 'MOVE' || x.op === 'SKIP' ? `<button class="btn ghost compact" data-fin-ch-undo="${esc(x.id)}" data-fin-ch-date="${esc(x.date)}">↶ ${esc(TL('fin.ch.undo', ''))}</button>` : x.op === 'PAUSE' ? `<button class="btn ghost compact" data-fin-ch-resume="${esc(x.id)}">▶ ${esc(TL('fin.ch.resume', ''))}</button>` : ''}</li>`).join('')}</ul>` : `<p class="muted">${esc(TL('fin.ch.none', ''))}</p>`}`;
+                host.appendChild(sec);
+                sec.querySelectorAll('[data-fin-ch-undo]').forEach(b => b.onclick = async () => { try {
+                    await IV('ACTION.FINANCE.PLANNED.CHANGE', { id: b.dataset.finChUndo, op: 'RESTORE', date: b.dataset.finChDate });
+                    t(TL('fin.ch.undone', ''));
+                    again();
+                }
+                catch (e) {
+                    t(String(e?.message || e));
+                } });
+                sec.querySelectorAll('[data-fin-ch-resume]').forEach(b => b.onclick = async () => { try {
+                    await IV('ACTION.FINANCE.PLANNED.CHANGE', { id: b.dataset.finChResume, op: 'RESUME' });
+                    t(TL('fin.ch.resumed', ''));
+                    again();
+                }
+                catch (e) {
+                    t(String(e?.message || e));
+                } });
+            })();
+        }
         const again = () => mountHub(root, core, opts);
         const val = (sel) => root.querySelector(sel)?.value || '';
         const t = (e) => { (opts.onToast || (() => { }))(String(e?.message || e)); };
