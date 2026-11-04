@@ -114,7 +114,7 @@ var KXFinancePlan;
                 if (pz && x >= pz)
                     continue;
                 const e = ex[x];
-                if (e && (e.op === 'SKIP' || e.op === 'MOVE'))
+                if (e && (e.op === 'SKIP' || e.op === 'MOVE' || e.op === 'PAID'))
                     continue;
                 out.push(x);
             }
@@ -154,6 +154,11 @@ var KXFinancePlan;
                     }
                     d.exceptions[date] = { op, to, at: nowIso, by: ctx.actorId };
                 }
+                else if (op === 'PAID') {
+                    if (!isoD(date) || !occ(d, date, date).includes(date))
+                        throw new Error('FINANCE_PLANNED_NOT_AN_OCCURRENCE');
+                    d.exceptions[date] = { op: 'PAID', movementId: p?.movementId ? String(p.movementId) : null, at: nowIso, by: ctx.actorId };
+                } /* paid: the real movement now carries it – planning must not count it twice */
                 else if (op === 'RESTORE') {
                     if (!d.exceptions[date])
                         throw new Error('FINANCE_PLANNED_NO_CHANGE');

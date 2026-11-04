@@ -1367,3 +1367,8 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .app-shell.sidebar-collapsed>.sidebar .kx-tree :is([data-tree-cat],.kx-tree-cat,.kx-tree-group>button:first-child,.kx-tree-gh,[data-tree-group]){min-height:0 !important;height:10px !important;padding:0 !important;margin:6px 10px !important;background:none !important;border:0 !important;box-shadow:none !important;border-top:1px solid rgba(233,181,79,.45) !important;overflow:hidden}
 .app-shell.sidebar-collapsed>.sidebar .kx-tree :is([data-tree-cat],.kx-tree-cat,.kx-tree-gh,[data-tree-group]) *{display:none !important}
 .app-shell.sidebar-collapsed>.sidebar header{flex-direction:column !important;align-items:center;gap:6px}
+
+.ag-confirm-wrap{position:fixed;inset:0;z-index:200500;display:grid;place-items:center;background:rgba(0,0,0,.45)}
+.ag-confirm{max-width:440px;margin:16px;padding:16px 18px;border-radius:14px;background:#0b0f16;border:1px solid rgba(233,181,79,.55);box-shadow:0 24px 60px rgba(0,0,0,.7);display:grid;gap:10px}
+.ag-confirm b{font-family:Cinzel,Georgia,serif;font-size:17px;color:#f3e3bd}.ag-confirm p{margin:0;color:#ddd3bc;font-size:14px;line-height:1.45}.ag-confirm div{display:flex;gap:8px;justify-content:flex-end}
+.ag-moved{display:inline-block;margin-right:8px;padding:2px 8px;border-radius:999px;font-size:11px;color:#ffc77a;border:1px solid rgba(255,176,74,.45);background:rgba(255,176,74,.1)}

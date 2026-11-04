@@ -368,6 +368,33 @@ var KXDemoSeed;
         await core.entities.save({ id: MARK6, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), qr: n } }, { actorId, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true });
         return { seeded: true, qr: n };
     }
-    KXDemoSeed = { seed, seed2, seed3, seed4, seed5, seed6, isDemo, MARK, MARK2, MARK3, MARK4, MARK5, MARK6, DEMO_FILES };
+    /* N2.6b · DEMO data v7: real PLANNED payments in Finance (My day quick actions: pay / move / pause / cancel) – fictional, DEMO only */
+    const MARK7 = 'CORE.DEMO_SEED.MARKER.V7';
+    async function seed7(core, actorId) {
+        if (!isDemo(core))
+            return { seeded: false };
+        if (await core.entities.get(MARK7).catch(() => null))
+            return { seeded: false, reason: 'ALREADY' };
+        const C = { actorId, appCode: 'APP.KX.FINANCE', permissions: [], confirmed: true };
+        const sp = await core.propagate.spaces(actorId);
+        const id = (k) => sp.find((x) => x.kind === k)?.id;
+        const fam = id('FAMILY') || id('PERSONAL'), com = id('COMPANY') || fam;
+        const D = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+        let n = 0;
+        const P = [['DEMO · Elektřina ČEZ', fam, 2480, 'ENERGY', 0, 'MONTHLY'], ['DEMO · Nájem bytu', fam, 12000, 'HOUSING', 0, 'MONTHLY'], ['DEMO · Internet O2', fam, 599, 'UTILITIES', 1, 'MONTHLY'],
+            ['DEMO · Pojištění domácnosti', fam, 1450, 'INSURANCE', 5, 'QUARTERLY'], ['DEMO · Kroužky dětí', fam, 990, 'KIDS_SCHOOL', 9, 'MONTHLY'], ['DEMO · Faktura materiál (dřevo, plexi)', com, 6300, 'MATERIAL', 4, 'MONTHLY'], ['DEMO · Hosting e-shopu', com, 349, 'SERVICES', 12, 'MONTHLY']];
+        for (const [name, space, amount, category, day, every] of P) {
+            try {
+                await core.actions.invoke('ACTION.FINANCE.PLANNED.SAVE', { spaceId: space, data: { name, kind: 'EXPENSE', amount, currency: 'CZK', category, every, nextDate: D(day) } }, C);
+                n++;
+            }
+            catch (e) {
+                console.warn('DEMO planned', name, e);
+            }
+        }
+        await core.entities.save({ id: MARK7, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), planned: n } }, { actorId, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true });
+        return { seeded: true, planned: n };
+    }
+    KXDemoSeed = { seed, seed2, seed3, seed4, seed5, seed6, seed7, isDemo, MARK, MARK2, MARK3, MARK4, MARK5, MARK6, MARK7, DEMO_FILES };
     globalThis.KXDemoSeed = KXDemoSeed;
 })();

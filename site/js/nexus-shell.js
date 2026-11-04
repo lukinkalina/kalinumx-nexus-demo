@@ -415,6 +415,12 @@ var KXAPP;
                                 catch (e) {
                                     console.warn('DEMO seed v6', e);
                                 }
+                                try {
+                                    await KXDemoSeed.seed7?.(runtime, CURRENT_USER_ID);
+                                }
+                                catch (e) {
+                                    console.warn('DEMO seed v7', e);
+                                }
                                 if (r2?.seeded && !r.seeded) {
                                     toast(TL('demo.seeded'));
                                     try {
@@ -679,9 +685,18 @@ var KXAPP;
         catch (e) {
             console.warn('agDash agenda', e);
         }
+        try {
+            const pp = await agPlannedPays(day0, agUi.horizon);
+            const names = pp.map((x) => String(x.title || '').toLowerCase());
+            items = items.filter((x) => !(x.kind === 'TASK' && names.some((n) => n && String(x.title || '').toLowerCase().includes(n.replace(/^demo\s*·\s*/, '')) && /k\u010d|plat/i.test(String(x.title || '')))));
+            items = items.concat(pp.filter((x) => Date.parse(x.dueAt) >= day0 && Date.parse(x.dueAt) < day0 + agUi.horizon * D));
+        }
+        catch (e) {
+            console.warn('agDash planned', e);
+        } /* N2.6b: real planned payments from Finance */
         const at = (x) => Date.parse(x.dueAt || x.startsAt || x.at || x.date || '') || 0, open = (x) => !/DONE|COMPLETED|CANCEL/i.test(String(x.status || ''));
         const todayItems = items.filter(x => { const t = at(x); return t >= day0 && t < day0 + D; }), week = items.filter(x => { const t = at(x); return t >= day0 && t < day0 + 7 * D; }), late = items.filter(x => x.kind === 'TASK' && open(x) && at(x) && at(x) < day0);
-        const pay = items.filter(x => open(x) && at(x) >= day0 && /plat|nájem|faktur|zaplat|pay/i.test(String(x.title || '')));
+        const pay = items.filter(x => open(x) && at(x) >= day0 && (x.kind === 'PLANNED_PAY' || /plat|n\u00e1jem|faktur|zaplat|pay/i.test(String(x.title || ''))));
         const amt = (x) => { const n = Number(x.amount || x.value || 0); if (n)
             return n; const m = String(x.title || '').match(/(\d[\d\s ]*)\s*K\u010d/); return m ? Number(m[1].replace(/[\s ]/g, '')) : 0; };
         const sumPay = pay.reduce((a, x) => a + amt(x), 0);
@@ -748,7 +763,7 @@ var KXAPP;
             cal.innerHTML = h;
         }
         /* plán plateb a úkolů po dnech */
-        const kindOf = (x) => x.kind !== 'TASK' ? 'event' : amt(x) ? 'pay' : 'task';
+        const kindOf = (x) => x.kind === 'PLANNED_PAY' ? 'pay' : x.kind !== 'TASK' ? 'event' : amt(x) ? 'pay' : 'task';
         const up = items.filter(x => at(x) >= day0 && at(x) < day0 + agUi.horizon * D && (x.kind !== 'TASK' || open(x))).sort((a, b) => at(a) - at(b));
         for (const f of ['all', 'pay', 'task', 'event']) {
             const c = host.querySelector(`[data-ag-fcnt="${f}"]`);
@@ -767,7 +782,7 @@ var KXAPP;
                 by.get(k).push(x);
             }
             const lbl = (k) => k === day0 ? TL('agd.t.today') : k === day0 + D ? TL('agd.tomorrow') : new Date(k).toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'numeric' });
-            pl.innerHTML = rows.length ? [...by.entries()].slice(0, 6).map(([k, arr]) => `<div class="ag-pday"><div class="ag-pdate"><b>${esc(lbl(k))}</b><small>${new Date(k).toLocaleDateString('cs-CZ')}</small><em>● ${arr.length} ${esc(TL('agd.items'))}</em></div><div class="ag-prows">${arr.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow"><span>${kd === 'pay' ? '💳' : kd === 'task' ? '☑' : '📅'}</span><b>${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : kd === 'task' ? 'blue' : 'teal'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em>${x.kind === 'TASK' ? `<button type="button" class="ag-done" data-ag-done="${esc(String(x.id || x.entityId || ''))}">✓ ${esc(TL(kd === 'pay' ? 'agd.paid' : 'agd.done'))}</button>` : '<span></span>'}</div>`; }).join('')}</div></div>`).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
+            pl.innerHTML = rows.length ? [...by.entries()].slice(0, 6).map(([k, arr]) => `<div class="ag-pday"><div class="ag-pdate"><b>${esc(lbl(k))}</b><small>${new Date(k).toLocaleDateString('cs-CZ')}</small><em>● ${arr.length} ${esc(TL('agd.items'))}</em></div><div class="ag-prows">${arr.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow"><span>${kd === 'pay' ? '💳' : kd === 'task' ? '☑' : '📅'}</span><b>${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : kd === 'task' ? 'blue' : 'teal'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em>${x.kind === 'PLANNED_PAY' ? `${x.movedFrom ? `<small class="ag-moved">↪ ${esc(TL('pq.movedFrom'))} ${esc(new Date(x.movedFrom + 'T12:00:00').toLocaleDateString())}</small>` : ''}<button type="button" class="ag-done ag-pmenu" data-ag-pmenu data-ag-pid="${esc(x.plannedId)}" data-ag-date="${esc(x.date)}" data-ag-amt="${esc(String(x.amount))}" data-ag-name="${esc(String(x.title || ''))}" data-ag-sp="${esc(x.spaceId)}">${esc(TL('pq.btn'))} ▾</button>` : x.kind === 'TASK' ? `<button type="button" class="ag-done" data-ag-done="${esc(String(x.id || x.entityId || ''))}">✓ ${esc(TL(kd === 'pay' ? 'agd.paid' : 'agd.done'))}</button>` : '<span></span>'}</div>`; }).join('')}</div></div>`).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
             pl.querySelectorAll('[data-ag-done]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); const id = String(b.dataset.agDone || ''); if (!id)
                 return; try {
                 await runtime.actions.invoke('ACTION.CORE.TASK.COMPLETE', { id }, { actorId: CURRENT_USER_ID, appCode: 'APP.KX.NEXUS', permissions: ['CORE.TASK.EDIT'], confirmed: true });
@@ -2672,6 +2687,86 @@ var KXAPP;
     window.addEventListener('resize', agComboClose);
     document.addEventListener('scroll', (e) => { if (agComboOpen && !e.target?.closest?.('.ag-combo-panel'))
         agComboClose(); }, true);
+    /* N2.6b (user: quick, nicely confirmed actions): an in-app confirm (title, sentence, gold / red button, Enter / Esc) – above windows */
+    function agConfirm(title, text, ok, danger = false) {
+        return new Promise(res => {
+            const w = document.createElement('div');
+            w.className = 'ag-confirm-wrap';
+            w.innerHTML = `<div class="ag-confirm" role="alertdialog" aria-modal="true"><b>${esc(title)}</b><p>${esc(text)}</p><div><button type="button" class="btn ${danger ? 'danger' : ''}" data-c="ok">${esc(ok)}</button><button type="button" class="btn ghost" data-c="no">${esc(TL('vault.cancel'))}</button></div></div>`;
+            document.body.appendChild(w);
+            const done = (v) => { w.remove(); document.removeEventListener('keydown', key, true); res(v); };
+            const key = (e) => { if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                done(false);
+            }
+            else if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                done(true);
+            } };
+            document.addEventListener('keydown', key, true);
+            w.querySelector('[data-c="ok"]').onclick = () => done(true);
+            w.querySelector('[data-c="no"]').onclick = () => done(false);
+            w.addEventListener('mousedown', (e) => { if (e.target === w)
+                done(false); });
+            setTimeout(() => w.querySelector('[data-c="ok"]')?.focus(), 0);
+        });
+    }
+    /* planned payments from Finance for My day (real occurrences with plan id / date / moved-from) */
+    async function agPlannedPays(fromMs, days) {
+        const out = [];
+        const FC = { actorId: CURRENT_USER_ID, appCode: 'APP.KX.FINANCE', deviceId: activeDevice?.id, permissions: [], confirmed: true };
+        const d0 = new Date(fromMs);
+        const from = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}`;
+        const months = Math.max(1, Math.ceil(days / 28) + 1);
+        for (const sp of await runtime.memberships.listSpaces()) {
+            try {
+                const o = await runtime.actions.invoke('ACTION.FINANCE.OUTLOOK', { from, months, spaceId: sp.id }, FC);
+                for (const m of (o?.outlook || []))
+                    for (const it of (m.items || [])) {
+                        if (it.kind !== 'EXPENSE')
+                            continue;
+                        out.push({ kind: 'PLANNED_PAY', id: `${it.id}@${it.date}`, plannedId: it.id, date: it.date, title: it.name, amount: it.amount, dueAt: it.date + 'T09:00:00', movedFrom: it.movedFrom || null, spaceId: sp.id, status: 'OPEN' });
+                    }
+            }
+            catch { }
+        }
+        return out;
+    }
+    async function agPayAction(b) {
+        const pid = String(b.dataset.agPid), date = String(b.dataset.agDate), amount = Number(b.dataset.agAmt || 0), name = String(b.dataset.agName || ''), sp = String(b.dataset.agSp || '');
+        const FC = { actorId: CURRENT_USER_ID, appCode: 'APP.KX.FINANCE', deviceId: activeDevice?.id, permissions: [], confirmed: true };
+        const CH = (x) => runtime.actions.invoke('ACTION.FINANCE.PLANNED.CHANGE', { id: pid, ...x }, FC);
+        const kc = amount.toLocaleString('cs-CZ') + ' ' + TL('viz.czk');
+        const dl = new Date(date + 'T12:00:00').toLocaleDateString();
+        const ok = async (f, msg, undo) => { try {
+            await f();
+            toast(msg);
+            render();
+        }
+        catch (e) {
+            toast(String(e?.message || e));
+        } };
+        kxMoreMenu(b, [
+            { key: 'pay', label: `✓ ${TL('pq.pay')}`, hint: TL('pq.payHint'), run: async () => {
+                    if (!await agConfirm(TL('pq.payT'), TL('pq.payQ').replace('{a}', kc).replace('{n}', name), `✓ ${TL('pq.pay')}`))
+                        return;
+                    await ok(async () => { const today = new Date().toISOString().slice(0, 10); const mv = await runtime.actions.invoke('ACTION.FINANCE.MOVEMENT.SAVE', { spaceId: sp, data: { kind: 'EXPENSE', date: today, amount, currency: 'CZK', category: 'OTHER', counterparty: name, note: TL('pq.note').replace('{d}', dl) } }, FC); await CH({ op: 'PAID', date, movementId: mv?.id || null }); }, TL('pq.paid'));
+                } },
+            { key: 'move', label: `→ ${TL('pq.move')}`, hint: TL('pq.moveHint'), run: () => ok(() => CH({ op: 'MOVE', date }), TL('pq.moved')) },
+            { key: 'pause', label: `⏸ ${TL('pq.pause')}`, hint: TL('pq.pauseHint'), run: async () => { if (!await agConfirm(TL('pq.pauseT'), TL('pq.pauseQ').replace('{n}', name).replace('{d}', dl), `⏸ ${TL('pq.pause')}`))
+                    return; await ok(() => CH({ op: 'PAUSE', from: date }), TL('pq.paused')); } },
+            { key: 'skip', label: `✕ ${TL('pq.skip')}`, hint: TL('pq.skipHint'), danger: true, run: async () => { if (!await agConfirm(TL('pq.skipT'), TL('pq.skipQ').replace('{n}', name).replace('{d}', dl), `✕ ${TL('pq.skip')}`, true))
+                    return; await ok(() => CH({ op: 'SKIP', date }), TL('pq.skipped')); } },
+            { key: 'stop', label: `⛔ ${TL('pq.stop')}`, hint: TL('pq.stopHint'), danger: true, run: async () => { if (!await agConfirm(TL('pq.stopT'), TL('pq.stopQ').replace('{n}', name).replace('{d}', dl), `⛔ ${TL('pq.stop')}`, true))
+                    return; await ok(() => CH({ op: 'STOP', date }), TL('pq.stopped')); } },
+            { key: 'open', label: `⌂ ${TL('pq.open')}`, run: () => openHubAt('APP.KX.FINANCE') }
+        ]);
+    }
+    document.addEventListener('click', (e) => { const b = e.target?.closest?.('[data-ag-pmenu]'); if (!b)
+        return; if (!b.matches('[data-ag-pid][data-ag-date][data-ag-amt][data-ag-name][data-ag-sp]'))
+        return; /* the payment button must carry plan id, date, amount, name and space */ /* the payment button must carry plan id, date, amount, name and space */ e.preventDefault(); e.stopPropagation(); void agPayAction(b); }, true);
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
