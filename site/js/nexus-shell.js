@@ -782,7 +782,7 @@ var KXAPP;
                 by.get(k).push(x);
             }
             const lbl = (k) => k === day0 ? TL('agd.t.today') : k === day0 + D ? TL('agd.tomorrow') : new Date(k).toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'numeric' });
-            pl.innerHTML = rows.length ? [...by.entries()].slice(0, 6).map(([k, arr]) => `<div class="ag-pday"><div class="ag-pdate"><b>${esc(lbl(k))}</b><small>${new Date(k).toLocaleDateString('cs-CZ')}</small><em>● ${arr.length} ${esc(TL('agd.items'))}</em></div><div class="ag-prows">${arr.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow"><span>${kd === 'pay' ? '💳' : kd === 'task' ? '☑' : '📅'}</span><b>${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : kd === 'task' ? 'blue' : 'teal'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em>${x.kind === 'PLANNED_PAY' ? `${x.movedFrom ? `<small class="ag-moved">↪ ${esc(TL('pq.movedFrom'))} ${esc(new Date(x.movedFrom + 'T12:00:00').toLocaleDateString())}</small>` : ''}<button type="button" class="ag-done ag-pmenu" data-ag-pmenu data-ag-pid="${esc(x.plannedId)}" data-ag-date="${esc(x.date)}" data-ag-amt="${esc(String(x.amount))}" data-ag-name="${esc(String(x.title || ''))}" data-ag-sp="${esc(x.spaceId)}">${esc(TL('pq.btn'))} ▾</button>` : x.kind === 'TASK' ? `<button type="button" class="ag-done ag-tmenu" data-ag-tmenu data-ag-tid="${esc(String(x.id || x.entityId || ''))}" title="${esc(TL('tq.more'))}">⋯</button><button type="button" class="ag-done" data-ag-done="${esc(String(x.id || x.entityId || ''))}">✓ ${esc(TL(kd === 'pay' ? 'agd.paid' : 'agd.done'))}</button>` : '<span></span>'}</div>`; }).join('')}</div></div>`).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
+            pl.innerHTML = rows.length ? [...by.entries()].slice(0, 6).map(([k, arr]) => `<div class="ag-pday"><div class="ag-pdate"><b>${esc(lbl(k))}</b><small>${new Date(k).toLocaleDateString('cs-CZ')}</small><em>● ${arr.length} ${esc(TL('agd.items'))}</em></div><div class="ag-prows">${arr.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow"><span>${kd === 'pay' ? '💳' : kd === 'task' ? '☑' : '📅'}</span><b>${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : kd === 'task' ? 'blue' : 'teal'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em>${x.kind === 'CALENDAR_EVENT' ? `<button type="button" class="ag-done ag-tmenu" data-ag-emenu data-ag-eid="${esc(String(x.id || ''))}" data-ag-eat="${esc(String(x.at || ''))}" title="${esc(TL('eq.more'))}">⋯</button>` : x.kind === 'PLANNED_PAY' ? `${x.movedFrom ? `<small class="ag-moved">↪ ${esc(TL('pq.movedFrom'))} ${esc(new Date(x.movedFrom + 'T12:00:00').toLocaleDateString())}</small>` : ''}<button type="button" class="ag-done ag-pmenu" data-ag-pmenu data-ag-pid="${esc(x.plannedId)}" data-ag-date="${esc(x.date)}" data-ag-amt="${esc(String(x.amount))}" data-ag-name="${esc(String(x.title || ''))}" data-ag-sp="${esc(x.spaceId)}">${esc(TL('pq.btn'))} ▾</button>` : x.kind === 'TASK' ? `<button type="button" class="ag-done ag-tmenu" data-ag-tmenu data-ag-tid="${esc(String(x.id || x.entityId || ''))}" title="${esc(TL('tq.more'))}">⋯</button><button type="button" class="ag-done" data-ag-done="${esc(String(x.id || x.entityId || ''))}">✓ ${esc(TL(kd === 'pay' ? 'agd.paid' : 'agd.done'))}</button>` : '<span></span>'}</div>`; }).join('')}</div></div>`).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
             pl.querySelectorAll('[data-ag-done]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); const id = String(b.dataset.agDone || ''); if (!id)
                 return; try {
                 await runtime.actions.invoke('ACTION.CORE.TASK.COMPLETE', { id }, { actorId: CURRENT_USER_ID, appCode: 'APP.KX.NEXUS', permissions: ['CORE.TASK.EDIT'], confirmed: true });
@@ -2818,6 +2818,50 @@ var KXAPP;
     document.addEventListener('click', (e) => { const b = e.target?.closest?.('[data-ag-tmenu]'); if (!b)
         return; if (!b.matches('[data-ag-tid]'))
         return; e.preventDefault(); e.stopPropagation(); void agTaskAction(b); }, true);
+    /* N2.6b (user: quick actions everywhere): events in the day plan – cancel ONE occurrence of a recurring event, move a one-off event, open the calendar */
+    async function agEventAction(b) {
+        const id = String(b.dataset.agEid || ''), at = String(b.dataset.agEat || '');
+        const EC = { actorId: CURRENT_USER_ID, appCode: 'APP.NEXUS', deviceId: activeDevice?.id, permissions: ['CORE.CALENDAR.EDIT'], confirmed: true };
+        const ev = await runtime.calendar.get(id);
+        if (!ev) {
+            toast(TL('eq.missing'));
+            return;
+        }
+        const d = new Date(at || ev.startsAt);
+        const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const dl = d.toLocaleDateString();
+        const go = async (f, msg) => { try {
+            await f();
+            toast(msg);
+            render();
+        }
+        catch (e) {
+            toast(String(e?.message || e));
+        } };
+        const shift = (days, to) => { const s0 = new Date(ev.startsAt); const e0 = ev.endsAt ? new Date(ev.endsAt) : null; const dur = e0 ? e0.getTime() - s0.getTime() : 0; const n = new Date(s0); if (to) {
+            const [y, m, dd] = to.split('-').map(Number);
+            n.setFullYear(y, m - 1, dd);
+        }
+        else
+            n.setDate(n.getDate() + (days || 0)); return { startsAt: n.toISOString(), endsAt: e0 ? new Date(n.getTime() + dur).toISOString() : undefined }; };
+        const items = [];
+        if (ev.recurrenceRule) {
+            items.push({ key: 'skip', label: `✕ ${TL('eq.skip')}`, hint: TL('eq.skipHint').replace('{d}', dl), danger: true, run: async () => { if (!await agConfirm(TL('eq.skipT'), TL('eq.skipQ').replace('{n}', ev.title).replace('{d}', dl), `✕ ${TL('eq.skip')}`, true))
+                    return; await go(() => runtime.actions.invoke('ACTION.CORE.CALENDAR.OCCURRENCE', { id, date: ymd, op: 'SKIP' }, EC), TL('eq.skipped')); } });
+        }
+        else {
+            const mv = (p) => go(() => runtime.actions.invoke('ACTION.CORE.CALENDAR.SAVE', { ...ev, ...p, expectedRevision: ev.revision }, EC), TL('eq.moved').replace('{d}', new Date(p.startsAt).toLocaleString()));
+            items.push({ key: 'e1', group: TL('tq.move'), label: `📅 ${TL('tq.tomorrow')}`, run: () => mv(shift(1)) });
+            items.push({ key: 'e7', group: TL('tq.move'), label: `📅 ${TL('tq.week')}`, run: () => mv(shift(7)) });
+            items.push({ key: 'ex', group: TL('tq.move'), label: `📅 ${TL('tq.pick')}`, run: async () => { const v = await agAskDate(TL('tq.pickT').replace('{n}', ev.title), String(ev.startsAt).slice(0, 10)); if (v)
+                    await mv(shift(null, v)); } });
+        }
+        items.push({ key: 'cal', label: `⌂ ${TL('eq.open')}`, run: () => { state.activeSection = 'calendar'; render(); } });
+        kxMoreMenu(b, items);
+    }
+    document.addEventListener('click', (e) => { const b = e.target?.closest?.('[data-ag-emenu]'); if (!b)
+        return; if (!b.matches('[data-ag-eid][data-ag-eat]'))
+        return; e.preventDefault(); e.stopPropagation(); void agEventAction(b); }, true);
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
