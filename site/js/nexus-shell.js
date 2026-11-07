@@ -421,6 +421,14 @@ var KXAPP;
                                 catch (e) {
                                     console.warn('DEMO seed v7', e);
                                 }
+                                try {
+                                    const r8 = await KXDemoSeed.seed8?.(runtime, CURRENT_USER_ID);
+                                    if (r8?.seeded)
+                                        console.info('DEMO seed v8', JSON.stringify(r8));
+                                }
+                                catch (e) {
+                                    console.warn('DEMO seed v8', e);
+                                }
                                 if (r2?.seeded && !r.seeded) {
                                     toast(TL('demo.seeded'));
                                     try {

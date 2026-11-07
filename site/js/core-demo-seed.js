@@ -395,6 +395,64 @@ var KXDemoSeed;
         await core.entities.save({ id: MARK7, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), planned: n } }, { actorId, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true });
         return { seeded: true, planned: n };
     }
-    KXDemoSeed = { seed, seed2, seed3, seed4, seed5, seed6, seed7, isDemo, MARK, MARK2, MARK3, MARK4, MARK5, MARK6, MARK7, DEMO_FILES };
+    /* N2.6b · DEMO data v8: Hobby a záliby – devices with deadlines + log entries (fictional; places generic, no real coordinates) */
+    const MARK8 = 'CORE.DEMO_SEED.MARKER.V8';
+    async function seed8(core, actorId) {
+        if (!isDemo(core))
+            return { seeded: false };
+        if (await core.entities.get(MARK8).catch(() => null))
+            return { seeded: false, reason: 'ALREADY' };
+        const C = { actorId, appCode: 'APP.KX.HOBBY', permissions: ['HOBBY_DEVICE.DEVICE.EDIT', 'HOBBY_DEVICE.DEVICE.READ', 'HOBBY_DEVICE.DEADLINE.EDIT', 'HOBBY_LOG.ENTRY.EDIT', 'HOBBY_LOG.ENTRY.READ'], confirmed: true };
+        const sp = await core.propagate.spaces(actorId);
+        const personal = sp.find((x) => x.kind === 'PERSONAL')?.id || sp[0]?.id;
+        const D = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+        let n = 0, dl = 0, lg = 0;
+        const DEV = [{ name: 'DEMO · Rutus Alter 71', kind: 'DETECTOR', manufacturer: 'Rutus', model: 'Alter 71', firmware: '3.1', battery: 'Li-Ion 7.4 V', section: 'DETECTORS', due: [['FIRMWARE', 'Aktualizace firmwaru', 12], ['SERVICE', 'Kontrola cívky a kabelu', 45]] },
+            { name: 'DEMO · Nokta PulseDive', kind: 'PINPOINTER', manufacturer: 'Nokta Makro', model: 'PulseDive 2v1', battery: 'vestavěná', section: 'DETECTORS', due: [['CHARGE', 'Nabít před výpravou', 2]] },
+            { name: 'DEMO · Traxxas E-Revo', kind: 'RC', manufacturer: 'Traxxas', model: 'E-Revo 2.0', battery: 'LiPo 2× 3S 5000 mAh', section: 'RC', due: [['SERVICE', 'Výměna oleje v tlumičích', 20], ['CHARGE', 'Skladovací napětí baterií', 6]] },
+            { name: 'DEMO · DJI Mini 4 Pro', kind: 'DRONE', manufacturer: 'DJI', model: 'Mini 4 Pro', firmware: '01.00.0400', battery: '3× Intelligent Flight', section: 'DRONES', due: [['REGISTRATION', 'Prodloužení registrace a pojištění', 30], ['FIRMWARE', 'Aktualizace firmwaru', 9]] },
+            { name: 'DEMO · Horské kolo', kind: 'BIKE', manufacturer: 'Specialized', model: 'Stumpjumper', section: 'BIKE', due: [['SERVICE', 'Servis vidlice a brzd', 25]] }];
+        for (const d of DEV) {
+            try {
+                const pl = { name: d.name, kind: d.kind, manufacturer: d.manufacturer, model: d.model, firmware: d.firmware, battery: d.battery, section: d.section, note: 'DEMO', spaceIds: [personal] };
+                for (const k of Object.keys(pl))
+                    if (pl[k] === undefined)
+                        delete pl[k]; /* send only filled fields */
+                const r = await core.actions.invoke('ACTION.HOBBY_DEVICE.DEVICE.CREATE', pl, C);
+                n++;
+                let rev = r?.revision || 1;
+                for (const [k, label, day] of d.due) {
+                    try {
+                        const x = await core.actions.invoke('ACTION.HOBBY_DEVICE.DEADLINE.ADD', { id: r.id, expectedRevision: rev, deadline: { kind: k, label: 'DEMO · ' + label, dueAt: D(day) } }, C);
+                        rev = x?.revision || rev + 1;
+                        dl++;
+                    }
+                    catch (e) {
+                        console.warn('DEMO hobby deadline', e);
+                    }
+                }
+            }
+            catch (e) {
+                console.warn('DEMO hobby device', d.name, e);
+            }
+        }
+        const LOG = [{ name: 'DEMO · Mince – pole za vsí', logKind: 'FIND', date: D(-6), device: 'DEMO · Rutus Alter 71', place: 'pole (obecně, bez souřadnic)', settings: 'Disk 4, citlivost 85', result: 'Mince 20. století', depthCm: '14', section: 'DETECTORS', private: 'YES' },
+            { name: 'DEMO · Jízda v lomu', logKind: 'RIDE', date: D(-3), device: 'DEMO · Traxxas E-Revo', place: 'RC dráha', result: '25 min, bez závad', section: 'RC', private: 'NO' },
+            { name: 'DEMO · Let – západ slunce', logKind: 'FLIGHT', date: D(-1), device: 'DEMO · DJI Mini 4 Pro', place: 'otevřená krajina, mimo zóny', result: '4 lety, 38 min, fotky v Galerii', section: 'DRONES', private: 'NO' }];
+        for (const l of LOG) {
+            try {
+                await core.actions.invoke('ACTION.HOBBY_LOG.ENTRY.CREATE', { ...l, note: 'DEMO', spaceIds: [personal] }, C);
+                lg++;
+            }
+            catch (e) {
+                console.warn('DEMO hobby log', l.name, e);
+            }
+        }
+        if (!n && !lg)
+            return { seeded: false, reason: 'FAILED', devices: n, log: lg }; /* never mark as done when nothing was created */
+        await core.entities.save({ id: MARK8, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), devices: n, deadlines: dl, log: lg } }, { actorId, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true });
+        return { seeded: true, devices: n, deadlines: dl, log: lg };
+    }
+    KXDemoSeed = { seed, seed2, seed3, seed4, seed5, seed6, seed7, seed8, isDemo, MARK, MARK2, MARK3, MARK4, MARK5, MARK6, MARK7, MARK8, DEMO_FILES };
     globalThis.KXDemoSeed = KXDemoSeed;
 })();

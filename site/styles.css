@@ -1381,3 +1381,39 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .kx-fin-changes em{font-style:normal;color:#ece4d0;font-weight:700}
 
 .kx-more-sep{height:1px;margin:6px 8px;background:rgba(233,181,79,.25)}
+/* ===== N2.6b – KOMPAKTNÍ SYSTÉM (user: compact and clear everywhere) ===== */
+/* hub record cards: tighter */
+.inspector.hub-full .veh-card{padding:10px 12px !important;gap:6px !important}
+.inspector.hub-full .veh-card > header > b{font-size:18px !important}
+/* one deadline = ONE line: title + date left, small controls right */
+.inspector.hub-full .veh-card > ul{gap:4px !important}
+.inspector.hub-full .veh-card > ul > li{grid-template-columns:minmax(0,1fr) auto !important;padding:5px 8px 5px 10px !important;gap:2px 8px !important;border-left-width:3px}
+.inspector.hub-full .veh-card > ul > li > span:first-child b{font-size:14px !important;display:inline !important}
+.inspector.hub-full .veh-card > ul > li > span:first-child small{display:block;font-size:11.5px !important;margin-top:1px}
+.inspector.hub-full .veh-card > ul > li .veh-actions{padding-top:0 !important;border-top:0 !important;flex-wrap:nowrap !important;gap:3px !important;justify-content:flex-end !important}
+.inspector.hub-full .veh-card > ul > li .veh-actions label{font-size:0 !important;gap:0}
+.inspector.hub-full .veh-card > ul > li .veh-actions label input{margin:0}
+.inspector.hub-full .veh-card > ul > li .veh-actions input[type=date]{max-width:128px !important;min-height:26px !important;font-size:12px !important;padding:2px 6px !important}
+.inspector.hub-full .veh-card > ul > li .veh-actions .btn{min-height:26px !important;padding:1px 9px !important;font-size:12px !important}
+.inspector.hub-full .veh-card > ul > li .veh-actions :is(.icon-btn,.ag-ico){width:26px !important;height:26px !important;min-height:26px !important;font-size:13px !important}
+.inspector.hub-full .veh-card > .kx-record-controls{padding-top:4px !important;gap:2px 10px !important}
+.inspector.hub-full .veh-badges{gap:4px !important}.inspector.hub-full .veh-badge{padding:2px 8px !important;font-size:11.5px !important}
+/* sections and bars */
+.inspector.hub-full :is(.ins-section,details.ins-section){padding:8px 10px !important;margin-bottom:6px !important;gap:8px !important}
+.inspector.hub-full .kx-hub-bar{padding:6px 10px !important;margin-bottom:6px !important;min-height:0 !important}
+.inspector.hub-full [data-hub-head]{min-height:0 !important;padding-top:10px !important;padding-bottom:10px !important}
+.inspector.hub-full [data-hub-head] h2{font-size:24px !important;margin:0 !important}
+/* My day: smaller charts and cards */
+.ag-card{padding:10px 12px !important}
+.ag-card svg:not(.ag-tree-ico svg){max-height:190px}
+.ag-row2,.ag-kpis{gap:10px !important}
+.ag-kpi{padding:10px 12px !important;min-height:0 !important}
+/* My day: long lists scroll inside their card instead of stretching the page */
+.content .personal-home :is(.kx-notify-list,.kx-ws-list,.kx-gd-list){max-height:380px !important;overflow:auto !important;overscroll-behavior:contain}
+.content .ag-plan [data-ag-plan]{max-height:560px;overflow:auto;overscroll-behavior:contain}
+.content .ag-quick{max-height:620px;overflow:auto}
+.content .personal-home{margin-bottom:10px !important}
+.content .personal-home > :is(header,h2,h3){margin-bottom:6px !important}
+/* day plan rows: controls stay on ONE line */
+.ag-plan .ag-done{white-space:nowrap !important;min-height:26px !important;padding:2px 10px !important;font-size:12px !important;line-height:1.2}
+.ag-plan .ag-prow{grid-template-columns:24px minmax(0,1fr) auto auto auto auto !important;column-gap:8px !important}

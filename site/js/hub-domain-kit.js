@@ -322,7 +322,7 @@ const PROP_T = () => globalThis.KXI18n?.UI?.['propagate.title']?.cs || 'Propagat
                     personal.registerOwnerAdapter(OWNER, createProjectionAdapter(core, service, { now: options.now }));
                     projection = 'REGISTERED';
                 }
-                return Object.freeze({ contract: cfg.contract, ownerApp: OWNER, providerKind: PROVIDER_KIND, actions: 6, projection, productionVerified: false });
+                return Object.freeze({ contract: cfg.contract, ownerApp: OWNER, providerKind: PROVIDER_KIND, actions: registered.length, projection, productionVerified: false }); /* N2.6b: the real number of registered actions (was a fixed 6) */
             }
             catch (error) {
                 for (const code of registered.reverse())
