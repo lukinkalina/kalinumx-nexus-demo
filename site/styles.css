@@ -1430,3 +1430,13 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .kx-lf small,label.kx-lf small{text-transform:none !important;letter-spacing:0 !important;font-weight:400 !important;color:#a39e8e !important;font-size:11.5px !important;line-height:1.35}
 
 .kx-shop{display:grid;gap:8px}.kx-shop-add{display:flex;gap:8px}.kx-shop-add input{flex:1;min-height:36px}.kx-shop-list{list-style:none;margin:0;padding:0;display:grid;gap:4px}.kx-shop-row{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;border-radius:9px;border:1px solid rgba(233,181,79,.18);background:rgba(10,15,24,.6)}.kx-shop-row label{display:flex;align-items:center;gap:10px;font-size:15px;cursor:pointer}.kx-shop-row input{width:20px;height:20px}.kx-shop-row.done span{text-decoration:line-through;color:#8f8a7c}
+
+/* N2.6b+ (user: window bottoms were cut off): the window layer spans topbar → bottom edge; the window scrolls inside */
+#modal.modal-wrap{bottom:0 !important;height:auto !important}
+#modal.modal-wrap:not(.kx-wm-float):not(.kx-wm-full) > .modal{max-height:calc(100dvh - var(--kx-top,0px) - 24px) !important;overflow:auto !important}
+#modal.modal-wrap.kx-wm-float > .modal{max-height:calc(100dvh - var(--wm-y,80px) - 12px) !important;overflow:auto !important}
+/* split windows (Notes …) follow the window size and never run below the screen */
+#modal.open.kx-wm-float .modal:has(.kx-split){height:var(--wm-h,70vh) !important;max-height:calc(100dvh - var(--wm-y,80px) - 12px) !important}
+#modal.open:not(.kx-wm-float):not(.kx-wm-full) .modal:has(.kx-split){height:min(88vh,920px,calc(100dvh - var(--kx-top,0px) - 24px)) !important}
+/* floating windows keep their own width and never run past the right edge */
+#modal.open.kx-wm-float > .modal,#modal.open.kx-wm-float > .modal:has(.kx-split),#modal.open.kx-wm-float > .modal.ag-lg{width:min(var(--wm-w,960px),calc(100vw - var(--wm-x,0px) - 8px)) !important;max-width:calc(100vw - var(--wm-x,0px) - 8px) !important}

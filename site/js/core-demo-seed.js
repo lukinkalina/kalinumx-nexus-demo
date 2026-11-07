@@ -163,6 +163,7 @@ var KXDemoSeed;
             'PURCHASE_SUPPLIER.SUPPLIER': [{ name: 'Dřevo Novák s.r.o.', supplies: 'buk, dub, překližka', contact: 'Petr Novák', phone: '+420 600 111 222', email: 'obchod@drevo-demo.cz', web: 'drevo-demo.cz', dueDays: '14', discount: '5 %', rating: '5', ico: '12345678' },
                 { name: 'Plexi Plast Brno', supplies: 'plexisklo 3–5 mm, řezání na míru', contact: 'Jana Malá', phone: '+420 600 333 444', email: 'info@plexi-demo.cz', dueDays: '30', discount: '', rating: '4' },
                 { name: 'Obaly Express', supplies: 'krabice, výplň, lepicí pásky', contact: 'zákaznická linka', phone: '+420 800 555 666', web: 'obaly-demo.cz', dueDays: '7', rating: '3' }],
+            'GARDEN.PLANT': [{ 'kind': 'GREENHOUSE', 'place': 'skleník u plotu', '_kinds': ['WATERING', 'FERTILIZING', 'HARVEST'] }, { 'kind': 'TREE', 'place': 'sad za domem', '_kinds': ['PRUNING', 'SPRAYING', 'HARVEST'] }, { 'kind': 'BED', 'place': 'záhon u terasy', '_kinds': ['PRUNING', 'WATERING'] }],
             'SCHOOL.STUDENT': [{ level: 'PRIMARY', _kinds: ['EXAM', 'HOMEWORK', 'PARENT_MEETING'] }, { level: 'SECONDARY', _kinds: ['EXAM', 'PROJECT', 'TRIP'] }, { level: 'COURSE', _kinds: ['ACTIVITY', 'DAY_OFF'] }],
             'HOBBY_LOG.ENTRY': [{ name: 'Mince u lesa' }, { name: 'Přezka z pole' }, { name: 'Stará podkova' }],
             'HEALTH.PERSON': [{ doctor: 'MUDr. Novotná – praktická lékařka' }, { doctor: 'MUDr. Král – praktický lékař' }, { doctor: 'MUDr. Malá – dětská lékařka' }],

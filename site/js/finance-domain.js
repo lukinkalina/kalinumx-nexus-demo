@@ -576,7 +576,7 @@ var KXFinanceHub;
             else
                 throw e;
         }
-        const spaceChips = `<div class="kx-print3d-tabs" data-fin-spaces>${spaces.map((s) => `<button class="chip ${s.id === st.space ? 'active' : ''}" data-fin-space="${esc(s.id)}">${esc(TL('fin.space.' + s.kind, s.kind))} · ${esc(s.name)}</button>`).join('')}</div>`;
+        const spaceChips = `<div class="kx-print3d-tabs" data-fin-spaces>${spaces.map((s) => `<button class="chip ${s.id === st.space ? 'active' : ''}" data-fin-space="${esc(s.id)}">${(() => { const k = TL('fin.space.' + s.kind, s.kind); const nm = String(s.name || ''); return nm.toLowerCase().startsWith(String(k).toLowerCase()) ? esc(nm) : `${esc(k)} · ${esc(nm)}`; })()}</button>`).join('')}</div>`;
         const tabBar = `<div class="kx-sf-scope" data-fin-tabs>${TABS.map(([k, l]) => `<button type="button" class="${st.view === k ? 'active' : ''}" data-fin-tab="${k}">${esc(l)}</button>`).join('')}</div>`;
         if (locked) {
             root.innerHTML = `<div class="kx-fin" data-fin-hub data-fin-locked>${spaceChips}<div class="kx-tw-safety">🔒 ${esc(TL('fin.locked', 'Finance is sensitive – sign in to see and record movements.'))} <span class="kx-fix"><button type="button" class="btn ghost compact" data-fix-place="IDENTITY">🔐 ${esc(TL('fix.place.IDENTITY', 'Sign in'))}</button><button type="button" class="btn ghost compact" data-fix-manual="${esc(TL('fix.idManual', 'identity'))}">📘 ${esc(TL('fix.manual', 'Manual'))}</button></span></div></div>`;

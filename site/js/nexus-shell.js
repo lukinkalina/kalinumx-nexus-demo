@@ -2929,6 +2929,15 @@ var KXAPP;
             if (tg)
                 tg.onclick = () => { FOOD_ST.showDone = !FOOD_ST.showDone; void KXFoodHub.mountHub(root, core, opts); };
         } });
+    /* N2.6b+ (user: tables must read naturally): numbers with thousand separators, dates in the app language – the stored value stays raw */
+    function kxtLoc() { return String(document.documentElement.lang || 'cs').startsWith('en') ? 'en-GB' : 'cs-CZ'; }
+    function kxtNum(v) { const x = Number(String(v ?? '').replace(/\s/g, '').replace(',', '.')); if (String(v ?? '').trim() === '' || !Number.isFinite(x))
+        return String(v ?? ''); return new Intl.NumberFormat(kxtLoc(), { minimumFractionDigits: Number.isInteger(x) ? 0 : 2, maximumFractionDigits: 2 }).format(x).replace(/^-/, '−'); }
+    function kxtDate(v) { const s = String(v ?? ''); return /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + 'T12:00:00').toLocaleDateString(kxtLoc()) : s; }
+    document.addEventListener('focusin', (e) => { const i = e.target?.closest?.('[data-kxt-edit][data-kxt-raw]'); if (i && i.value !== i.dataset.kxtRaw)
+        i.value = String(i.dataset.kxtRaw || ''); });
+    document.addEventListener('focusout', (e) => { const i = e.target?.closest?.('[data-kxt-edit][data-kxt-raw]'); if (i && i.value === i.dataset.kxtRaw)
+        i.value = kxtNum(i.value); });
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -8219,7 +8228,14 @@ var KXAPP;
     let appearanceSnap = null, appearanceSession = false;
     const snapAppearance = () => ({ state: { theme: state.theme, iconStyle: state.iconStyle, fontProfile: state.fontProfile, fontOverride: state.fontOverride || null, shellPreset: state.shellPreset }, layout: currentWindow().layout });
     const appearanceDirty = () => !!appearanceSnap && JSON.stringify(snapAppearance()) !== JSON.stringify(appearanceSnap);
-    const wmGet = (kind) => ({ mode: kind === 'drawer' ? 'RIGHT' : 'CENTER', x: 80, y: 70, w: kind === 'drawer' ? 460 : 640, h: Math.round(window.innerHeight * 0.7), opacity: 1, min: false, ...(state.wm?.[kind] || {}) });
+    const wmGet = (kind) => {
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const top = Math.round(document.querySelector('.topbar')?.getBoundingClientRect().bottom || 64);
+        const desk = vw >= 1100;
+        const fw = Math.min(1000, Math.round(vw * 0.62));
+        const def = { mode: kind === 'drawer' ? 'RIGHT' : (desk ? 'FLOAT' : 'CENTER'), x: kind === 'drawer' ? 80 : Math.max(0, Math.round((vw - fw) / 2)), y: top + 12, w: kind === 'drawer' ? 460 : (desk ? fw : 640), h: Math.max(260, Math.min(Math.round(vh * 0.8), vh - top - 28)), opacity: 1, min: false };
+        return { ...def, ...(state.wm?.[kind] || {}) };
+    };
     function wmSet(kind, patch) { state.wm = { ...(state.wm || {}), [kind]: { ...wmGet(kind), ...patch } }; save(); }
     function wmBar(kind) { const w = wmGet(kind); return `<div data-wm-bar="${kind}">${WM_MODES[kind].map(([c, n]) => `<button type="button" class="${w.mode === c ? 'active' : ''}" data-wm-mode="${c}">${esc(TW(n))}</button>`).join('')}<label title="${esc(TW('wm.opacity'))}"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg> <input type="range" min="0.5" max="1" step="0.05" value="${w.opacity}" data-wm-opacity></label><button type="button" data-wm-min title="${esc(TW(w.min ? 'wm.restore' : 'wm.minimize'))}">${w.min ? '▢' : '▁'}</button></div>`; }
     function applyWm(elm, kind) {
@@ -8240,7 +8256,7 @@ var KXAPP;
             t.style.setProperty('--wm-x', x + 'px');
             t.style.setProperty('--wm-y', y + 'px');
             t.style.setProperty('--wm-w', Math.max(320, Math.min(vw, w.w)) + 'px');
-            t.style.setProperty('--wm-h', Math.max(200, Math.min(vh, w.h)) + 'px');
+            t.style.setProperty('--wm-h', Math.max(200, Math.min(vh - y - 12, w.h)) + 'px'); /* never below the bottom edge */
         }
         box.style.opacity = String(w.opacity);
         elm.dataset.wmMode = w.mode;
@@ -13524,9 +13540,9 @@ var KXAPP;
                     const opts = f.optionLabels || null;
                     /* the field registry type is BOOL (settings use BOOLEAN) – accept both */ return (f.type === 'BOOL' || f.type === 'BOOLEAN') ? `<td style="${st}" ${err ? `title="${esc(err)}"` : ''}><input type="checkbox" data-kxt-edit="${esc(f.key)}" data-kxt-rec="${esc(id)}" ${v ? 'checked' : ''}></td>`
                         : opts ? `<td style="${st}" ${err ? `title="${esc(err)}"` : ''}><select data-kxt-edit="${esc(f.key)}" data-kxt-rec="${esc(id)}" style="width:100%;font-size:inherit">${Object.entries(opts).map(([k, l]) => `<option value="${esc(k)}" ${String(v) === k ? 'selected' : ''}>${esc(String(l))}</option>`).join('')}</select></td>`
-                            : `<td style="${st}" ${err ? `title="${esc(err)}"` : ''}><input data-kxt-edit="${esc(f.key)}" data-kxt-rec="${esc(id)}" value="${esc(String(v ?? ''))}" ${f.type === 'NUMBER' ? 'inputmode="decimal"' : ''} style="width:${f.unit ? 'calc(100% - 26px)' : '100%'};font-size:inherit;padding:0 2px">${f.unit ? `<small style="opacity:.7"> ${esc(f.unit)}</small>` : ''}</td>`;
+                            : `<td style="${st}" ${err ? `title="${esc(err)}"` : ''}><input data-kxt-edit="${esc(f.key)}" data-kxt-rec="${esc(id)}" ${f.type === 'DATE' && /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? '')) ? `type="date" value="${esc(String(v))}"` : f.type === 'NUMBER' ? `value="${esc(kxtNum(v))}" data-kxt-raw="${esc(String(v ?? ''))}" inputmode="decimal"` : `value="${esc(String(v ?? ''))}"`} style="width:${f.unit ? 'calc(100% - 26px)' : '100%'};font-size:inherit;padding:0 2px;${f.type === 'NUMBER' ? 'text-align:right;' : ''}">${f.unit ? `<small style="opacity:.7"> ${esc(f.unit)}</small>` : ''}</td>`;
                 })()
-                    : `<td data-kxt-open style="padding:${pad};cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:${f.width || 220}px">${esc(String((() => { const v = cfg.value(r, f); return f.optionLabels && v != null && f.optionLabels[v] !== undefined ? f.optionLabels[v] : (v ?? ''); })()))}${f.unit && cfg.value(r, f) !== '' && cfg.value(r, f) != null ? ` ${esc(f.unit)}` : ''}</td>`).join('')}<td style="padding:${pad};width:22px"><button class="icon-btn" data-kxt-rowmenu="${esc(id)}" aria-haspopup="menu" title="Další akce" style="width:20px;height:20px">⋮</button></td></tr>`;
+                    : `<td data-kxt-open style="padding:${pad};cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:${f.width || 220}px">${esc(String((() => { const v = cfg.value(r, f); return f.optionLabels && v != null && f.optionLabels[v] !== undefined ? f.optionLabels[v] : f.type === 'NUMBER' ? kxtNum(v) : f.type === 'DATE' ? kxtDate(v) : (v ?? ''); })()))}${f.unit && cfg.value(r, f) !== '' && cfg.value(r, f) != null ? ` ${esc(f.unit)}` : ''}</td>`).join('')}<td style="padding:${pad};width:22px"><button class="icon-btn" data-kxt-rowmenu="${esc(id)}" aria-haspopup="menu" title="Další akce" style="width:20px;height:20px">⋮</button></td></tr>`;
         }).join('');
         const lists = cols.filter((f) => f.custom && f.options?.length).map((f) => `<datalist id="kxt-${esc(f.key)}">${f.options.map((o) => `<option value="${esc(o)}">`).join('')}</datalist>`).join('');
         host.innerHTML = `<div class="studio-toolbar" data-kxt-toolbar style="gap:6px;font-size:12px;flex-wrap:wrap">${cfg.filterState ? `<input data-kxt-q placeholder="🔎 ${esc(TL('table.search'))}" value="${esc(fst.q || '')}" style="width:150px"><select data-kxt-fcol aria-label="${esc(TL('table.filterCol'))}"><option value="">${esc(TL('table.filterCol'))}…</option>${cols.map((f) => `<option value="${esc(f.key)}" ${fst.col === f.key ? 'selected' : ''}>${esc(f.label)}</option>`).join('')}</select><input data-kxt-fval placeholder="${esc(TL('table.filterVal'))}" value="${esc(fst.val || '')}" style="width:110px" title="${esc(TL('table.filterHelp'))}">${fst.q || fst.val ? `<button class="icon-btn" data-kxt-fclear title="${esc(TL('table.filterClear'))}">✕</button>` : ''}` : ''}<select data-kxt-density aria-label="Hustota"><option value="EXTRA" ${cfg.density === 'EXTRA' ? 'selected' : ''}>Extra kompaktní</option><option value="COMPACT" ${cfg.density === 'COMPACT' ? 'selected' : ''}>Kompaktní</option><option value="NORMAL" ${cfg.density === 'NORMAL' ? 'selected' : ''}>Normální</option></select>
@@ -13540,7 +13556,7 @@ var KXAPP;
                 sum += x;
                 n++;
             }
-        } /* percentages are averaged (⌀), other numbers summed (Σ) */ /* percentages are averaged (⌀), other numbers summed (Σ) */ const pct = f.unit === '%'; return `<td style="padding:${pad}" data-kxt-sum="${esc(f.key)}" title="${esc(pct ? TL('table.avg') : TL('table.sum'))}">${n ? `${pct ? '⌀' : 'Σ'} ${Math.round((pct ? sum / n : sum) * 100) / 100}${f.unit ? ' ' + esc(f.unit) : ''}` : ''}</td>`; }).join('')}<td></td></tr><tr><td colspan="${cols.length + 2}" style="padding:${pad};font-weight:400;opacity:.75" data-kxt-rowcount>${esc(TL('table.rows'))}: ${cfg.rows.length}${cfg.rows.length !== totalRows ? ` / ${totalRows}` : ''}</td></tr></tfoot>` : ''}</table>${lists}${(cfg.errors?.() || []).length ? `<div data-kxt-errors style="color:#e5484d;font-size:12px;margin-top:4px">${(cfg.errors()).map((e) => `<div>⚠ ${esc(e)}</div>`).join('')}</div>` : ''}`;
+        } /* percentages are averaged (⌀), other numbers summed (Σ) */ /* percentages are averaged (⌀), other numbers summed (Σ) */ const pct = f.unit === '%'; return `<td style="padding:${pad}" data-kxt-sum="${esc(f.key)}" title="${esc(pct ? TL('table.avg') : TL('table.sum'))}">${n ? `${pct ? '⌀' : 'Σ'} ${esc(kxtNum(Math.round((pct ? sum / n : sum) * 100) / 100))}${f.unit ? ' ' + esc(f.unit) : ''}` : ''}</td>`; }).join('')}<td></td></tr><tr><td colspan="${cols.length + 2}" style="padding:${pad};font-weight:400;opacity:.75" data-kxt-rowcount>${esc(TL('table.rows'))}: ${cfg.rows.length}${cfg.rows.length !== totalRows ? ` / ${totalRows}` : ''}</td></tr></tfoot>` : ''}</table>${lists}${(cfg.errors?.() || []).length ? `<div data-kxt-errors style="color:#e5484d;font-size:12px;margin-top:4px">${(cfg.errors()).map((e) => `<div>⚠ ${esc(e)}</div>`).join('')}</div>` : ''}`;
         const re = () => cfg.onChange();
         const setF = async (key, patch) => { try {
             await runtime.actions.invoke('ACTION.CORE.FIELDS.SET', { scope: cfg.scope, key, patch }, C);
