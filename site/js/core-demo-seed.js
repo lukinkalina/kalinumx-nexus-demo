@@ -163,6 +163,12 @@ var KXDemoSeed;
             'PURCHASE_SUPPLIER.SUPPLIER': [{ name: 'Dřevo Novák s.r.o.', supplies: 'buk, dub, překližka', contact: 'Petr Novák', phone: '+420 600 111 222', email: 'obchod@drevo-demo.cz', web: 'drevo-demo.cz', dueDays: '14', discount: '5 %', rating: '5', ico: '12345678' },
                 { name: 'Plexi Plast Brno', supplies: 'plexisklo 3–5 mm, řezání na míru', contact: 'Jana Malá', phone: '+420 600 333 444', email: 'info@plexi-demo.cz', dueDays: '30', discount: '', rating: '4' },
                 { name: 'Obaly Express', supplies: 'krabice, výplň, lepicí pásky', contact: 'zákaznická linka', phone: '+420 800 555 666', web: 'obaly-demo.cz', dueDays: '7', rating: '3' }],
+            'SHOP_PRODUCT.PRODUCT': [{ kind: 'OWN', sku: 'KX-BOX-01', price: '890', vatPct: '21', description: 'Dubová krabička s gravírovaným víkem, 18×12×8 cm', _kinds: ['RESTOCK', 'PRICE'] },
+                { kind: 'OWN', sku: 'KX-PLATE-02', price: '1490', vatPct: '21', description: 'Gravírovaná deska na zeď – vlastní text nebo logo', _kinds: ['PRICE', 'LAUNCH'] },
+                { kind: 'MIXED', sku: 'KX-CANDLE-03', price: '650', vatPct: '21', description: 'Svícen z plexi a dřeva, nakupovaná svíčka', _kinds: ['RESTOCK', 'PRICE'] }],
+            'SALES.CUSTOMER': [{ kind: 'B2B', contact: 'objednavky@umlyna-demo.cz', ico: '87654321', _kinds: ['OFFER', 'INVOICE_DUE'] }, { kind: 'VIP', contact: '+420 777 123 456', _kinds: ['ORDER_DUE', 'REVIEW'] }, { kind: 'RESELLER', contact: 'salon@bella-demo.cz', _kinds: ['FOLLOW_UP', 'OFFER'] }],
+            'HR.PERSON': [{ role: 'PART_TIME', _kinds: ['SAFETY_TRAINING', 'CONTRACT_END'] }, { role: 'CONTRACTOR', _kinds: ['CONTRACT_END', 'REVIEW'] }, { role: 'CONTRACTOR', _kinds: ['REVIEW', 'VACATION'] }],
+            'CERTIFY.ITEM': [{ kind: 'DEVICE_REVISION', _kinds: ['REVISION', 'EXPIRY'] }, { kind: 'DEVICE_REVISION', _kinds: ['REVISION', 'RENEWAL'] }, { kind: 'DEVICE_REVISION', _kinds: ['REVISION', 'EXPIRY'] }],
             'GARDEN.PLANT': [{ 'kind': 'GREENHOUSE', 'place': 'skleník u plotu', '_kinds': ['WATERING', 'FERTILIZING', 'HARVEST'] }, { 'kind': 'TREE', 'place': 'sad za domem', '_kinds': ['PRUNING', 'SPRAYING', 'HARVEST'] }, { 'kind': 'BED', 'place': 'záhon u terasy', '_kinds': ['PRUNING', 'WATERING'] }],
             'SCHOOL.STUDENT': [{ level: 'PRIMARY', _kinds: ['EXAM', 'HOMEWORK', 'PARENT_MEETING'] }, { level: 'SECONDARY', _kinds: ['EXAM', 'PROJECT', 'TRIP'] }, { level: 'COURSE', _kinds: ['ACTIVITY', 'DAY_OFF'] }],
             'HOBBY_LOG.ENTRY': [{ name: 'Mince u lesa' }, { name: 'Přezka z pole' }, { name: 'Stará podkova' }],
@@ -252,7 +258,7 @@ var KXDemoSeed;
                         for (const kd of kinds) {
                             const due = [-3, 5, 40, 12, 90, -10, 25, 60][(j + i) % 8];
                             const item = { kind: kd, label: `DEMO · ${d.itemKinds[kd]}` };
-                            if (j % 3 === 2 && !/CLAIM|DELIVERY|END|EXPIR/.test(kd))
+                            if (j % 3 === 2 && !/CLAIM|DELIVERY|END|EXPIR|LAUNCH|START|OPEN/.test(kd))
                                 item.intervalDays = [30, 90, 365][i % 3];
                             else
                                 item.dueAt = day(due); /* one-off kinds (claim end, delivery) never repeat */
