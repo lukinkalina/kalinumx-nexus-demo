@@ -1201,6 +1201,8 @@ var KXAPP;
     new MutationObserver(() => { if (!agBtnT)
         agBtnT = setTimeout(agButtonTidy, 120); }).observe(document.documentElement, { childList: true, subtree: true });
     /* N2.6b (user: collapsed menu must keep icons, not broken text): every hub row in the tree gets its icon (same icon set as hub headers) and a name tooltip */
+    /* N2.6b: hubs without an icon in the pack get a fitting symbol instead of letters (a real pack icon still wins) */
+    const AG_HUB_SYMBOL = { 'APP.KX.HOBBY': '🎯', 'APP.KX.GAMES': '🎮', 'APP.KX.ADS': '📣' };
     function agTreeIcons() {
         document.querySelectorAll('.sidebar .kx-tree-hub:not([data-tree-tab]):not([data-ag-ti])').forEach(r => {
             r.dataset.agTi = '1';
@@ -1226,6 +1228,10 @@ var KXAPP;
             }
             else if (/<(svg|img)\b/i.test(ic))
                 s.innerHTML = ic;
+            else if (AG_HUB_SYMBOL[code]) {
+                s.classList.add('ag-tree-sym');
+                s.textContent = AG_HUB_SYMBOL[code];
+            }
             else {
                 s.classList.add('ag-tree-letter');
                 s.textContent = (name.replace(/^[^\p{L}]+/u, '').slice(0, 1) || '•').toUpperCase();
@@ -14085,7 +14091,7 @@ var KXAPP;
                 hd.classList.add('kx-hub-head');
                 hd.dataset.hubHead = String(snapshot.target.id);
                 const close = hd.querySelector('[data-ins-close]');
-                hd.innerHTML = `<span class="kx-hub-ic">${esc(h.initials)}</span><div><small class="kx-crumb">${esc(TL('tree.hubs'))}${h.category ? ` › ${esc(h.category)}` : ''}</small><h2>${esc(h.name)}</h2><p>${esc(h.summary)}</p></div>`;
+                hd.innerHTML = `<span class="kx-hub-ic">${esc(AG_HUB_SYMBOL[String(snapshot.target.id)] || h.initials)}</span><div><small class="kx-crumb">${esc(TL('tree.hubs'))}${h.category ? ` › ${esc(h.category)}` : ''}</small><h2>${esc(h.name)}</h2><p>${esc(h.summary)}</p></div>`;
                 if (close)
                     hd.appendChild(close);
             }

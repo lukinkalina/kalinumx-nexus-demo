@@ -9,7 +9,7 @@ var KXAppearanceAssets;
     const text = (v, max, name) => { const s = String(v ?? ''); if (s.length > max)
         throw new Error(`${name} exceeds ${max} chars`); return s; };
     const contract = () => KX_APPEARANCE_ASSET_CONTRACT || {};
-    const iconCodeForItem = (itemCode) => `ICON.${String(itemCode).replace(/^APP\./, '').replace(/^CORE\.LAUNCH\./, 'CORE.').replace(/[^A-Za-z0-9_.-]/g, '_')}`;
+    const iconCodeForItem = (itemCode) => `ICON.${String(itemCode).replace(/^APP\.KX\.NOTES$/, 'APP.KX.NOTEPAD') /* N2.6b: the pack names the Notes icon NOTEPAD */.replace(/^APP\./, '').replace(/^CORE\.LAUNCH\./, 'CORE.').replace(/[^A-Za-z0-9_.-]/g, '_')}`;
     const iconSlots = () => ((KXNavigation?.contract?.().items) || []).map((x) => ({ iconCode: iconCodeForItem(x.itemCode), itemCode: x.itemCode, label: x.label, kind: x.kind, required: !!x.required }));
     const builtInPacks = () => ((KXUI?.ICON_STYLES) || []).map((x) => ({ packCode: `ICONPACK.KX.${x.code}`, name: x.name, styleCode: x.code, description: x.description, source: 'BUILT_IN_STYLE', assetPayloadStored: false }));
     const fontCodes = () => new Set(['AUTO', ...((KXUI?.FONT_PROFILES) || []).map((x) => x.code)]);

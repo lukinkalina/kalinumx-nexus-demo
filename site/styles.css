@@ -1417,3 +1417,7 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 /* day plan rows: controls stay on ONE line */
 .ag-plan .ag-done{white-space:nowrap !important;min-height:26px !important;padding:2px 10px !important;font-size:12px !important;line-height:1.2}
 .ag-plan .ag-prow{grid-template-columns:24px minmax(0,1fr) auto auto auto auto !important;column-gap:8px !important}
+
+.sidebar .kx-tree-hub .ag-tree-ico.ag-tree-sym{font-size:16px !important;line-height:1 !important}
+.app-shell:is(.kx-rail,.sidebar-collapsed)>.sidebar .kx-tree .ag-tree-ico.ag-tree-sym{font-size:20px !important;line-height:30px !important}
+.kx-hub-ic{font-size:28px}
