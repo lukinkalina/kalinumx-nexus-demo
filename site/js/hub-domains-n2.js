@@ -416,7 +416,7 @@ var KXQrHub;
                     if (!old || old.type !== T)
                         throw new Error('QR_NOT_FOUND');
                 }
-                return core.entities.save({ id: p.id, type: T, ownerApp: OWNER, schema: 'KX.QR.CODE/1', spaceIds: old ? old.spaceIds : [sp.id], expectedRevision: old?.revision, data: { name, kind: p.data.kind, fields: f } }, c);
+                return core.entities.save({ id: p.id, type: T, ownerApp: OWNER, schema: 'KX.QR.CODE/1', spaceIds: old ? old.spaceIds : [sp.id], expectedRevision: old?.revision, data: { name, kind: p.data.kind, fields: f, ...(p.data.style ? { style: qrStyle(p.data.style) } : {}) } }, c);
             },
             async archive(p, c) { const r = await core.entities.get(p?.id); if (!r || r.type !== T)
                 throw new Error('QR_NOT_FOUND'); return core.entities.archive ? core.entities.archive(r.id, c) : core.entities.save({ ...r, archivedAt: new Date().toISOString(), expectedRevision: r.revision }, c); } };
@@ -451,20 +451,27 @@ var KXQrHub;
             return ['BEGIN:VCARD', 'VERSION:3.0', `N:${f.name || ''}`, `FN:${f.name || ''}`, f.org ? `ORG:${f.org}` : '', f.tel ? `TEL:${f.tel}` : '', f.email ? `EMAIL:${f.email}` : '', f.url ? `URL:${f.url}` : '', 'END:VCARD'].filter(Boolean).join('\n');
         return ['SOS', f.name ? `Jméno: ${f.name}` : '', f.ice ? `Kontakt v nouzi: ${f.ice}` : '', f.blood ? `Krevní skupina: ${f.blood}` : '', f.allergy ? `Alergie: ${f.allergy}` : '', f.meds ? `Léky: ${f.meds}` : '', f.note || ''].filter(Boolean).join('\n');
     }
-    function svg(text, size = 200) {
+    /* N2.6b+ (user: QR parameters): error correction L/M/Q/H, quiet zone, colours, transparent background – defaults = the previous look (M, 4, black on white) */
+    function qrStyle(x) {
+        const o = x || {};
+        const hex = (v, d) => /^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v).toLowerCase() : d;
+        return { ecc: ['L', 'M', 'Q', 'H'].includes(o.ecc) ? o.ecc : 'M', margin: Math.max(0, Math.min(8, Number.isFinite(+o.margin) ? Math.round(+o.margin) : 4)), fg: hex(o.fg, '#000000'), bg: o.bg === 'transparent' ? 'transparent' : hex(o.bg, '#ffffff'), png: [512, 1024, 2048, 4096].includes(+o.png) ? +o.png : 1024 };
+    }
+    function svg(text, size = 200, styleIn) {
+        const S = qrStyle(styleIn);
         const Q = globalThis.KXQRCode, L = globalThis.KXQRErrorCorrectLevel;
         if (!Q || !text)
             return '';
-        const qr = new Q(-1, L?.M ?? 0);
+        const qr = new Q(-1, L?.[S.ecc] ?? L?.M ?? 0);
         qr.addData(unescape(encodeURIComponent(text)));
         qr.make();
-        const n = qr.getModuleCount(), m = 4, u = size / (n + 2 * m);
+        const n = qr.getModuleCount(), m = S.margin, u = size / (n + 2 * m);
         let d = '';
         for (let r = 0; r < n; r++)
             for (let c = 0; c < n; c++)
                 if (qr.isDark(r, c))
                     d += `M${((c + m) * u).toFixed(2)} ${((r + m) * u).toFixed(2)}h${u.toFixed(2)}v${u.toFixed(2)}h-${u.toFixed(2)}z`;
-        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">${S.bg === 'transparent' ? '' : `<rect width="100%" height="100%" fill="${S.bg}"/>`}<path d="${d}" fill="${S.fg}"/></svg>`;
     }
     const FIELDS = { WEB: [['url', 'qr.f.url']], TEXT: [['text', 'qr.f.text']], WIFI: [['ssid', 'qr.f.ssid'], ['pass', 'qr.f.wifiPass'], ['sec', 'qr.f.sec']], CONTACT: [['name', 'qr.f.name'], ['tel', 'qr.f.tel'], ['email', 'qr.f.email'], ['org', 'qr.f.org'], ['url', 'qr.f.url']], SOS: [['name', 'qr.f.name'], ['ice', 'qr.f.ice'], ['blood', 'qr.f.blood'], ['allergy', 'qr.f.allergy'], ['meds', 'qr.f.meds'], ['note', 'qr.f.note']] };
     function mountHub(root, core, opts) {
@@ -484,7 +491,7 @@ var KXQrHub;
         }
         catch { }
         const dl = (name, blob) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.addEventListener('click', (e) => e.stopPropagation()); /* the download click must not reach the 'click outside closes the hub' handler */ /* the download click must not reach the 'click outside closes the hub' handler */ document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); };
-        const png = (s, name) => { const img = new Image(); img.onload = () => { const c = document.createElement('canvas'); c.width = 1024; c.height = 1024; const g = c.getContext('2d'); g.drawImage(img, 0, 0, 1024, 1024); c.toBlob(b => { if (b)
+        const png = (s, name, px = 1024) => { const img = new Image(); img.onload = () => { const c = document.createElement('canvas'); c.width = px; c.height = px; const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(img, 0, 0, px, px); c.toBlob(b => { if (b)
             dl(name + '.png', b); }, 'image/png'); }; img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s); };
         async function load() { st.rows = await core.actions.invoke('ACTION.QR.CODE.LIST', {}, C); }
         function draw() {
@@ -494,8 +501,19 @@ var KXQrHub;
             root.innerHTML = `<section class="ag-qr"><div class="ag-vault-bar"><input type="search" data-q-q placeholder="${esc(tl('qr.search'))}" value="${esc(st.q)}"><button type="button" class="btn" data-q-new>＋ ${esc(tl('qr.new'))}</button></div>
       ${e ? `<div class="ag-card ag-qr-edit"><div class="ag-qr-editgrid"><div><div class="ag-vault-form"><label class="kx-lf">${esc(tl('qr.f.title'))}<input data-q-name value="${esc(e.name || '')}"></label><label class="kx-lf">${esc(tl('qr.f.kind'))}<select data-q-kind>${KINDS.map(k => `<option value="${k}" ${e.kind === k ? 'selected' : ''}>${esc(tl('qr.k.' + k))}</option>`).join('')}</select></label>
         ${(FIELDS[e.kind] || []).map(([k, l]) => k === 'sec' ? `<label class="kx-lf">${esc(tl(l))}<select data-q-f="sec">${['WPA', 'WEP', 'nopass'].map(o => `<option ${e.fields?.sec === o ? 'selected' : ''}>${o}</option>`).join('')}</select></label>` : `<label class="kx-lf ${k === 'text' || k === 'note' ? 'wide' : ''}">${esc(tl(l))}${k === 'text' ? `<textarea data-q-f="${k}" rows="3">${esc(e.fields?.[k] || '')}</textarea>` : `<input data-q-f="${k}" value="${esc(e.fields?.[k] || '')}">`}</label>`).join('')}</div>
-        <button type="button" class="btn" data-q-save>${esc(tl('qr.save'))}</button><button type="button" class="btn ghost" data-q-cancel>${esc(tl('vault.cancel'))}</button></div><div class="ag-qr-preview" data-q-prev></div></div></div>` : ''}
-      <div class="ag-qr-grid">${list.length ? list.map((r) => `<article class="ag-qr-card"><div class="ag-qr-img">${svg(payload(r.data.kind, r.data.fields), 160)}</div><b>${esc(r.data.name)}</b><small>${esc(tl('qr.k.' + r.data.kind))}</small><span><button type="button" class="btn compact" data-q-png="${esc(r.id)}">⬇ PNG</button><button type="button" class="btn ghost compact" data-q-svg="${esc(r.id)}">⬇ SVG</button><button type="button" class="btn ghost compact" data-q-print="${esc(r.id)}">🖨</button><button type="button" class="btn ghost compact" data-q-edit="${esc(r.id)}">✎</button><button type="button" class="btn ghost compact" data-q-del="${esc(r.id)}">🗑</button></span></article>`).join('') : `<p class="muted">${esc(tl('qr.empty'))}</p>`}</div></section>`;
+        ${(() => {
+                const S = qrStyle(e.style);
+                const eccs = [['L', tl('qr.ecc.L')], ['M', tl('qr.ecc.M')], ['Q', tl('qr.ecc.Q')], ['H', tl('qr.ecc.H')]];
+                return `<details class="ag-qr-style" ${e.style ? 'open' : ''}><summary>⚙ ${esc(tl('qr.style'))}</summary><div class="ag-vault-form">
+            <label class="kx-lf">${esc(tl('qr.ecc'))}<select data-q-st="ecc">${eccs.map(([k, l]) => `<option value="${k}" ${S.ecc === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select><small>${esc(tl('qr.eccHelp'))}</small></label>
+            <label class="kx-lf">${esc(tl('qr.bg'))}<select data-q-st="bgMode"><option value="white" ${S.bg === '#ffffff' ? 'selected' : ''}>${esc(tl('qr.bg.white'))}</option><option value="transparent" ${S.bg === 'transparent' ? 'selected' : ''}>${esc(tl('qr.bg.transparent'))}</option><option value="custom" ${S.bg !== '#ffffff' && S.bg !== 'transparent' ? 'selected' : ''}>${esc(tl('qr.bg.custom'))}</option></select></label>
+            <label class="kx-lf">${esc(tl('qr.bgColor'))}<input type="color" data-q-st="bg" value="${S.bg === 'transparent' ? '#ffffff' : S.bg}"></label>
+            <label class="kx-lf">${esc(tl('qr.fg'))}<input type="color" data-q-st="fg" value="${S.fg}"></label>
+            <label class="kx-lf">${esc(tl('qr.margin'))}<input type="number" min="0" max="8" data-q-st="margin" value="${S.margin}"><small>${esc(tl('qr.marginHelp'))}</small></label>
+            <label class="kx-lf">${esc(tl('qr.png'))}<select data-q-st="png">${[512, 1024, 2048, 4096].map(n => `<option value="${n}" ${S.png === n ? 'selected' : ''}>${n} px</option>`).join('')}</select></label>
+            </div><p class="ag-qr-warn" data-q-warn></p></details>`;
+            })()}<button type="button" class="btn" data-q-save>${esc(tl('qr.save'))}</button><button type="button" class="btn ghost" data-q-cancel>${esc(tl('vault.cancel'))}</button></div><div class="ag-qr-preview" data-q-prev></div></div></div>` : ''}
+      <div class="ag-qr-grid">${list.length ? list.map((r) => `<article class="ag-qr-card"><div class="ag-qr-img">${svg(payload(r.data.kind, r.data.fields), 160, r.data.style)}</div><b>${esc(r.data.name)}</b><small>${esc(tl('qr.k.' + r.data.kind))}</small><span><button type="button" class="btn compact" data-q-png="${esc(r.id)}">⬇ PNG</button><button type="button" class="btn ghost compact" data-q-svg="${esc(r.id)}">⬇ SVG</button><button type="button" class="btn ghost compact" data-q-print="${esc(r.id)}">🖨</button><button type="button" class="btn ghost compact" data-q-edit="${esc(r.id)}">✎</button><button type="button" class="btn ghost compact" data-q-del="${esc(r.id)}">🗑</button></span></article>`).join('') : `<p class="muted">${esc(tl('qr.empty'))}</p>`}</div></section>`;
             const $ = (x) => root.querySelector(x);
             const all = (x) => Array.from(root.querySelectorAll(x));
             const find = (id) => st.rows.find((r) => r.id === id);
@@ -504,15 +522,37 @@ var KXQrHub;
             all('[data-q-edit]').forEach(b => b.onclick = () => { const r = find(b.dataset.qEdit); st.edit = { id: r.id, name: r.data.name, kind: r.data.kind, fields: { ...r.data.fields } }; draw(); });
             all('[data-q-del]').forEach(b => b.onclick = async () => { const r = find(b.dataset.qDel); if (!r || !confirm(tl('vault.confirmDel').replace('{t}', r.data.name)))
                 return; await core.actions.invoke('ACTION.QR.CODE.ARCHIVE', { id: r.id }, C); await load(); draw(); });
-            all('[data-q-svg]').forEach(b => b.onclick = () => { const r = find(b.dataset.qSvg); dl(r.data.name + '.svg', new Blob([svg(payload(r.data.kind, r.data.fields), 512)], { type: 'image/svg+xml' })); });
-            all('[data-q-png]').forEach(b => b.onclick = () => { const r = find(b.dataset.qPng); png(svg(payload(r.data.kind, r.data.fields), 512), r.data.name); });
+            all('[data-q-svg]').forEach(b => b.onclick = () => { const r = find(b.dataset.qSvg); dl(r.data.name + '.svg', new Blob([svg(payload(r.data.kind, r.data.fields), 512, r.data.style)], { type: 'image/svg+xml' })); });
+            all('[data-q-png]').forEach(b => b.onclick = () => { const r = find(b.dataset.qPng); png(svg(payload(r.data.kind, r.data.fields), 512, r.data.style), r.data.name, qrStyle(r.data.style).png); });
             all('[data-q-print]').forEach(b => b.onclick = () => { const r = find(b.dataset.qPrint); const w = window.open('', '_blank'); if (!w) {
                 toast(tl('qr.popup'));
                 return;
-            } w.document.write(`<title>${esc(r.data.name)}</title><div style="text-align:center;font-family:sans-serif"><h2>${esc(r.data.name)}</h2>${svg(payload(r.data.kind, r.data.fields), 420)}</div>`); w.document.close(); w.focus(); w.print(); });
+            } w.document.write(`<title>${esc(r.data.name)}</title><div style="text-align:center;font-family:sans-serif"><h2>${esc(r.data.name)}</h2>${svg(payload(r.data.kind, r.data.fields), 420, r.data.style)}</div>`); w.document.close(); w.focus(); w.print(); });
             if (e) {
                 const read = () => { e.name = $('[data-q-name]').value; const f = { ...(e.fields || {}) }; all('[data-q-f]').forEach(i => f[String(i.dataset.qF)] = i.value); e.fields = f; };
-                const prev = () => { read(); const t = payload(e.kind, e.fields); ($('[data-q-prev]')).innerHTML = t ? svg(t, 220) + `<small>${esc(tl('qr.livePreview'))}</small>` : `<small>${esc(tl('qr.fillIn'))}</small>`; };
+                const readStyle = () => {
+                    const g = (k) => root.querySelector(`[data-q-st="${k}"]`)?.value;
+                    if (!root.querySelector('[data-q-st]'))
+                        return;
+                    const mode = g('bgMode');
+                    e.style = { ecc: g('ecc'), margin: Number(g('margin')), fg: g('fg'), bg: mode === 'transparent' ? 'transparent' : mode === 'white' ? '#ffffff' : g('bg'), png: Number(g('png')) };
+                    const S = qrStyle(e.style);
+                    const lum = (h) => { const v = parseInt(h.slice(1), 16); const r = (v >> 16) & 255, gg = (v >> 8) & 255, b = v & 255; return (0.299 * r + 0.587 * gg + 0.114 * b) / 255; };
+                    const w = [];
+                    if (S.bg === 'transparent')
+                        w.push(tl('qr.warn.transparent'));
+                    else if (Math.abs(lum(S.fg) - lum(S.bg)) < 0.45)
+                        w.push(tl('qr.warn.contrast'));
+                    if (S.bg !== 'transparent' && lum(S.fg) > lum(S.bg))
+                        w.push(tl('qr.warn.inverted'));
+                    if (S.margin < 2)
+                        w.push(tl('qr.warn.margin'));
+                    const wb = root.querySelector('[data-q-warn]');
+                    if (wb)
+                        wb.textContent = w.join(' ');
+                };
+                const prev = () => { read(); readStyle(); const t = payload(e.kind, e.fields); ($('[data-q-prev]')).innerHTML = t ? svg(t, 220, e.style) + `<small>${esc(tl('qr.livePreview'))}</small>` : `<small>${esc(tl('qr.fillIn'))}</small>`; };
+                root.querySelectorAll('[data-q-st]').forEach(i => { i.oninput = prev; i.onchange = prev; });
                 root.querySelectorAll('[data-q-f],[data-q-name]').forEach(i => i.oninput = prev);
                 $('[data-q-kind]').onchange = (ev) => { read(); e.kind = ev.target.value; draw(); };
                 prev();
@@ -521,7 +561,7 @@ var KXQrHub;
                     toast(tl('vault.needTitle'));
                     return;
                 } try {
-                    await core.actions.invoke('ACTION.QR.CODE.SAVE', { id: e.id, data: { name: e.name, kind: e.kind, fields: e.fields } }, C);
+                    await core.actions.invoke('ACTION.QR.CODE.SAVE', { id: e.id, data: { name: e.name, kind: e.kind, fields: e.fields, style: e.style } }, C);
                     st.edit = null;
                     await load();
                     draw();

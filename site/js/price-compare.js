@@ -176,7 +176,7 @@ var KXPurchaseHub;
     const st = { open: '', filter: '', draft: null };
     const money = (n, c, d = 2) => n == null ? '—' : `${Number(n).toLocaleString('cs-CZ', { minimumFractionDigits: d, maximumFractionDigits: d })} ${c}`;
     const curSel = (name, val) => `<select data-co="${name}">${PC().CUR.map((c) => `<option value="${c}" ${c === val ? 'selected' : ''} title="${esc(globalThis.KXCurrency?.label(c) || c)}">${c}</option>`).join('')}</select>`;
-    async function mountHub(root, core, opts) {
+    async function mountCompare(root, core, opts) {
         const K = PC();
         if (!K)
             return;
@@ -198,15 +198,15 @@ var KXPurchaseHub;
         <span class="muted" data-cmp-rates>${esc(TL('cmp.rates', 'Rates'))}: ${rates ? `${esc(rates.source)} · ${esc(rates.date)}` : esc(TL('cmp.noRates', 'not loaded'))}</span><button class="btn ghost compact" data-cmp-cnb>${esc(TL('cmp.loadCnb', 'Load CNB rates'))}</button></div>
       <div data-cmp-list>${Object.entries(groups).map(([g, rows]) => `<details open><summary>${esc(g)} (${rows.length})</summary>${rows.map((r) => { const e = svc.evaluate(r); const b = e.best != null ? e.rows.find((x) => x.index === e.best) : null; return `<div class="kx-ai-conn" data-cmp-row="${esc(r.id)}"><b>${esc(r.data.name)}</b> <small class="muted">${esc([r.data.product, r.data.category].filter(Boolean).join(' · '))} · ${esc(TL('cmp.offers', 'offers'))}: ${r.data.offers.length}${b ? ` · ${esc(TL('cmp.best', 'best'))}: ${esc(b.name)} ${money(b.perPiece, e.currency, 4)}/${esc(TL('cmp.pc', 'pc'))}` : ''}</small> <button class="btn ghost compact" data-cmp-open="${esc(r.id)}">${esc(TL('cmp.open', 'Open'))}</button></div>`; }).join('')}</details>`).join('') || `<p class="muted">${esc(TL('cmp.empty', 'No comparison yet.'))}</p>`}</div>
       <div data-cmp-detail></div></div>`;
-        root.querySelector('[data-cmp-filter]').onchange = (e) => { st.filter = e.target.value; void mountHub(root, core, opts); };
-        root.querySelector('[data-cmp-new]').onclick = () => { st.open = ''; st.draft = { name: '', product: '', category: '', collection: '', outputCurrency: 'CZK', offers: [{ name: '', shop: '', url: '', price: 0, currency: 'CZK', qty: 1, shipping: 0, shippingCurrency: 'CZK', note: '' }] }; void mountHub(root, core, opts); };
+        root.querySelector('[data-cmp-filter]').onchange = (e) => { st.filter = e.target.value; void mountCompare(root, core, opts); };
+        root.querySelector('[data-cmp-new]').onclick = () => { st.open = ''; st.draft = { name: '', product: '', category: '', collection: '', outputCurrency: 'CZK', offers: [{ name: '', shop: '', url: '', price: 0, currency: 'CZK', qty: 1, shipping: 0, shippingCurrency: 'CZK', note: '' }] }; void mountCompare(root, core, opts); };
         root.querySelector('[data-cmp-cnb]').onclick = async () => { try {
             await svc.loadCnb();
         }
         catch (e) {
             opts.onToast?.(TL('cmp.cnbFail', 'Rates could not be loaded – enter them by hand.') + ' (' + String(e?.message || e) + ')');
-        } void mountHub(root, core, opts); };
-        root.querySelectorAll('[data-cmp-open]').forEach(b => b.onclick = () => { st.open = String(b.dataset.cmpOpen); st.draft = null; void mountHub(root, core, opts); });
+        } void mountCompare(root, core, opts); };
+        root.querySelectorAll('[data-cmp-open]').forEach(b => b.onclick = () => { st.open = String(b.dataset.cmpOpen); st.draft = null; void mountCompare(root, core, opts); });
         if (!cur)
             return;
         const det = root.querySelector('[data-cmp-detail]');
@@ -246,7 +246,7 @@ var KXPurchaseHub;
             const offers = Array.from(det.querySelectorAll('[data-cmp-offer]')).map(tr => { const g = (k) => tr.querySelector(`[data-o="${k}"]`).value.trim(); const n = (k) => Number(g(k).replace(/\s/g, '').replace(',', '.')); return { name: g('name'), shop: g('shop'), url: g('url'), price: n('price'), currency: g('currency'), qty: n('qty'), shipping: n('shipping'), shippingCurrency: g('shippingCurrency') }; });
             return { name: q('name'), product: q('product'), category: q('category'), collection: q('collection'), outputCurrency: det.querySelector('[data-co="out"]').value, offers };
         };
-        det.querySelectorAll('input,select').forEach(x => x.onchange = () => { st.draft = read(); void mountHub(root, core, opts); });
+        det.querySelectorAll('input,select').forEach(x => x.onchange = () => { st.draft = read(); void mountCompare(root, core, opts); });
         det.querySelector('[data-cmp-import]').onchange = async (e) => { const f = e.target.files?.[0]; if (!f)
             return; const d = read(); try {
             const r = K.parseOffersCsv(await f.text(), d.outputCurrency);
@@ -256,23 +256,80 @@ var KXPurchaseHub;
         }
         catch (x) {
             opts.onToast?.(TL('cmp.err.' + String(x?.message || ''), String(x?.message || x)));
-        } void mountHub(root, core, opts); };
-        det.querySelector('[data-o-add]').onclick = () => { const d = read(); d.offers.push({ name: '', shop: '', url: '', price: 0, currency: d.outputCurrency, qty: 1, shipping: 0, shippingCurrency: d.outputCurrency }); st.draft = d; void mountHub(root, core, opts); };
-        det.querySelectorAll('[data-o-del]').forEach(b => b.onclick = () => { const d = read(); d.offers.splice(Number(b.dataset.oDel), 1); st.draft = d; void mountHub(root, core, opts); });
+        } void mountCompare(root, core, opts); };
+        det.querySelector('[data-o-add]').onclick = () => { const d = read(); d.offers.push({ name: '', shop: '', url: '', price: 0, currency: d.outputCurrency, qty: 1, shipping: 0, shippingCurrency: d.outputCurrency }); st.draft = d; void mountCompare(root, core, opts); };
+        det.querySelectorAll('[data-o-del]').forEach(b => b.onclick = () => { const d = read(); d.offers.splice(Number(b.dataset.oDel), 1); st.draft = d; void mountCompare(root, core, opts); });
         det.querySelector('[data-rate-save]')?.addEventListener('click', () => { const r = { ...(svc.rates()?.rates || { CZK: 1 }) }; det.querySelectorAll('[data-rate]').forEach(x => { const v = Number(x.value.replace(',', '.')); if (v > 0)
-            r[String(x.dataset.rate)] = v; }); svc.setRates({ date: new Date().toISOString().slice(0, 10), source: 'MANUAL', rates: r }); st.draft = read(); void mountHub(root, core, opts); });
+            r[String(x.dataset.rate)] = v; }); svc.setRates({ date: new Date().toISOString().slice(0, 10), source: 'MANUAL', rates: r }); st.draft = read(); void mountCompare(root, core, opts); });
         det.querySelector('[data-cmp-save]').onclick = async () => { try {
             const sp = (await core.propagate.spaces(opts.actorId)).find((s) => s.kind === 'COMPANY') || (await core.propagate.spaces(opts.actorId))[0];
             const row = await core.actions.invoke('ACTION.PURCHASE.COMPARISON.SAVE', { id: st.open || undefined, ...read(), spaceIds: [sp.id] }, C);
             st.open = row.id;
             st.draft = null;
             opts.onToast?.(TL('cmp.saved', 'Saved'));
-            void mountHub(root, core, opts);
+            void mountCompare(root, core, opts);
         }
         catch (e) {
             det.querySelector('[data-cmp-err]').textContent = TL('cmp.err.' + String(e?.message || ''), String(e?.message || e));
         } };
     }
-    KXPurchaseHub = { TABS, mountHub, st };
+    /* N2.6b+ (hub by hub): Purchase = Suppliers + Orders on the shared hub kit (deadlines, repeat, move, quick actions, QR, history, space access) + the existing price comparator */
+    const PU_OWNER = 'APP.KX.PURCHASE';
+    const T = (label, max = 80, extra = {}) => ({ kind: 'text', max, label, ...extra });
+    const D = (label) => ({ kind: 'date', label });
+    const E = (label, options, required = false) => ({ kind: 'enum', options, required, label, invalidMsg: `${TL('pu.invalid', 'Invalid value')}: ${label}`, requiredMsg: `${label}: ${TL('pu.required', 'required')}` });
+    const NAME = (label) => ({ kind: 'text', max: 120, required: true, label, requiredMsg: `${label}: ${TL('pu.required', 'required')}` });
+    function puPart(o) {
+        return KXHubKit.createScheduleDomain({
+            contract: `KX.${o.key}_DOMAIN/1`, owner: PU_OWNER, type: `${o.key}.${o.typeSuffix}`, schema: `KX.${o.key}.${o.typeSuffix}/1`, permission: `${o.key}.${o.typeSuffix}.EDIT`,
+            label: o.label, scopeTag: o.scopeTag, serviceKey: o.serviceKey, listKey: o.listKey, subjectIdKey: `${o.scopeTag}Id`, subjectNameKey: `${o.scopeTag}Name`,
+            itemsKey: 'deadlines', itemPayloadKey: 'deadline', itemIdKey: 'deadlineId', itemIdPrefix: `${o.key}.DL.`, maxItems: 60, soonDays: 30, countLabel: o.countWord, revisionPrefix: `${o.key}.DOMAIN/1:`,
+            subjectFields: o.fields, itemKinds: o.kinds, history: { added: 'DEADLINE_ADDED', done: 'DEADLINE_DONE', removed: 'DEADLINE_REMOVED' },
+            actions: { create: `ACTION.${o.key}.${o.typeSuffix}.CREATE`, update: `ACTION.${o.key}.${o.typeSuffix}.UPDATE`, addItem: `ACTION.${o.key}.DEADLINE.ADD`, completeItem: `ACTION.${o.key}.DEADLINE.COMPLETE`, removeItem: `ACTION.${o.key}.DEADLINE.REMOVE`, archive: `ACTION.${o.key}.${o.typeSuffix}.ARCHIVE` },
+            projection: { code: `PERSONAL.${o.key}.N2`, countField: 'alertsCount', nextField: 'nextDueAt' },
+            msg: { invalidSubject: TL('hobby.msg.invalid', 'Invalid data'), unknownSubjectFields: TL('hobby.msg.unknownFields', 'Unknown fields'), invalidItem: TL('hobby.msg.invalidItem', 'Invalid deadline'), unknownItemFields: TL('hobby.msg.unknownItemFields', 'Unknown deadline fields'), invalidItemKind: TL('hobby.msg.invalidKind', 'Invalid deadline type'),
+                itemDate: TL('hobby.msg.date', 'Date must be YYYY-MM-DD'), itemInterval: TL('hobby.msg.interval', 'Interval: 1–3650 days'), itemNeedsDue: TL('hobby.msg.needDue', 'Enter a date or an interval'), needSpace: TL('hobby.msg.space', 'The record must belong to at least one space'),
+                separateActions: TL('hobby.msg.separate', 'Edit spaces and deadlines with separate actions'), tooMany: (n) => `${TL('hobby.msg.tooMany', 'At most')} ${n}`, itemMissing: TL('hobby.msg.itemMissing', 'The deadline does not exist'), badDoneDate: TL('hobby.msg.badDone', 'Invalid date'),
+                nextAfterDone: TL('hobby.msg.nextAfter', 'The next date must be after the completion date'), missingId: TL('hobby.msg.missingId', 'Missing ID'), notFound: (id) => `${id}: ${TL('hobby.msg.notFound', 'not found')}`, needRev: TL('hobby.msg.needRev', 'Editing requires expectedRevision'), archived: TL('hobby.msg.archived', 'An archived record cannot be edited') },
+            ui: { prefix: o.prefix, itemWord: 'dl', subjectForm: `${o.prefix}f`, itemForm: `${o.prefix}d`, countWord: o.countWord, addLabel: `＋ ${o.subjectCap}`, saveLabel: TL('hobby.save', 'Save'), openItemLabel: `＋ ${TL('hobby.deadline', 'Deadline')}`, addItemLabel: TL('hobby.addDeadline', 'Add deadline'), itemPlaceholder: o.placeholder,
+                noItems: TL('hobby.noDeadlines', 'No deadlines'), empty: o.empty, notInstalled: TL('hobby.notInstalled', 'Domain service not installed'), subtitle: o.subtitle,
+                historyText: { CREATED: TL('hobby.h.created', 'Created'), UPDATED: TL('hobby.h.updated', 'Updated'), DEADLINE_ADDED: TL('hobby.h.dlAdded', 'Deadline added'), DEADLINE_DONE: TL('hobby.h.dlDone', 'Deadline done'), DEADLINE_REMOVED: TL('hobby.h.dlRemoved', 'Deadline removed'), ARCHIVED: TL('hobby.h.archived', 'Archived') },
+                savedToast: TL('hobby.saved', 'Saved'), itemAddedToast: TL('hobby.h.dlAdded', 'Deadline added'), itemDoneToast: TL('hobby.h.dlDone', 'Deadline done'), itemRemovedToast: TL('hobby.h.dlRemoved', 'Deadline removed'), archivedToast: TL('hobby.h.archived', 'Archived'),
+                confirmRemove: TL('hobby.confirmRemove', 'Remove the deadline? It stays in the revision history.'), confirmArchive: TL('hobby.confirmArchive', 'Archive? Data and history stay in Core revisions.') }
+        });
+    }
+    const PU_RATING = { '5': '★★★★★', '4': '★★★★', '3': '★★★', '2': '★★', '1': '★' };
+    const PU_STATUS = { REQUESTED: TL('pu.st.REQUESTED', 'Requested'), ORDERED: TL('pu.st.ORDERED', 'Ordered'), SHIPPED: TL('pu.st.SHIPPED', 'Shipped'), DELIVERED: TL('pu.st.DELIVERED', 'Delivered'), CLAIM: TL('pu.st.CLAIM', 'Claim') };
+    const Suppliers = puPart({ key: 'PURCHASE_SUPPLIER', typeSuffix: 'SUPPLIER', label: TL('pu.suppliers', 'Suppliers'), scopeTag: 'supplier', serviceKey: 'purchaseSuppliers', listKey: 'suppliers', prefix: 'pus', subjectCap: TL('pu.supplier', 'Supplier'), countWord: TL('pu.suppliersCount', 'suppliers'), placeholder: TL('pu.supplierPh', 'e.g. contract renewal, price check'), empty: TL('pu.noSuppliers', 'No supplier yet.'),
+        fields: { name: NAME(TL('pu.f.supplier', 'Supplier')), ico: T(TL('pu.f.ico', 'Company ID'), 20), dic: T(TL('pu.f.dic', 'VAT ID'), 20), contact: T(TL('pu.f.contact', 'Contact person'), 80), email: T(TL('pu.f.email', 'E-mail'), 120), phone: T(TL('pu.f.phone', 'Phone'), 40), web: T(TL('pu.f.web', 'Web'), 160), supplies: T(TL('pu.f.supplies', 'Supplies'), 200), dueDays: T(TL('pu.f.dueDays', 'Payment terms (days)'), 6), discount: T(TL('pu.f.discount', 'Discount'), 20), rating: E(TL('pu.f.rating', 'Rating'), PU_RATING), note: T(TL('pu.f.note', 'Note'), 500) },
+        kinds: { CONTRACT: TL('pu.dl.CONTRACT', 'Contract renewal'), PRICE_CHECK: TL('pu.dl.PRICE_CHECK', 'Price check'), BILLING: TL('pu.dl.BILLING', 'Billing'), OTHER: TL('pu.dl.OTHER', 'Other') },
+        subtitle: (d) => [d.supplies, d.contact, d.phone, d.rating ? PU_RATING[d.rating] : ''].filter(Boolean).join(' · ') });
+    const Orders = puPart({ key: 'PURCHASE_ORDER', typeSuffix: 'ORDER', label: TL('pu.orders', 'Orders'), scopeTag: 'order', serviceKey: 'purchaseOrders', listKey: 'orders', prefix: 'puo', subjectCap: TL('pu.order', 'Order'), countWord: TL('pu.ordersCount', 'orders'), placeholder: TL('pu.orderPh', 'e.g. expected delivery, invoice due'), empty: TL('pu.noOrders', 'No order yet.'),
+        fields: { name: NAME(TL('pu.f.item', 'Order / item')), supplier: T(TL('pu.f.supplier', 'Supplier'), 120), number: T(TL('pu.f.number', 'Order number'), 40), amount: T(TL('pu.f.amount', 'Amount'), 20), currency: T(TL('pu.f.currency', 'Currency'), 3), status: E(TL('pu.f.status', 'Status'), PU_STATUS, true), tracking: T(TL('pu.f.tracking', 'Tracking number'), 60), ordered: D(TL('pu.f.ordered', 'Ordered on')), note: T(TL('pu.f.note', 'Note'), 500) },
+        kinds: { DELIVERY: TL('pu.dl.DELIVERY', 'Expected delivery'), INVOICE_DUE: TL('pu.dl.INVOICE_DUE', 'Invoice due'), CLAIM_END: TL('pu.dl.CLAIM_END', 'End of claim period'), OTHER: TL('pu.dl.OTHER', 'Other') },
+        subtitle: (d) => [PU_STATUS[d.status] || '', d.supplier, d.amount ? `${d.amount} ${d.currency || 'CZK'}` : '', d.number ? `#${d.number}` : ''].filter(Boolean).join(' · ') });
+    const PU_PARTS = [Suppliers, Orders];
+    let PU_LAST = 'SUPPLIERS'; /* N2.6b+: remember the last tab – coming back reopens it (e.g. a comparison in progress) */
+    async function mountHub(root, core, opts) {
+        const st2 = root.__pu || (root.__pu = { tab: PU_LAST });
+        const req = globalThis.KXHubTabRequest?.[PU_OWNER];
+        if (req && ['SUPPLIERS', 'ORDERS', 'COMPARE'].includes(req)) {
+            st2.tab = req;
+            delete globalThis.KXHubTabRequest[PU_OWNER];
+        }
+        const tabs = [['SUPPLIERS', `🏭 ${TL('pu.suppliers', 'Suppliers')}`], ['ORDERS', `📦 ${TL('pu.orders', 'Orders')}`], ['COMPARE', `⚖ ${TL('pu.compare', 'Price comparison')}`]];
+        root.innerHTML = `<div class="kx-pu-tabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" class="${st2.tab === k ? 'on active' : ''}" data-pu-tab="${k}" role="tab" aria-selected="${st2.tab === k}">${esc(l)}</button>`).join('')}</div><div data-pu-body></div>`;
+        root.querySelectorAll('[data-pu-tab]').forEach(b => b.onclick = () => { st2.tab = PU_LAST = String(b.dataset.puTab); void mountHub(root, core, opts); });
+        const body = root.querySelector('[data-pu-body]');
+        const host = document.createElement('div');
+        host.dataset.hubRoot = PU_OWNER;
+        body.appendChild(host);
+        if (st2.tab === 'SUPPLIERS')
+            return Suppliers.mountHub(host, core, opts);
+        if (st2.tab === 'ORDERS')
+            return Orders.mountHub(host, core, { ...opts, prefill: { status: 'ORDERED', currency: 'CZK' } });
+        return mountCompare(host, core, opts);
+    }
+    KXPurchaseHub = { TABS, mountHub, mountCompare, st, parts: { suppliers: Suppliers, orders: Orders }, PARTS: PU_PARTS, install(core, personal, opt = {}) { return PU_PARTS.map((x) => x.install(core, personal, opt)); } };
     globalThis.KXPurchaseHub = KXPurchaseHub;
 })();

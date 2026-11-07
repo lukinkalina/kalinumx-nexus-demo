@@ -148,7 +148,7 @@ var KXDemoSeed;
        EVERY hub built on the hub kit gets 3 records with ALL fields filled (each enum option used in turn) and items of EVERY kind
        spread over overdue / soon / later / recurring – generic, so hubs added later are covered too; through the same actions as the user */
     const MARK4 = 'CORE.DEMO_SEED.MARKER.V4';
-    const NAMES = { 'APP.KX.PETS': ['Rex (pes)', 'Micka (kočka)', 'Kuba (papoušek)'], 'APP.KX.HOME': ['Kotel a topení', 'Střecha a okapy', 'Zahradní technika'], 'APP.KX.HOBBY': ['RC model Buggy', 'Dron DJI', 'Kolo Specialized'],
+    const NAMES = { 'APP.KX.PETS': ['Rex (pes)', 'Micka (kočka)', 'Kuba (papoušek)'], 'APP.KX.HOME': ['Kotel a topení', 'Elektro a bezpečnost', 'Voda a vzduchotechnika'], 'APP.KX.HOBBY': ['RC model Buggy', 'Dron DJI', 'Kolo Specialized'],
         'APP.KX.SCHOOL': ['Lukášek – 3. třída', 'Veronika – gymnázium', 'Kroužek angličtiny'], 'APP.KX.HEALTH': ['Lukáš', 'Helena', 'Lukášek'], 'APP.KX.GARDEN': ['Rajčata', 'Jabloň', 'Levandule'], 'APP.KX.VEHICLES': ['Škoda Octavia', 'Dodávka Transit', 'Vozík'],
         'APP.KX.CERTIFY': ['Revize elektro dílna', 'Hasicí přístroje', 'Kalibrace laseru'], 'APP.KX.CONTRACTS': ['Nájem dílny', 'Smlouva s dodavatelem dřeva', 'Pojištění firmy'], 'APP.KX.SUBSCRIPTIONS': ['Adobe CC', 'Shopify', 'LightBurn'],
         'APP.KX.WARRANTY': ['Laser MOPA 60 W', 'Notebook Dell', 'Pračka Bosch'], 'APP.KX.PRINT3D': ['Prusa MK4', 'Bambu X1C', 'Filament PETG'], 'APP.KX.SHOP': ['Dřevěná krabička', 'Gravírovaná deska', 'Svícen'], 'APP.KX.ASSETS': ['Televize Samsung', 'Sedací souprava', 'Šicí stroj'], 'APP.KX.MAINTENANCE': ['Laser MOPA 60 W', 'Odsávání dílny', 'Kompresor'], 'APP.KX.SERVICE': ['Oprava gravírky zákazníka', 'Výměna zdroje laseru', 'Oprava kávovaru'], 'APP.KX.PROJECTS': ['Vánoční kolekce 2026', 'Nový e-shop', 'Rekonstrukce koupelny'], 'APP.KX.HR': ['Petra – brigáda', 'Martin – externista', 'Jana – účetní'], 'APP.KX.ENERGY': ['Elektřina – dům', 'Plyn – dům', 'Elektřina – dílna'], 'APP.KX.RENTAL': ['Vrtačka sousedovi', 'Přívěs od tchána', 'Pronájem stánku na trhu'], 'APP.KX.DOCUMENTS': ['Pas Lukáš', 'Řidičák Helena', 'Manuál laseru MOPA'], 'APP.KX.FOOD': ['Mléko', 'Kuřecí prsa', 'Rajčata'], 'APP.KX.SALES': ['Kavárna U Mlýna', 'Jan Novák', 'Svatební salon Bella'], 'APP.KX.BUILD': ['Pergola na zahradě', 'Nová kuchyň', 'Plot u silnice'], 'APP.KX.STOCK': ['Dub 4 mm', 'Plexi čiré 3 mm', 'Dárkové krabičky'], 'APP.KX.INVENTORY': ['Aku vrtačka Makita', 'Notebook Dell', 'Žebřík 3 m'], 'APP.KX.FORMS': ['Předávací protokol zakázky', 'Kontrola laseru před směnou', 'Žádost o dovolenou'], 'APP.KX.GUIDE': ['Gravírování dřeva', 'Bezpečnost u laseru', 'Výměna filtru odsávání'], 'APP.KX.SHIPPING': ['Objednávka e-shop #1042', 'Dodávka plexi', 'Vratka – svícen'], 'APP.KX.PRINT': ['Svatební visačky 120 ks', 'Firemní dárky – gravírování', 'Náhradní díl – 3D tisk'], 'APP.KX.GRAPHICS': ['Logo kavárny U Mlýna', 'Vizitky DEMO', 'Podklad – svícen se jménem'] };
@@ -158,6 +158,18 @@ var KXDemoSeed;
             return { seeded: false };
         if (await core.entities.get(MARK4).catch(() => null))
             return { seeded: false, reason: 'ALREADY' };
+        /* N2.6b+: fictional sample values for record types that share one hub (Purchase: suppliers + orders) */
+        const DEMO_FIELDS = {
+            'PURCHASE_SUPPLIER.SUPPLIER': [{ name: 'Dřevo Novák s.r.o.', supplies: 'buk, dub, překližka', contact: 'Petr Novák', phone: '+420 600 111 222', email: 'obchod@drevo-demo.cz', web: 'drevo-demo.cz', dueDays: '14', discount: '5 %', rating: '5', ico: '12345678' },
+                { name: 'Plexi Plast Brno', supplies: 'plexisklo 3–5 mm, řezání na míru', contact: 'Jana Malá', phone: '+420 600 333 444', email: 'info@plexi-demo.cz', dueDays: '30', discount: '', rating: '4' },
+                { name: 'Obaly Express', supplies: 'krabice, výplň, lepicí pásky', contact: 'zákaznická linka', phone: '+420 800 555 666', web: 'obaly-demo.cz', dueDays: '7', rating: '3' }],
+            'SCHOOL.STUDENT': [{ level: 'PRIMARY', _kinds: ['EXAM', 'HOMEWORK', 'PARENT_MEETING'] }, { level: 'SECONDARY', _kinds: ['EXAM', 'PROJECT', 'TRIP'] }, { level: 'COURSE', _kinds: ['ACTIVITY', 'DAY_OFF'] }],
+            'HOBBY_LOG.ENTRY': [{ name: 'Mince u lesa' }, { name: 'Přezka z pole' }, { name: 'Stará podkova' }],
+            'HEALTH.PERSON': [{ doctor: 'MUDr. Novotná – praktická lékařka' }, { doctor: 'MUDr. Král – praktický lékař' }, { doctor: 'MUDr. Malá – dětská lékařka' }],
+            'PURCHASE_ORDER.ORDER': [{ name: 'Dubové desky 20 mm (10 ks)', supplier: 'Dřevo Novák s.r.o.', number: 'OBJ-2026-041', amount: '8400', currency: 'CZK', status: 'SHIPPED', tracking: 'DPD 0130-4455-77' },
+                { name: 'Plexi 3 mm čiré (5 desek)', supplier: 'Plexi Plast Brno', number: 'OBJ-2026-042', amount: '3150', currency: 'CZK', status: 'ORDERED' },
+                { name: 'Krabice 30×20×10 (100 ks)', supplier: 'Obaly Express', number: 'OBJ-2026-039', amount: '1290', currency: 'CZK', status: 'DELIVERED' }]
+        };
         const K = globalThis.KXHubKit;
         const doms = (K?.domains || []).filter((d) => d.createAction);
         if (!doms.length)
@@ -175,7 +187,15 @@ var KXDemoSeed;
             const nameField = SF[d.nameKey] ? d.nameKey : (SF.name ? 'name' : SF.title ? 'title' : (Object.keys(SF).find(k => SF[k].kind === 'text' && SF[k].required) || d.nameKey));
             for (let i = 0; i < 3; i++) {
                 const f = { spaceIds: [space] };
+                const OV = (DEMO_FIELDS[String(d.type || '')] || [])[i] || {}; /* N2.6b+: concrete sample fields per record type (beats the generic placeholder) */
                 for (const [key, def] of Object.entries(SF)) {
+                    if (OV[key] !== undefined) {
+                        if (key === nameField)
+                            f[key] = ('DEMO · ' + OV[key]).slice(0, def.max || 80);
+                        else
+                            f[key] = OV[key];
+                        continue;
+                    }
                     if (key === nameField) {
                         f[key] = ('DEMO · ' + ((NAMES[d.owner] || [])[i] || `${d.label} ${i + 1}`)).slice(0, def.max || 80);
                         continue;
@@ -206,6 +226,8 @@ var KXDemoSeed;
                         continue;
                     }
                     if (def.kind === 'text') {
+                        if (!def.required)
+                            continue; /* N2.6b+: optional text without a concrete sample stays empty – no “DEMO Place (optional) 1” noise */
                         let v = `DEMO ${def.label || key} ${i + 1}`;
                         if (def.pattern) {
                             v = `DEMO-${100 + i}`;
@@ -222,15 +244,17 @@ var KXDemoSeed;
                     const rid = r?.id || r?.entity?.id;
                     let rev = r?.revision ?? r?.entity?.revision;
                     if (rid && d.addItemAction && d.itemKinds) {
-                        const kinds = Object.keys(d.itemKinds).slice(0, Math.min(d.maxItems || 8, 8));
+                        const allK = Object.keys(d.itemKinds).filter(k => k !== 'OTHER') /* N2.6b+: no meaningless “Other” samples */;
+                        const per = Math.max(2, Math.ceil(allK.length / 3));
+                        const kinds = Array.isArray(OV._kinds) ? OV._kinds.filter((k) => d.itemKinds[k]) : (allK.length <= 3 ? allK : allK.slice(i * per, i * per + per).concat(allK.slice(i * per, i * per + per).length ? [] : allK.slice(0, 2))).slice(0, Math.min(d.maxItems || 8, 8)); /* each sample record gets ITS OWN group of deadline kinds, not all of them */
                         let j = 0;
                         for (const kd of kinds) {
                             const due = [-3, 5, 40, 12, 90, -10, 25, 60][(j + i) % 8];
                             const item = { kind: kd, label: `DEMO · ${d.itemKinds[kd]}` };
-                            if (j % 3 === 2)
+                            if (j % 3 === 2 && !/CLAIM|DELIVERY|END|EXPIR/.test(kd))
                                 item.intervalDays = [30, 90, 365][i % 3];
                             else
-                                item.dueAt = day(due);
+                                item.dueAt = day(due); /* one-off kinds (claim end, delivery) never repeat */
                             try {
                                 const r2 = await core.actions.invoke(d.addItemAction, { id: rid, expectedRevision: rev, [d.itemPayloadKey]: item }, C);
                                 rev = r2?.revision ?? r2?.entity?.revision ?? rev;

@@ -1421,3 +1421,10 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .sidebar .kx-tree-hub .ag-tree-ico.ag-tree-sym{font-size:16px !important;line-height:1 !important}
 .app-shell:is(.kx-rail,.sidebar-collapsed)>.sidebar .kx-tree .ag-tree-ico.ag-tree-sym{font-size:20px !important;line-height:30px !important}
 .kx-hub-ic{font-size:28px}
+
+.kx-pu-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}.kx-pu-tabs button{min-height:30px;padding:3px 14px;border-radius:999px;border:1px solid rgba(233,181,79,.3);background:rgba(10,15,24,.6);color:#e8e2d2;cursor:pointer}.kx-pu-tabs button.on{background:linear-gradient(180deg,#f2c869,#c9922e);color:#1a1205;font-weight:800}
+
+.ag-qr-style{margin:8px 0;border:1px solid rgba(233,181,79,.3);border-radius:10px;padding:6px 10px}.ag-qr-style summary{cursor:pointer;color:#f2c869;font-weight:700}.ag-qr-warn{margin:6px 0 0;color:#ffc77a;font-size:12.5px}.ag-qr-warn:empty{display:none}
+.ag-qr-preview svg,.ag-qr-img svg{background:repeating-conic-gradient(#e8e8e8 0 25%,#fff 0 50%) 0 0/16px 16px;border-radius:6px}
+/* help text inside field labels: normal case, quiet (labels themselves stay small gold caps) */
+.kx-lf small,label.kx-lf small{text-transform:none !important;letter-spacing:0 !important;font-weight:400 !important;color:#a39e8e !important;font-size:11.5px !important;line-height:1.35}
