@@ -472,6 +472,20 @@ var KXDemoSeed;
                 console.warn('DEMO hobby log', l.name, e);
             }
         }
+        /* N2.6b+: a small family shopping list (Food › Nákupní seznam) – Core SHOPPING_ITEM tasks */
+        try {
+            const fam = sp.find((x) => x.kind === 'FAMILY')?.id || personal;
+            const TC = { actorId, appCode: 'APP.KX.FOOD', permissions: ['CORE.TASK.EDIT'], confirmed: true };
+            for (const t of ['Chléb', 'Vejce 10 ks', 'Banány', 'Jogurty 4 ks']) {
+                try {
+                    await core.actions.invoke('ACTION.CORE.TASK.SAVE', { title: 'DEMO · ' + t, spaceIds: [fam], ownerApp: 'APP.KX.FOOD', itemKind: 'SHOPPING_ITEM' }, TC);
+                }
+                catch (e) {
+                    console.warn('DEMO shopping', t, e);
+                }
+            }
+        }
+        catch { }
         if (!n && !lg)
             return { seeded: false, reason: 'FAILED', devices: n, log: lg }; /* never mark as done when nothing was created */
         await core.entities.save({ id: MARK8, type: 'CORE.DEMO_SEED', ownerApp: 'APP.KX.NEXUS', schema: 'KX.DEMO_SEED/1', spaceIds: [], data: { at: new Date().toISOString(), devices: n, deadlines: dl, log: lg } }, { actorId, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true });

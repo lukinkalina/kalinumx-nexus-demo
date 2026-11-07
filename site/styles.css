@@ -1428,3 +1428,5 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .ag-qr-preview svg,.ag-qr-img svg{background:repeating-conic-gradient(#e8e8e8 0 25%,#fff 0 50%) 0 0/16px 16px;border-radius:6px}
 /* help text inside field labels: normal case, quiet (labels themselves stay small gold caps) */
 .kx-lf small,label.kx-lf small{text-transform:none !important;letter-spacing:0 !important;font-weight:400 !important;color:#a39e8e !important;font-size:11.5px !important;line-height:1.35}
+
+.kx-shop{display:grid;gap:8px}.kx-shop-add{display:flex;gap:8px}.kx-shop-add input{flex:1;min-height:36px}.kx-shop-list{list-style:none;margin:0;padding:0;display:grid;gap:4px}.kx-shop-row{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;border-radius:9px;border:1px solid rgba(233,181,79,.18);background:rgba(10,15,24,.6)}.kx-shop-row label{display:flex;align-items:center;gap:10px;font-size:15px;cursor:pointer}.kx-shop-row input{width:20px;height:20px}.kx-shop-row.done span{text-decoration:line-through;color:#8f8a7c}

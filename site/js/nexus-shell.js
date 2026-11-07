@@ -51,7 +51,7 @@ var KXAPP;
     let schoolInstall = null;
     let identityInstall = null;
     // Stage144: hub-native workspace panels, mounted in the APP inspector.
-    const HUB_WORKSPACES = { 'APP.KX.VEHICLES': () => KXVehicles, 'APP.KX.PETS': () => KXPets, 'APP.KX.HOME': () => KXHome, 'APP.KX.SCHOOL': () => KXSchool, 'APP.KX.CONTRACTS': () => KXContracts, 'APP.KX.HEALTH': () => KXHealth, 'APP.KX.CERTIFY': () => KXCertify, 'APP.KX.WARRANTY': () => KXWarranty, 'APP.KX.SUBSCRIPTIONS': () => KXSubscriptions, 'APP.KX.GARDEN': () => KXGarden, 'APP.KX.ASSETS': () => KXAssets, 'APP.KX.MAINTENANCE': () => KXMaintenance, 'APP.KX.SERVICE': () => KXService, 'APP.KX.PROJECTS': () => KXProjects, 'APP.KX.HR': () => KXHr, 'APP.KX.ENERGY': () => KXEnergy, 'APP.KX.RENTAL': () => KXRental, 'APP.KX.DOCUMENTS': () => KXDocuments, 'APP.KX.FOOD': () => KXFood, 'APP.KX.SALES': () => KXSales, 'APP.KX.BUILD': () => KXBuild, 'APP.KX.STOCK': () => KXStock, 'APP.KX.INVENTORY': () => KXInventory, 'APP.KX.FORMS': () => KXForms, 'APP.KX.GUIDE': () => KXGuide, 'APP.KX.SHIPPING': () => KXShipping, 'APP.KX.VAULT': () => KXVault, 'APP.KX.QR_SOS': () => KXQrHub, 'APP.KX.PRINT': () => KXPrint, 'APP.KX.GRAPHICS': () => KXGraphics, 'APP.KX.GAMES': () => KXGamesHub, 'APP.KX.PRINT3D': () => KXPrint3D, 'APP.KX.SHOP': () => KXShop, 'APP.KX.TIME': () => KXTrackWork, 'APP.KX.HOBBY': () => KXHobby, 'APP.KX.LASER': () => KXLaserHub, 'APP.KX.ADS': () => KXAdsHub, 'APP.KX.FINANCE': () => KXFinanceHub, 'APP.KX.PURCHASE': () => KXPurchaseHub, 'APP.KX.MEDIA': () => KXGalleryHub };
+    const HUB_WORKSPACES = { 'APP.KX.VEHICLES': () => KXVehicles, 'APP.KX.PETS': () => KXPets, 'APP.KX.HOME': () => KXHome, 'APP.KX.SCHOOL': () => KXSchool, 'APP.KX.CONTRACTS': () => KXContracts, 'APP.KX.HEALTH': () => KXHealth, 'APP.KX.CERTIFY': () => KXCertify, 'APP.KX.WARRANTY': () => KXWarranty, 'APP.KX.SUBSCRIPTIONS': () => KXSubscriptions, 'APP.KX.GARDEN': () => KXGarden, 'APP.KX.ASSETS': () => KXAssets, 'APP.KX.MAINTENANCE': () => KXMaintenance, 'APP.KX.SERVICE': () => KXService, 'APP.KX.PROJECTS': () => KXProjects, 'APP.KX.HR': () => KXHr, 'APP.KX.ENERGY': () => KXEnergy, 'APP.KX.RENTAL': () => KXRental, 'APP.KX.DOCUMENTS': () => KXDocuments, 'APP.KX.FOOD': () => KXFoodHub, 'APP.KX.SALES': () => KXSales, 'APP.KX.BUILD': () => KXBuild, 'APP.KX.STOCK': () => KXStock, 'APP.KX.INVENTORY': () => KXInventory, 'APP.KX.FORMS': () => KXForms, 'APP.KX.GUIDE': () => KXGuide, 'APP.KX.SHIPPING': () => KXShipping, 'APP.KX.VAULT': () => KXVault, 'APP.KX.QR_SOS': () => KXQrHub, 'APP.KX.PRINT': () => KXPrint, 'APP.KX.GRAPHICS': () => KXGraphics, 'APP.KX.GAMES': () => KXGamesHub, 'APP.KX.PRINT3D': () => KXPrint3D, 'APP.KX.SHOP': () => KXShop, 'APP.KX.TIME': () => KXTrackWork, 'APP.KX.HOBBY': () => KXHobby, 'APP.KX.LASER': () => KXLaserHub, 'APP.KX.ADS': () => KXAdsHub, 'APP.KX.FINANCE': () => KXFinanceHub, 'APP.KX.PURCHASE': () => KXPurchaseHub, 'APP.KX.MEDIA': () => KXGalleryHub };
     let n2Modules = null;
     let UI_LOCALE = KXI18n.DEFAULT_LOCALE || 'cs';
     let pendingFirstRunLocale = null;
@@ -2876,6 +2876,59 @@ var KXAPP;
     document.addEventListener('click', (e) => { const b = e.target?.closest?.('[data-ag-emenu]'); if (!b)
         return; if (!b.matches('[data-ag-eid][data-ag-eat]'))
         return; e.preventDefault(); e.stopPropagation(); void agEventAction(b); }, true);
+    /* N2.6b+ (hub by hub): Jídlo a nákupy = 🥫 Zásoby (hub kit) + 🛒 Nákupní seznam (Core SHOPPING_ITEM tasks via the authorized bridge) */
+    const FOOD_ST = { tab: 'STOCK', showDone: false };
+    const KXFoodHub = ((proto, own) => Object.create(proto, Object.getOwnPropertyDescriptors(own)))(globalThis.KXFood || {}, { /* inherits the FROZEN KXFood (config / parts / install); mountHub is defined, not assigned */ /* inherits config / parts / install from KXFood – quick actions and names keep working */ async mountHub(root, core, opts) {
+            root.innerHTML = `<div class="kx-pu-tabs" role="tablist">${[['STOCK', `🥫 ${TL('food.stock')}`], ['SHOP', `🛒 ${TL('food.shop')}`]].map(([k, l]) => `<button type="button" class="${FOOD_ST.tab === k ? 'on' : ''}" data-food-tab="${k}" role="tab" aria-selected="${FOOD_ST.tab === k}">${esc(l)}</button>`).join('')}</div><div data-food-body></div>`;
+            root.querySelectorAll('[data-food-tab]').forEach(b => b.onclick = () => { FOOD_ST.tab = String(b.dataset.foodTab); void KXFoodHub.mountHub(root, core, opts); });
+            const body = root.querySelector('[data-food-body]');
+            const host = document.createElement('div');
+            host.dataset.hubRoot = 'APP.KX.FOOD';
+            body.appendChild(host);
+            if (FOOD_ST.tab === 'STOCK')
+                return KXFood.mountHub(host, core, opts);
+            const ctx = { actorId: CURRENT_USER_ID, appCode: 'APP.KX.FOOD', deviceId: activeDevice?.id, permissions: ['CORE.TASK.EDIT'], confirmed: true };
+            const br = new globalThis.KXShippingFoodTaskBridge.Bridge(runtime, { getAuthenticatedSubjectId: () => CURRENT_USER_ID });
+            let rows = [];
+            try {
+                const r = await br.readAuthorized({ actorId: CURRENT_USER_ID });
+                rows = (r?.shopping || []);
+            }
+            catch (e) {
+                host.innerHTML = `<p class="muted">${esc(String(e?.message || e))}</p>`;
+                return;
+            }
+            const spaces = await runtime.memberships.listSpaces();
+            const sp = String(opts?.defaultSpaceId || spaces.find((s) => s.kind === 'FAMILY')?.id || spaces[0]?.id || '');
+            const open = rows.filter(r => !r.checked), done = rows.filter(r => r.checked);
+            const li = (r) => `<li class="kx-shop-row${r.checked ? ' done' : ''}"><label><input type="checkbox" data-shop-check="${esc(r.id)}" data-shop-rev="${esc(String(r.revision))}" ${r.checked ? 'checked' : ''}> <span>${esc(String(r.title || '').replace(/^DEMO\s*·\s*/, ''))}</span></label>${r.dueAt ? `<small>${esc(new Date(r.dueAt).toLocaleDateString())}</small>` : ''}</li>`;
+            host.innerHTML = `<section class="kx-shop"><div class="kx-shop-add"><input data-shop-new placeholder="${esc(TL('food.addPh'))}" maxlength="120"><button type="button" class="btn" data-shop-add>＋ ${esc(TL('food.add'))}</button></div>
+        <p class="muted">${esc(TL('food.shopHint'))}</p>
+        ${open.length ? `<ul class="kx-shop-list">${open.map(li).join('')}</ul>` : `<p class="muted">${esc(TL('food.empty'))}</p>`}
+        ${done.length ? `<button type="button" class="btn ghost compact" data-shop-toggle>${FOOD_ST.showDone ? '▾' : '▸'} ${esc(TL('food.bought'))} (${done.length})</button>${FOOD_ST.showDone ? `<ul class="kx-shop-list">${done.map(li).join('')}</ul>` : ''}` : ''}</section>`;
+            const add = async () => { const i = host.querySelector('[data-shop-new]'); const v = i.value.trim(); if (!v)
+                return; try {
+                await br.addShoppingItem({ title: v, spaceIds: [sp] }, ctx);
+                toast(TL('food.added'));
+            }
+            catch (e) {
+                toast(String(e?.message || e));
+            } void KXFoodHub.mountHub(root, core, opts); };
+            host.querySelector('[data-shop-add]').onclick = () => void add();
+            host.querySelector('[data-shop-new]').onkeydown = (e) => { if (e.key === 'Enter') {
+                e.preventDefault();
+                void add();
+            } };
+            host.querySelectorAll('[data-shop-check]').forEach(c => c.onchange = async () => { try {
+                await br.checkShoppingAuthorized(String(c.dataset.shopCheck), Number(c.dataset.shopRev), c.checked, ctx);
+            }
+            catch (e) {
+                toast(String(e?.message || e));
+            } void KXFoodHub.mountHub(root, core, opts); });
+            const tg = host.querySelector('[data-shop-toggle]');
+            if (tg)
+                tg.onclick = () => { FOOD_ST.showDone = !FOOD_ST.showDone; void KXFoodHub.mountHub(root, core, opts); };
+        } });
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -9731,6 +9784,10 @@ var KXAPP;
         if (it.kind === 'HUB_ITEM' && cfg && rec) {
             items.push({ key: 'done', label: '✓ ' + Q('done'), run: () => run(async () => { const r = await runtime.entities.get(rid); return runtime.actions.invoke(cfg.actions.completeItem, { id: rid, expectedRevision: r.revision, [cfg.itemIdKey]: iid }, C); }, Q('doneToast')) });
             items.push({ key: 'propagate', label: '↗ ' + TL('propagate.title'), run: () => void propagateWindow({ kind: 'ITEM', id: it.id }) });
+            /* N2.6b+ (Jídlo a nákupy): a stock item → straight to the shopping list */
+            if (hub === 'APP.KX.FOOD') {
+                items.push({ key: 'toshop', label: `🛒 ${TL('food.toShop')}`, hint: String(rec.data?.name || '').replace(/^DEMO\s*·\s*/, ''), run: () => run(async () => { const br = new globalThis.KXShippingFoodTaskBridge.Bridge(runtime); return br.addShoppingItem({ title: String(rec.data?.name || '').replace(/^DEMO\s*·\s*/, ''), spaceIds: rec.spaceIds }, { actorId: CURRENT_USER_ID, appCode: 'APP.KX.FOOD', deviceId: activeDevice?.id, permissions: ['CORE.TASK.EDIT'], confirmed: true }); }, TL('food.added')) });
+            }
             /* N2.6b (user: quick actions everywhere): move this deadline – tomorrow / in a week / in a month / pick a date (one occurrence; the repeat rule stays) */
             if (typeof cfg.actions.completeItem === 'string' && /\.COMPLETE$/.test(cfg.actions.completeItem)) {
                 const RS = cfg.actions.completeItem.replace(/\.COMPLETE$/, '.RESCHEDULE');
@@ -11995,7 +12052,12 @@ var KXAPP;
             L.registerView({ id: 'INSIGHT:w.' + w.id, title: w.title, icon: '📈', group: 'Moje přehledy' });
     }
     catch { } }
-    function hubLabel(code) { return HUB_TITLES[code] || code.replace('APP.KX.', ''); }
+    function hubLabel(code) { return HUB_TITLES[code] || (() => { try {
+        const n = hubName(code);
+        if (n && n !== code)
+            return n;
+    }
+    catch { } return code.replace('APP.KX.', ''); })() /* N2.6b+: registry name for hubs missing in the title map */; }
     const LAYOUT_LABEL = { NORMAL: 'Běžné zobrazení', SPLIT_2V: '2 vedle sebe', SPLIT_2H: '2 nad sebou', MAIN_SIDE: 'Hlavní + boční panel', SPLIT_3: '3 sloupce', GRID_4: 'Mřížka 2×2', TABS: 'Jen záložky' };
     async function setLayout(layout) { try {
         lyUi.state = await runtime.actions.invoke('ACTION.CORE.LAYOUT.SET', { deviceClass: deviceClass(), layout }, lyCtx());
