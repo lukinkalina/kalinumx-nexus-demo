@@ -169,6 +169,17 @@ var KXDemoSeed;
             'SALES.CUSTOMER': [{ kind: 'B2B', contact: 'objednavky@umlyna-demo.cz', ico: '87654321', _kinds: ['OFFER', 'INVOICE_DUE'] }, { kind: 'VIP', contact: '+420 777 123 456', _kinds: ['ORDER_DUE', 'REVIEW'] }, { kind: 'RESELLER', contact: 'salon@bella-demo.cz', _kinds: ['FOLLOW_UP', 'OFFER'] }],
             'HR.PERSON': [{ role: 'PART_TIME', _kinds: ['SAFETY_TRAINING', 'CONTRACT_END'] }, { role: 'CONTRACTOR', _kinds: ['CONTRACT_END', 'REVIEW'] }, { role: 'CONTRACTOR', _kinds: ['REVIEW', 'VACATION'] }],
             'CERTIFY.ITEM': [{ kind: 'DEVICE_REVISION', _kinds: ['REVISION', 'EXPIRY'] }, { kind: 'DEVICE_REVISION', _kinds: ['REVISION', 'RENEWAL'] }, { kind: 'DEVICE_REVISION', _kinds: ['REVISION', 'EXPIRY'] }],
+            'CONTRACTS.CONTRACT': [{ kind: 'LEASE', counterparty: 'Statek Novák – pronájem', validFrom: '-420', validTo: '+310' }, { kind: 'SERVICE', counterparty: 'Dřevo Novák s.r.o.', validFrom: '-200', validTo: '+165' }, { kind: 'INSURANCE', counterparty: 'Pojišťovna DEMO a.s.', validFrom: '-300', validTo: '+65' }],
+            'SUBSCRIPTIONS.SUBSCRIPTION': [{ kind: 'SOFTWARE', provider: 'Adobe' }, { kind: 'SOFTWARE', provider: 'Shopify' }, { kind: 'LICENSE', provider: 'LightBurn Software' }],
+            'WARRANTY.PRODUCT': [{ seller: 'Laser-dodavatel DEMO', serial: 'MOPA60-DEMO-0042' }, { seller: 'Alza.cz', serial: 'DELL-DEMO-7781' }, { seller: 'Datart', serial: 'BOSCH-DEMO-1203' }],
+            'PRINT3D_PRINTER.PRINTER': [{ name: 'Prusa MK4', manufacturer: 'Prusa Research', model: 'MK4', kind: 'FDM', chamber: 'NONE' }, { name: 'Bambu Lab X1C', manufacturer: 'Bambu Lab', model: 'X1 Carbon', kind: 'FDM', chamber: 'PASSIVE' }, { name: 'Creality K1 Max', manufacturer: 'Creality', model: 'K1 Max', kind: 'FDM', chamber: 'PASSIVE' }],
+            'PRINT3D_FILAMENT.SPOOL': [{ name: 'PETG černý', material: 'PETG', brand: 'Prusament', color: '#111111', diameter: '1.75', remainingG: '640' }, { name: 'PLA bílé', material: 'PLA', brand: 'Bambu Lab', color: '#f5f5f5', diameter: '1.75', remainingG: '820' }, { name: 'ASA šedé', material: 'ASA', brand: 'Polymaker', color: '#8a8a8a', diameter: '1.75', remainingG: '300' }],
+            'PRINT3D_PROJECT.PROJECT': [{ name: 'Držák na nářadí', status: 'READY' }, { name: 'Krabička na elektroniku', status: 'PRINTING' }, { name: 'Náhradní knoflík pračky', status: 'DONE' }],
+            'STOCK.ITEM': [{ kind: 'MATERIAL' }, { kind: 'MATERIAL' }, { kind: 'PACKAGING' }],
+            'BUILD.SITE': [{ kind: 'GARDEN' }, { kind: 'RECONSTRUCTION' }, { kind: 'ASSEMBLY' }],
+            'MAINTENANCE.MACHINE': [{ kind: 'LASER' }, { kind: 'EXHAUST' }, { kind: 'COMPRESSOR' }],
+            'DOCUMENTS.DOC': [{ kind: 'PASSPORT', holder: 'Lukáš', number: 'DEMO 12345678', validTo: '+1460' }, { kind: 'DRIVING', holder: 'Helena', number: 'DEMO EA 123456', validTo: '+95' }, { kind: 'MANUAL', holder: 'dílna', validTo: null, _kinds: ['REVISION'] }],
+            'FORMS.FORM': [{ kind: 'HANDOVER', owner: 'Lukáš' }, { kind: 'CHECKLIST', owner: 'obsluha laseru' }, { kind: 'REQUEST', owner: 'Petra' }],
             'GARDEN.PLANT': [{ 'kind': 'GREENHOUSE', 'place': 'skleník u plotu', '_kinds': ['WATERING', 'FERTILIZING', 'HARVEST'] }, { 'kind': 'TREE', 'place': 'sad za domem', '_kinds': ['PRUNING', 'SPRAYING', 'HARVEST'] }, { 'kind': 'BED', 'place': 'záhon u terasy', '_kinds': ['PRUNING', 'WATERING'] }],
             'SCHOOL.STUDENT': [{ level: 'PRIMARY', _kinds: ['EXAM', 'HOMEWORK', 'PARENT_MEETING'] }, { level: 'SECONDARY', _kinds: ['EXAM', 'PROJECT', 'TRIP'] }, { level: 'COURSE', _kinds: ['ACTIVITY', 'DAY_OFF'] }],
             'HOBBY_LOG.ENTRY': [{ name: 'Mince u lesa' }, { name: 'Přezka z pole' }, { name: 'Stará podkova' }],
@@ -196,9 +207,13 @@ var KXDemoSeed;
                 const f = { spaceIds: [space] };
                 const OV = (DEMO_FIELDS[String(d.type || '')] || [])[i] || {}; /* N2.6b+: concrete sample fields per record type (beats the generic placeholder) */
                 for (const [key, def] of Object.entries(SF)) {
+                    if (OV[key] === null)
+                        continue; /* null = leave this field empty in the sample */
                     if (OV[key] !== undefined) {
                         if (key === nameField)
                             f[key] = ('DEMO · ' + OV[key]).slice(0, def.max || 80);
+                        else if (def.kind === 'date' && /^[+-]\d+$/.test(String(OV[key])))
+                            f[key] = new Date(Date.now() + Number(OV[key]) * 86400000).toISOString().slice(0, 10); /* relative sample dates stay current */
                         else
                             f[key] = OV[key];
                         continue;
