@@ -200,7 +200,13 @@ var KXAPP;
     function liveBrandSymbol() { const x = appearanceLive?.live?.brandSymbol; return x?.status === 'BOUND' && x.url ? `<img class="brand-live-symbol" src="${esc(x.url)}" alt="KalinumX">` : ''; }
     function liveBackgroundLayers() { return `<div class="appearance-live-background" aria-hidden="true"></div><div class="appearance-live-contrast" aria-hidden="true"></div>`; }
     function applyLiveAppearanceDom() { const shell = el('.app-shell'); if (!shell)
-        return; const bg = appearanceLive?.responsive || {}, contrast = appearanceLive?.contrast || {}, font = appearanceLive?.live?.customFont; const layer = shell.querySelector('.appearance-live-background'), overlay = shell.querySelector('.appearance-live-contrast'); if (layer) {
+        return; /* N2.6b+ interface size: the open Configurator draft is the live preview, otherwise the saved profile */ /* N2.6b+ interface size: the open Configurator draft is the live preview, otherwise the saved profile */ try {
+        const dr = appearanceStudioUi?.snapshot?.draft?.typography?.scale;
+        const sv = appearanceLive?.resolvedProfile?.typography?.scale ?? appearanceLive?.profile?.typography?.scale;
+        const sc = Number(dr ?? sv ?? 1);
+        document.documentElement.style.zoom = Number.isFinite(sc) && sc >= 0.75 && sc <= 1.5 && Math.abs(sc - 1) > 0.001 ? String(sc) : '';
+    }
+    catch { } const bg = appearanceLive?.responsive || {}, contrast = appearanceLive?.contrast || {}, font = appearanceLive?.live?.customFont; const layer = shell.querySelector('.appearance-live-background'), overlay = shell.querySelector('.appearance-live-contrast'); if (layer) {
         layer.style.backgroundImage = bg.active ? String(bg.backgroundImage || 'none') : 'none';
         layer.style.backgroundSize = String(bg.backgroundSize || 'cover');
         layer.style.backgroundPosition = String(bg.backgroundPosition || 'center');
@@ -1210,7 +1216,30 @@ var KXAPP;
     /* N2.6b (user: collapsed menu must keep icons, not broken text): every hub row in the tree gets its icon (same icon set as hub headers) and a name tooltip */
     /* N2.6b: hubs without an icon in the pack get a fitting symbol instead of letters (a real pack icon still wins) */
     const AG_HUB_SYMBOL = { 'APP.KX.HOBBY': '🎯', 'APP.KX.GAMES': '🎮', 'APP.KX.ADS': '📣', 'APP.KX.PRINT3D': '🧊' };
+    /* N2.6b+ (user: ⋯ instead of long press): every hub row in the side menu has ⋯ – open, favourites, hub settings, notifications, manual */
+    async function agTreeMenu(anchor, hub) {
+        try {
+            if (!APPS_PREFS.__loaded) {
+                APPS_PREFS = { fav: [], tabs: [], def: 'FAV', last: 'ALL', ...((await runtime.settings.list('ui.apps.prefs')).find((r) => r.scopeType === 'USER' && r.scopeId === CURRENT_USER_ID)?.value || {}) };
+            }
+        }
+        catch { }
+        const fav = APPS_PREFS.fav || [];
+        const isFav = fav.includes(hub);
+        kxMoreMenu(anchor, [{ key: 'open', label: `↗ ${TL('trm.open')}`, run: () => openHubAt(hub) },
+            { key: 'fav', label: isFav ? `☆ ${TL('apf.unstar')}` : `★ ${TL('apf.star')}`, run: async () => { APPS_PREFS.fav = isFav ? fav.filter(x => x !== hub) : [...fav, hub]; const { __loaded, ...clean } = APPS_PREFS; APPS_PREFS = clean; await saveAppsPrefs(); toast(TL(isFav ? 'apf.removed' : 'apf.added')); } },
+            { key: 'settings', label: `⚙ ${TL('quick.hubSettings')}`, run: () => { settingsUi.appCode = hub; settingsUi.category = 'ALL'; settingsUi.query = ''; void settingsInheritanceModal(); } },
+            { key: 'issues', label: `🔔 ${TL('quick.hubIssues')}`, run: () => { issuesUi.owner = hub; issuesUi.tab = 'WATCH'; void issuesTool(); } },
+            { key: 'manual', label: TL('manual.open'), run: () => void manualTool('HUB:' + hub) }]);
+    }
     function agTreeIcons() {
+        try {
+            document.querySelectorAll('.sidebar [data-tree-hub]:not([data-tree-tab])').forEach(row => { if (row.querySelector(':scope > .kx-ctx-more'))
+                return; const hub = String(row.dataset.treeHub || ''); if (!hub)
+                return; const mb = document.createElement('span'); mb.className = 'kx-ctx-more kx-tree-more'; mb.setAttribute('role', 'button'); mb.tabIndex = 0; mb.textContent = '⋯'; mb.title = TL('ctx.more'); mb.setAttribute('aria-label', TL('ctx.more')); const go = (e) => { e.preventDefault(); e.stopPropagation(); void agTreeMenu(mb, hub); }; mb.addEventListener('click', go); mb.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ')
+                go(e); }); row.appendChild(mb); });
+        }
+        catch { }
         document.querySelectorAll('.sidebar .kx-tree-hub:not([data-tree-tab]):not([data-ag-ti])').forEach(r => {
             r.dataset.agTi = '1';
             const code = String(r.dataset.treeHub || '');
@@ -3087,6 +3116,74 @@ var KXAPP;
             return; tT = setTimeout(() => { tT = 0; const d = document.getElementById('drawer'); if (d && d.classList.contains('open'))
             agFixTinyText(d); }, 200); }).observe(document.documentElement, { childList: true, subtree: true });
     }
+    /* N2.6b+ (interface size / narrow screens): the centred NEXUS wordmark hides when it would overlap the nav or the tools; big card numbers shrink to fit their card */
+    function agFitLayout() {
+        try {
+            const wm = Array.from(document.querySelectorAll('.topbar *')).find(e => /^N\s*E\s*X\s*U\s*S$/.test((e.textContent || '').trim()) && e.children.length === 0);
+            if (wm) {
+                wm.style.visibility = '';
+                const r = wm.getBoundingClientRect();
+                const hit = Array.from(document.querySelectorAll('.topbar nav, .topbar .top-actions')).some(n => { const q = n.getBoundingClientRect(); return q.width && r.left < q.right - 2 && r.right > q.left + 2 && r.top < q.bottom && r.bottom > q.top; });
+                if (hit)
+                    wm.style.visibility = 'hidden';
+            }
+            document.querySelectorAll('.ag-kpi *').forEach(e => { if (e.children.length || !(e.textContent || '').trim())
+                return; const fs = parseFloat(getComputedStyle(e).fontSize); if (fs < 20)
+                return; e.style.fontSize = ''; e.style.whiteSpace = 'nowrap'; let f = parseFloat(getComputedStyle(e).fontSize), n = 0; const box = e.closest('.ag-kpi'); while (n++ < 14 && box && e.getBoundingClientRect().right > box.getBoundingClientRect().right - 10 && f > 14) {
+                f -= 1.5;
+                e.style.fontSize = f + 'px';
+            } });
+        }
+        catch { }
+    }
+    window.addEventListener('resize', () => setTimeout(agFitLayout, 80));
+    {
+        let fT = 0;
+        new MutationObserver(() => { if (fT)
+            return; fT = setTimeout(() => { fT = 0; agFitLayout(); }, 400); }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+    }
+    /* N2.6b+ (user: on the phone also a “like on PC” layout with pinch zoom / pan / tap, plus long press with feedback) */
+    const KX_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    function kxDesktopMode() { try {
+        return localStorage.getItem('kx.mobile.desktopMode') === '1';
+    }
+    catch {
+        return false;
+    } }
+    function kxApplyViewport() {
+        const m = document.querySelector('meta[name="viewport"]');
+        if (!m)
+            return;
+        const on = KX_TOUCH && kxDesktopMode();
+        if (on) {
+            const sw = Math.min(screen.width || window.innerWidth, screen.height || window.innerHeight);
+            m.content = `width=1440,initial-scale=${Math.max(0.2, Math.min(1, (sw || 390) / 1440)).toFixed(3)},minimum-scale=0.2,maximum-scale=5,user-scalable=yes,viewport-fit=cover`;
+        }
+        else
+            m.content = 'width=device-width,initial-scale=1,viewport-fit=cover';
+        document.documentElement.classList.toggle('kx-desktop-mode', on);
+        let back = document.querySelector('.kx-desktop-back');
+        if (on && !back) {
+            back = document.createElement('button');
+            back.type = 'button';
+            back.className = 'kx-desktop-back';
+            back.textContent = '📱 ' + TL('mob.mobile');
+            back.title = TL('mob.toMobile');
+            back.onclick = () => kxSetDesktopMode(false);
+            document.body.appendChild(back);
+        }
+        else if (!on && back)
+            back.remove();
+    }
+    function kxSetDesktopMode(on) { try {
+        localStorage.setItem('kx.mobile.desktopMode', on ? '1' : '0');
+    }
+    catch { } kxApplyViewport(); toast(TL(on ? 'mob.onDesk' : 'mob.onMob')); }
+    if (KX_TOUCH)
+        setTimeout(kxApplyViewport, 0);
+    /* N2.6b+ (user): no long press – every item with a context menu shows a ⋯ button instead (visible on touch, on hover on PC) */
+    if (KX_TOUCH)
+        document.documentElement.classList.add('kx-touch');
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -3693,6 +3790,16 @@ var KXAPP;
         };
         root.querySelectorAll('[data-nav-item]').forEach(item => {
             item.addEventListener('contextmenu', event => { event.preventDefault(); event.stopPropagation(); showNavMenu(item); });
+            if (!item.querySelector('.kx-ctx-more')) {
+                const mb = document.createElement('span');
+                mb.className = 'kx-ctx-more kx-nav-more';
+                mb.setAttribute('role', 'button');
+                mb.tabIndex = 0;
+                mb.textContent = '⋯';
+                mb.title = TL('ctx.more');
+                mb.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); showNavMenu(item); });
+                item.appendChild(mb);
+            }
             item.addEventListener('keydown', event => { if ((event.shiftKey && event.key === 'F10') || event.key === 'ContextMenu') {
                 event.preventDefault();
                 event.stopPropagation();
@@ -8806,7 +8913,7 @@ var KXAPP;
         const ORD = ['write', 'data', 'view', 'help'];
         const key = (t) => t.dataset.action || (t.matches('[data-agent-host-toggle]') ? 'agent' : String(t.dataset.tbTool || ''));
         const rows = tools.map(t => ({ t, k: key(t) })).sort((a, b) => ORD.indexOf(GRP[a.k] || 'help') - ORD.indexOf(GRP[b.k] || 'help'));
-        kxMoreMenu(anchor, rows.map(({ t, k }) => ({ key: 'tool-' + k, group: TL('tbg.' + (GRP[k] || 'help')), label: `${icon(t)}${t.dataset.tbLabel || t.getAttribute('title') || ''}`.trim(), hint: TL('tbd.' + k) !== 'tbd.' + k ? TL('tbd.' + k) : '', run: () => t.click() })));
+        kxMoreMenu(anchor, [...rows.map(({ t, k }) => ({ key: 'tool-' + k, group: TL('tbg.' + (GRP[k] || 'help')), label: `${icon(t)}${t.dataset.tbLabel || t.getAttribute('title') || ''}`.trim(), hint: TL('tbd.' + k) !== 'tbd.' + k ? TL('tbd.' + k) : '', run: () => t.click() })), ...(KX_TOUCH ? [{ key: 'tool-desktop-mode', group: TL('tbg.view'), label: kxDesktopMode() ? `📱 ${TL('mob.toMobile')}` : `🖥 ${TL('mob.toDesk')}`, hint: TL(kxDesktopMode() ? 'mob.toMobileHint' : 'mob.toDeskHint'), run: () => kxSetDesktopMode(!kxDesktopMode()) }] : [])]);
     }
     /* the bar re-fits on ANY size change of the bar or its parts (window resize, badges, window names, phone ↔ desktop), at most once per frame */
     let fitTopbarFrame = 0, fitTopbarSettle = 0, fitTopbarRO = null;
@@ -11106,7 +11213,7 @@ var KXAPP;
             return `<div class="appearance-summary"><b>${esc(TL('aps.title'))}</b><br>${esc(TL('aps.sub'))}</div><div class="settings-grid"><div class="settings-card"><h3>👤 ${esc(TL('aps.user'))}</h3><p>${esc(TL('aps.userP'))}</p><button class="btn" data-studio-start="USER">${esc(TL('aps.userBtn'))}</button></div><div class="settings-card"><h3>👪 ${esc(TL('aps.ws'))}</h3><p>${esc(TL('aps.wsP'))}</p><button class="btn" data-studio-start="WORKSPACE">${esc(TL('aps.wsBtn'))}</button></div></div>`;
         const packs = KXAppearanceAssets.builtInPacks?.() || [], fonts = KXUI.FONT_PROFILES || [], slots = KXAppearanceAssets.iconSlots?.() || [], assetPage = appearanceAssetUi.page || { items: [], total: 0, offset: 0, limit: 32 }, assetRows = assetPage.items || appearanceAssetUi.catalog || [], imageAssets = assetRows.filter((a) => a.usage === 'IMAGE' && !a.stale), assetOptions = imageAssets.map((a) => `<option value="${esc(a.fileId)}">${esc(a.name)} · rev ${esc(a.contentRevision)}</option>`).join('');
         const conflict = studioConflictContent(), d = x.draft || {}, bg = d.background || { mode: 'NONE', fit: 'COVER', position: 'CENTER', opacity: 1, dim: 0, blurPx: 0, scale: 1, focalX: .5, focalY: .5, fixed: true }, ty = d.typography || { fontProfile: 'AUTO', headingProfile: 'AUTO', scale: 1, letterSpacingEm: 0 };
-        return `<div class="appearance-summary" data-studio-state="${x.dirty ? 'DRAFT' : 'SAVED'}"><b>${esc(TL(x.scopeType === 'WORKSPACE' ? 'aps.ws' : 'aps.user'))}</b> · ${esc(TL(x.dirty ? 'aps.dirty' : 'aps.saved'))}<br><small>${esc(TL('aps.step').replace('{a}', String(x.historyIndex + 1)).replace('{b}', String(x.historyLength)))}</small></div><div class="studio-toolbar"><button class="btn ghost" data-studio-undo ${x.canUndo ? '' : 'disabled'}>↶ ${esc(TL('aps.undo'))}</button><button class="btn ghost" data-studio-redo ${x.canRedo ? '' : 'disabled'}>↷ ${esc(TL('aps.redo'))}</button><button class="btn" data-studio-commit>✓ ${esc(TL('aps.commit'))}</button><button class="btn ghost" data-studio-discard>✕ ${esc(TL('aps.discard'))}</button></div>${conflict}<div class="settings-grid"><div class="settings-card"><h3>${esc(TL('aps.pack'))}</h3><select id="studioIconPack"><option value="AUTO" ${d.iconPackCode === 'AUTO' ? 'selected' : ''}>AUTO</option>${packs.map(p => `<option value="${esc(p.packCode)}" ${d.iconPackCode === p.packCode ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><button class="row-btn compact" data-studio-patch-icon-pack><span>${esc(TL('aps.try'))}</span></button></div><div class="settings-card"><h3>Typografie</h3><select id="studioFont"><option value="AUTO">AUTO</option>${fonts.map(f => `<option value="${esc(f.code)}" ${ty.fontProfile === f.code ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select><button class="row-btn compact" data-studio-patch-font><span>${esc(TL('aps.try'))}</span></button></div><div class="settings-card"><h3>Pozadí</h3><label class="kx-lf">${esc(TL('aps.bgOpacity'))}<input id="studioBgOpacity" type="number" min="0" max="1" step="0.05" value="${esc(bg.opacity ?? 1)}"></label><label class="kx-lf">${esc(TL('aps.bgDim'))}<input id="studioBgDim" type="number" min="0" max="1" step="0.05" value="${esc(bg.dim ?? 0)}"></label><label class="kx-lf">${esc(TL('aps.bgBlur'))}<input id="studioBgBlur" type="number" min="0" max="48" step="1" value="${esc(bg.blurPx ?? 0)}"></label><button class="row-btn compact" data-studio-patch-background><span>${esc(TL('aps.try'))}</span></button></div><div class="settings-card"><h3>${esc(TL('aps.logo'))}</h3><select id="studioBrandAsset"><option value="">${esc(TL('aps.pickImg'))}</option>${assetOptions}</select><button class="row-btn compact" data-studio-brand-file><span>${esc(TL('aps.useLogo'))}</span></button></div><div class="settings-card"><h3>${esc(TL('aps.ownIcon'))}</h3><select id="studioIconCode">${slots.map(r => `<option value="${esc(r.iconCode)}">${esc(String(r.label || '').replace(/^KalinumX\s+/, ''))}</option>`).join('')}</select><select id="studioIconAsset"><option value="">${esc(TL('aps.pickImg'))}</option>${assetOptions}</select><button class="row-btn compact" data-studio-icon-file><span>${esc(TL('aps.useIcon'))}</span></button></div>${assetLibraryContent(assetRows, assetPage, appearanceAssetUi.diagnostics, appearanceAssetUi.filters, appearanceAssetUi.collections)}<div class="settings-card"><h3>${esc(TL('aps.what'))}</h3><p>${esc(TL('aps.pack'))}: <b>${esc(d.iconPackCode && d.iconPackCode !== 'AUTO' ? d.iconPackCode : TL('aps.auto'))}</b><br>${esc(TL('aps.font'))}: <b>${esc(ty.fontProfile && ty.fontProfile !== 'AUTO' ? ty.fontProfile : TL('aps.auto'))}</b><br>${esc(TL('aps.bg'))}: ${esc(TL('aps.bgOpacity'))} ${esc(bg.opacity ?? 1)} · ${esc(TL('aps.bgDim'))} ${esc(bg.dim ?? 0)} · ${esc(TL('aps.bgBlur'))} ${esc(bg.blurPx ?? 0)}<br>${esc(TL('aps.custom').replace('{l}', String(Object.keys(d.brand || {}).length)).replace('{i}', String(Object.keys(d.iconOverrides || {}).length)))}</p></div></div>`;
+        return `<div class="appearance-summary" data-studio-state="${x.dirty ? 'DRAFT' : 'SAVED'}"><b>${esc(TL(x.scopeType === 'WORKSPACE' ? 'aps.ws' : 'aps.user'))}</b> · ${esc(TL(x.dirty ? 'aps.dirty' : 'aps.saved'))}<br><small>${esc(TL('aps.step').replace('{a}', String(x.historyIndex + 1)).replace('{b}', String(x.historyLength)))}</small></div><div class="studio-toolbar"><button class="btn ghost" data-studio-undo ${x.canUndo ? '' : 'disabled'}>↶ ${esc(TL('aps.undo'))}</button><button class="btn ghost" data-studio-redo ${x.canRedo ? '' : 'disabled'}>↷ ${esc(TL('aps.redo'))}</button><button class="btn" data-studio-commit>✓ ${esc(TL('aps.commit'))}</button><button class="btn ghost" data-studio-discard>✕ ${esc(TL('aps.discard'))}</button></div>${conflict}<div class="settings-grid"><div class="settings-card"><h3>${esc(TL('aps.pack'))}</h3><select id="studioIconPack"><option value="AUTO" ${d.iconPackCode === 'AUTO' ? 'selected' : ''}>${esc(TL('aps.auto'))}</option>${packs.map(p => `<option value="${esc(p.packCode)}" ${d.iconPackCode === p.packCode ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><button class="row-btn compact" data-studio-patch-icon-pack><span>${esc(TL('aps.try'))}</span></button></div><div class="settings-card"><h3>Typografie</h3><select id="studioFont"><option value="AUTO">${esc(TL('aps.auto'))}</option>${fonts.map(f => `<option value="${esc(f.code)}" ${ty.fontProfile === f.code ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select><label class="kx-lf">${esc(TL('aps.size'))} <b data-studio-scale-out>${Math.round(Number(ty.scale || 1) * 100)} %</b><input id="studioScale" type="range" min="0.9" max="1.3" step="0.05" value="${esc(ty.scale || 1)}" oninput="this.previousElementSibling.textContent=Math.round(this.value*100)+' %'"></label><button class="row-btn compact" data-studio-patch-font><span>${esc(TL('aps.try'))}</span></button></div><div class="settings-card"><h3>Pozadí</h3><label class="kx-lf">${esc(TL('aps.bgOpacity'))}<input id="studioBgOpacity" type="number" min="0" max="1" step="0.05" value="${esc(bg.opacity ?? 1)}"></label><label class="kx-lf">${esc(TL('aps.bgDim'))}<input id="studioBgDim" type="number" min="0" max="1" step="0.05" value="${esc(bg.dim ?? 0)}"></label><label class="kx-lf">${esc(TL('aps.bgBlur'))}<input id="studioBgBlur" type="number" min="0" max="48" step="1" value="${esc(bg.blurPx ?? 0)}"></label><button class="row-btn compact" data-studio-patch-background><span>${esc(TL('aps.try'))}</span></button></div><div class="settings-card"><h3>${esc(TL('aps.logo'))}</h3><select id="studioBrandAsset"><option value="">${esc(TL('aps.pickImg'))}</option>${assetOptions}</select><button class="row-btn compact" data-studio-brand-file><span>${esc(TL('aps.useLogo'))}</span></button></div><div class="settings-card"><h3>${esc(TL('aps.ownIcon'))}</h3><select id="studioIconCode">${slots.map(r => `<option value="${esc(r.iconCode)}">${esc(String(r.label || '').replace(/^KalinumX\s+/, ''))}</option>`).join('')}</select><select id="studioIconAsset"><option value="">${esc(TL('aps.pickImg'))}</option>${assetOptions}</select><button class="row-btn compact" data-studio-icon-file><span>${esc(TL('aps.useIcon'))}</span></button></div>${assetLibraryContent(assetRows, assetPage, appearanceAssetUi.diagnostics, appearanceAssetUi.filters, appearanceAssetUi.collections)}<div class="settings-card"><h3>${esc(TL('aps.what'))}</h3><p>${esc(TL('aps.pack'))}: <b>${esc(d.iconPackCode && d.iconPackCode !== 'AUTO' ? d.iconPackCode : TL('aps.auto'))}</b><br>${esc(TL('aps.font'))}: <b>${esc(ty.fontProfile && ty.fontProfile !== 'AUTO' ? ty.fontProfile : TL('aps.auto'))}</b><br>${esc(TL('aps.bg'))}: ${esc(TL('aps.bgOpacity'))} ${esc(bg.opacity ?? 1)} · ${esc(TL('aps.bgDim'))} ${esc(bg.dim ?? 0)} · ${esc(TL('aps.bgBlur'))} ${esc(bg.blurPx ?? 0)}<br>${esc(TL('aps.custom').replace('{l}', String(Object.keys(d.brand || {}).length)).replace('{i}', String(Object.keys(d.iconOverrides || {}).length)))}</p></div></div>`;
     } if (mode === 'PRESETS') {
         const rows = KXAppearanceBrandPresets.presets?.() || [];
         const c = KXAppearanceBrandPresets.contract?.() || {};
@@ -11133,7 +11240,10 @@ var KXAPP;
     } if (mode === 'STUDIO') {
         const ctx = () => ({ actorId: CURRENT_USER_ID, appCode: 'APP.NEXUS', permissions: ['CORE.SETTING.READ', 'CORE.SETTING.EDIT', 'CORE.FILE.IMPORT', 'CORE.APPEARANCE.ASSET.READ', 'CORE.APPEARANCE.ASSET.MANAGE'], confirmed: true });
         const clearStudioConflict = () => { appearanceStudioUi.conflictPaths = []; appearanceStudioUi.resolutions = {}; appearanceStudioUi.currentRevision = 0; appearanceStudioUi.conflictMessage = ''; };
-        const refresh = (snap) => { appearanceStudioUi.snapshot = snap; themeDrawer('STUDIO'); };
+        const refresh = (snap) => { appearanceStudioUi.snapshot = snap; try {
+            applyLiveAppearanceDom();
+        }
+        catch { } /* draft = live preview */ /* draft = live preview */ ; themeDrawer('STUDIO'); };
         const warmAssetThumbnails = async (rows) => { if (appearanceAssetUi.thumbLoading)
             return; appearanceAssetUi.thumbLoading = true; let changed = false; try {
             for (const a of (rows || []).filter((x) => x.usage === 'IMAGE' && !x.stale).slice(0, Math.max(1, Math.min(96, Number(appearanceAssetUi.filters?.limit || 32))))) {
@@ -11322,6 +11432,11 @@ var KXAPP;
             const out = await runtime.actions.invoke(action, { sessionId: sid, ...payload }, ctx());
             if (action.endsWith('.COMMIT') || action.endsWith('.DISCARD')) {
                 appearanceStudioUi.snapshot = null;
+                try {
+                    applyLiveAppearanceDom();
+                }
+                catch { }
+                ;
                 clearStudioConflict();
                 toast(action.endsWith('.COMMIT') ? 'Studio COMMIT uložen' : 'Studio draft zahozen');
                 if (action.endsWith('.COMMIT')) {
@@ -11372,7 +11487,7 @@ var KXAPP;
         document.querySelector('[data-studio-apply-rebase]')?.addEventListener('click', () => { const missing = (appearanceStudioUi.conflictPaths || []).filter(path => !appearanceStudioUi.resolutions[path]); if (missing.length)
             return toast(`Studio: vyberte řešení pro ${missing.length} konfliktní cestu/cesty`); invoke('ACTION.CORE.APPEARANCE.STUDIO.REBASE', { resolutions: { ...appearanceStudioUi.resolutions } }); });
         document.querySelector('[data-studio-patch-icon-pack]')?.addEventListener('click', () => invoke('ACTION.CORE.APPEARANCE.STUDIO.PATCH', { patch: { iconPackCode: el('#studioIconPack').value } }));
-        document.querySelector('[data-studio-patch-font]')?.addEventListener('click', () => { const f = el('#studioFont').value; invoke('ACTION.CORE.APPEARANCE.STUDIO.PATCH', { patch: { typography: { fontProfile: f, headingProfile: f, scale: 1, letterSpacingEm: 0 } } }); });
+        document.querySelector('[data-studio-patch-font]')?.addEventListener('click', () => { const f = el('#studioFont').value; invoke('ACTION.CORE.APPEARANCE.STUDIO.PATCH', { patch: { typography: { fontProfile: f, headingProfile: f, scale: Math.max(0.75, Math.min(1.5, Number(el('#studioScale')?.value || 1))), letterSpacingEm: 0 } } }); });
         document.querySelector('[data-studio-patch-background]')?.addEventListener('click', () => invoke('ACTION.CORE.APPEARANCE.STUDIO.PATCH', { patch: { background: { mode: 'NONE', fit: 'COVER', position: 'CENTER', opacity: Number(el('#studioBgOpacity').value), dim: Number(el('#studioBgDim').value), blurPx: Number(el('#studioBgBlur').value), scale: 1, focalX: .5, focalY: .5, fixed: true } } }));
         document.querySelector('[data-studio-brand-file]')?.addEventListener('click', async () => { const fileId = String(el('#studioBrandAsset').value || ''); if (!fileId)
             return toast('Vyberte ověřený asset'); try {
@@ -11873,6 +11988,11 @@ var KXAPP;
         personalHomeRestored = false;
         personalHomeUi.errors = {};
         appearanceStudioUi.snapshot = null;
+        try {
+            applyLiveAppearanceDom();
+        }
+        catch { }
+        ;
         fileExplorerUi.collectionId = '';
         await runtime.fileLibrary.ensureUserDesk(userId, { actorId: 'SYSTEM', appCode: 'APP.NEXUS' });
         if (runtime.i18n) {
@@ -13250,6 +13370,20 @@ var KXAPP;
         target.dataset.kxContext = '1';
         const open = async (pt) => { const it = await items(); if (it?.length)
             kxMoreMenu(target, it, pt); };
+        if (!target.querySelector(':scope > .kx-ctx-more') && !target.querySelector('[data-item-menu]')) {
+            const mb = document.createElement('span');
+            mb.className = 'kx-ctx-more';
+            mb.setAttribute('role', 'button');
+            mb.tabIndex = 0;
+            mb.textContent = '⋯';
+            mb.title = TL('ctx.more');
+            mb.setAttribute('aria-label', TL('ctx.more'));
+            const go = (e) => { e.preventDefault(); e.stopPropagation(); const r = mb.getBoundingClientRect(); void open({ x: r.left, y: r.bottom }); };
+            mb.addEventListener('click', go);
+            mb.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ')
+                go(e); });
+            target.appendChild(mb);
+        }
         target.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); void open({ x: e.clientX, y: e.clientY }); });
         target.addEventListener('keydown', (e) => { if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
             e.preventDefault();

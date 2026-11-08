@@ -1478,3 +1478,38 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 #drawer.open :is(p,small,b,strong,span,code,li,dd,dt,label,div){overflow-wrap:anywhere}
 
 #drawer.open .settings-card{min-height:0 !important;align-content:start}#drawer.open .settings-card .row-btn.compact{justify-content:center;width:auto;margin-top:6px}#drawer.open .settings-card label.kx-lf{display:grid;gap:3px;margin:4px 0}
+/* ===== N2.6b+ MOBILE (≤ 680 px): nothing wider than the screen, hub deadline rows stack, compact DEMO bar ===== */
+@media (max-width:680px){
+  .content,.content > *,.ag-dash,.ag-dash > *,.ag-row,.ag-row2,.ag-kpis,.ag-card,.ag-kpi{max-width:100% !important;min-width:0 !important;box-sizing:border-box}
+  .ag-dash :is(.ag-kpis,.ag-row){grid-template-columns:repeat(2,minmax(0,1fr)) !important}
+  .ag-dash :is(.ag-row2){grid-template-columns:minmax(0,1fr) !important}
+  .ag-dash :is([class*=hero],.ag-hero){overflow:hidden !important}
+  .ag-dash [class*=horizon],.ag-dash [class*=scope],.ag-dash [class*=tabs]{flex-wrap:wrap !important;max-width:100%}
+  .ag-kpi{padding:8px 10px !important}.ag-kpi *{overflow-wrap:anywhere}
+  .topbar{padding-left:6px !important}
+  .kx-demo-banner,[data-demo-banner]{font-size:12px !important;padding:3px 8px !important;gap:6px !important;line-height:1.25}
+  .kx-demo-banner button,[data-demo-banner] button{font-size:11px !important;padding:2px 8px !important;min-height:24px !important}
+  /* hub deadline rows: title on its own line, controls wrap below */
+  .inspector.hub-full .veh-card > ul > li{grid-template-columns:minmax(0,1fr) !important}
+  .inspector.hub-full .veh-card > ul > li > span:first-child b{display:block !important}
+  .inspector.hub-full .veh-card > ul > li .veh-actions{flex-wrap:wrap !important;justify-content:flex-start !important;gap:4px !important;padding-top:4px !important}
+  .inspector.hub-full .veh-card > ul > li .veh-actions input[type=date]{max-width:150px !important}
+  .inspector.hub-full .veh-card{padding:10px !important}
+}
+
+@media (max-width:680px){.ag-hz{display:grid !important;grid-template-columns:repeat(6,minmax(0,1fr)) !important;gap:4px !important;width:100%}.ag-hz small{grid-column:1/-1}.ag-hz button{min-width:0 !important;padding:4px 2px !important;font-size:12px !important}}
+
+.kx-desktop-back{position:fixed;left:10px;bottom:10px;z-index:250000;padding:8px 14px;border-radius:999px;border:1px solid rgba(242,200,105,.6);background:rgba(8,10,16,.92);color:#f2c869;font-size:28px;font-weight:700}
+/* desktop layout on a phone: no browser text inflation – the page must look exactly like on a PC */
+html,body{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html.kx-desktop-mode,html.kx-desktop-mode body,html.kx-desktop-mode *{-webkit-text-size-adjust:100% !important;text-size-adjust:100% !important}
+
+/* ⋯ context button: on hover / focus on PC, always on touch */
+.kx-ctx-more{display:inline-grid;place-items:center;min-width:24px;height:24px;margin-left:auto;padding:0 4px;border-radius:7px;color:#cfc6b0;font-weight:800;letter-spacing:1px;cursor:pointer;opacity:0;transition:opacity .12s;flex:0 0 auto}
+.kx-ctx-more:hover{background:rgba(242,200,105,.15);color:#f2c869}
+:is([data-kx-context],[data-nav-item]):is(:hover,:focus-within) > .kx-ctx-more,html.kx-touch .kx-ctx-more{opacity:1}
+#hubNavHost .kx-nav-more{position:absolute;right:8px;bottom:6px}
+.app-shell:is(.kx-rail,.sidebar-collapsed)>.sidebar:not(:hover) .kx-ctx-more{display:none !important}
+
+.sidebar [data-tree-hub]:is(:hover,:focus-within) > .kx-ctx-more{opacity:1}
+.sidebar [data-tree-hub]{position:relative}
