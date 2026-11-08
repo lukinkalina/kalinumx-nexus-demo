@@ -1444,3 +1444,5 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 .kx-backup-status{display:grid;gap:6px;margin:0 0 10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(233,181,79,.35);background:rgba(10,15,24,.6)}.kx-backup-status p{margin:0;font-size:13.5px}.kx-backup-status .lvl-ok{color:#7fe0a5}.kx-backup-status .lvl-warn{color:#ffc77a}.kx-backup-status .lvl-bad{color:#ff8a8d}.kx-backup-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 
 .kx-backup-status [data-backup-msg]:empty{display:none}
+
+.kx-arch{display:grid;gap:8px}.kx-arch-top{display:flex;gap:8px;flex-wrap:wrap}.kx-arch-top input{flex:1;min-width:200px;min-height:34px}.kx-arch-list{list-style:none;margin:0;padding:0;display:grid;gap:5px}.kx-arch-list li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 12px;border-radius:10px;border:1px solid rgba(233,181,79,.2);background:rgba(10,15,24,.6)}.kx-arch-list li span{display:grid}.kx-arch-list small{color:#a39e8e}

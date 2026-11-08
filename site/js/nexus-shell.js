@@ -51,7 +51,7 @@ var KXAPP;
     let schoolInstall = null;
     let identityInstall = null;
     // Stage144: hub-native workspace panels, mounted in the APP inspector.
-    const HUB_WORKSPACES = { 'APP.KX.VEHICLES': () => KXVehicles, 'APP.KX.PETS': () => KXPets, 'APP.KX.HOME': () => KXHome, 'APP.KX.SCHOOL': () => KXSchool, 'APP.KX.CONTRACTS': () => KXContracts, 'APP.KX.HEALTH': () => KXHealth, 'APP.KX.CERTIFY': () => KXCertify, 'APP.KX.WARRANTY': () => KXWarranty, 'APP.KX.SUBSCRIPTIONS': () => KXSubscriptions, 'APP.KX.GARDEN': () => KXGarden, 'APP.KX.ASSETS': () => KXAssets, 'APP.KX.MAINTENANCE': () => KXMaintenance, 'APP.KX.SERVICE': () => KXService, 'APP.KX.PROJECTS': () => KXProjects, 'APP.KX.HR': () => KXHr, 'APP.KX.ENERGY': () => KXEnergy, 'APP.KX.RENTAL': () => KXRental, 'APP.KX.DOCUMENTS': () => KXDocuments, 'APP.KX.FOOD': () => KXFoodHub, 'APP.KX.SALES': () => KXSales, 'APP.KX.BUILD': () => KXBuild, 'APP.KX.STOCK': () => KXStock, 'APP.KX.INVENTORY': () => KXInventory, 'APP.KX.FORMS': () => KXForms, 'APP.KX.GUIDE': () => KXGuide, 'APP.KX.SHIPPING': () => KXShipping, 'APP.KX.VAULT': () => KXVault, 'APP.KX.QR_SOS': () => KXQrHub, 'APP.KX.PRINT': () => KXPrint, 'APP.KX.GRAPHICS': () => KXGraphics, 'APP.KX.GAMES': () => KXGamesHub, 'APP.KX.PRINT3D': () => KXPrint3D, 'APP.KX.SHOP': () => KXShop, 'APP.KX.TIME': () => KXTrackWork, 'APP.KX.HOBBY': () => KXHobby, 'APP.KX.LASER': () => KXLaserHub, 'APP.KX.ADS': () => KXAdsHub, 'APP.KX.FINANCE': () => KXFinanceHub, 'APP.KX.PURCHASE': () => KXPurchaseHub, 'APP.KX.MEDIA': () => KXGalleryHub };
+    const HUB_WORKSPACES = { 'APP.KX.VEHICLES': () => KXVehicles, 'APP.KX.PETS': () => KXPets, 'APP.KX.HOME': () => KXHome, 'APP.KX.SCHOOL': () => KXSchool, 'APP.KX.CONTRACTS': () => KXContracts, 'APP.KX.HEALTH': () => KXHealth, 'APP.KX.CERTIFY': () => KXCertify, 'APP.KX.WARRANTY': () => KXWarranty, 'APP.KX.SUBSCRIPTIONS': () => KXSubscriptions, 'APP.KX.GARDEN': () => KXGarden, 'APP.KX.ASSETS': () => KXAssets, 'APP.KX.MAINTENANCE': () => KXMaintenance, 'APP.KX.SERVICE': () => KXService, 'APP.KX.PROJECTS': () => KXProjects, 'APP.KX.HR': () => KXHr, 'APP.KX.ENERGY': () => KXEnergy, 'APP.KX.RENTAL': () => KXRental, 'APP.KX.DOCUMENTS': () => KXDocuments, 'APP.KX.FOOD': () => KXFoodHub, 'APP.KX.ARCHIVE': () => KXArchiveHub, 'APP.KX.SALES': () => KXSales, 'APP.KX.BUILD': () => KXBuild, 'APP.KX.STOCK': () => KXStock, 'APP.KX.INVENTORY': () => KXInventory, 'APP.KX.FORMS': () => KXForms, 'APP.KX.GUIDE': () => KXGuide, 'APP.KX.SHIPPING': () => KXShipping, 'APP.KX.VAULT': () => KXVault, 'APP.KX.QR_SOS': () => KXQrHub, 'APP.KX.PRINT': () => KXPrint, 'APP.KX.GRAPHICS': () => KXGraphics, 'APP.KX.GAMES': () => KXGamesHub, 'APP.KX.PRINT3D': () => KXPrint3D, 'APP.KX.SHOP': () => KXShop, 'APP.KX.TIME': () => KXTrackWork, 'APP.KX.HOBBY': () => KXHobby, 'APP.KX.LASER': () => KXLaserHub, 'APP.KX.ADS': () => KXAdsHub, 'APP.KX.FINANCE': () => KXFinanceHub, 'APP.KX.PURCHASE': () => KXPurchaseHub, 'APP.KX.MEDIA': () => KXGalleryHub };
     let n2Modules = null;
     let UI_LOCALE = KXI18n.DEFAULT_LOCALE || 'cs';
     let pendingFirstRunLocale = null;
@@ -415,6 +415,7 @@ var KXAPP;
                                 catch (e) {
                                     console.warn('DEMO seed v6', e);
                                 }
+                                agRegisterArchiveRestore();
                                 try {
                                     await KXDemoSeed.seed7?.(runtime, CURRENT_USER_ID);
                                 }
@@ -945,7 +946,7 @@ var KXAPP;
         const acts = [];
         const HUB_TOOL = { 'APP.KX.NOTES': ['agd.hp.notes', 'action', 'kx-notes'], 'APP.KX.CONNECT': ['agd.hp.kaira', 'section', 'ai'], 'APP.KX.AI': ['agd.hp.kaira', 'section', 'ai'], 'APP.KX.NEXUS': ['agd.hp.today', 'section', 'today'], 'APP.KX.IDENTITY': ['agd.hp.theme', 'action', 'theme'], 'APP.KX.AUTOMATE': ['agd.hp.processes', 'action', 'kx-processes'], 'APP.KX.LAB': ['agd.hp.lab', 'action', 'kx-insights'], 'APP.KX.CREATOR': ['agd.hp.creator', 'action', 'shell-presets'],
             'APP.KX.INSIGHT': ['agd.hp.analytics', 'section', 'analytics'], 'APP.KX.DATA': ['agd.hp.gateway', 'action', 'web-gateway'],
-            'APP.KX.BACKUP': ['agd.hp.backup', 'action', 'sync-merge'], 'APP.KX.ARCHIVE': ['agd.hp.archive', 'section', 'trash'], 'APP.KX.DEV': ['agd.hp.dev', 'action', 'kx-bugs'] };
+            'APP.KX.BACKUP': ['agd.hp.backup', 'action', 'sync-merge'], 'APP.KX.DEV': ['agd.hp.dev', 'action', 'kx-bugs'] };
         /* every hub that is an entrance to an existing tool gets a direct button to it */ if (HUB_TOOL[code])
             acts.push(HUB_TOOL[code]);
         pl = document.createElement('section');
@@ -1208,7 +1209,7 @@ var KXAPP;
         agBtnT = setTimeout(agButtonTidy, 120); }).observe(document.documentElement, { childList: true, subtree: true });
     /* N2.6b (user: collapsed menu must keep icons, not broken text): every hub row in the tree gets its icon (same icon set as hub headers) and a name tooltip */
     /* N2.6b: hubs without an icon in the pack get a fitting symbol instead of letters (a real pack icon still wins) */
-    const AG_HUB_SYMBOL = { 'APP.KX.HOBBY': '🎯', 'APP.KX.GAMES': '🎮', 'APP.KX.ADS': '📣' };
+    const AG_HUB_SYMBOL = { 'APP.KX.HOBBY': '🎯', 'APP.KX.GAMES': '🎮', 'APP.KX.ADS': '📣', 'APP.KX.PRINT3D': '🧊' };
     function agTreeIcons() {
         document.querySelectorAll('.sidebar .kx-tree-hub:not([data-tree-tab]):not([data-ag-ti])').forEach(r => {
             r.dataset.agTi = '1';
@@ -2946,6 +2947,71 @@ var KXAPP;
         i.value = kxtNum(i.value); });
     document.addEventListener('click', (e) => { const h = e.target?.closest?.('.sidebar [data-tree-hub]:not([data-tree-tab])'); if (h)
         window.__kxToolDirect = String(h.dataset.treeHub || ''); }, true); /* remembers a menu click for tool hubs (see the landing) */
+    /* N2.6b+ (Archiv): archived hub records can come back. One shared Core action – finds the hub by record type, requires the record to be visible to the actor, archived and at the expected revision; writes through entities.save (mutation access) and logs RESTORED */
+    function agArchiveDomains() { return (globalThis.KXHubKit?.domains || []).filter((d) => d.serviceKey && runtime[d.serviceKey]?.access?.list); }
+    function agRegisterArchiveRestore() {
+        if (!runtime || runtime.__kxArchRestore)
+            return;
+        try {
+            runtime.__kxArchRestore = true;
+            runtime.actions.register({ code: 'ACTION.CORE.ARCHIVE.RESTORE', ownerApp: 'APP.NEXUS', risk: 'SENSITIVE_WRITE', permission: 'CORE.ARCHIVE.RESTORE', handler: async (p, ctx) => {
+                    const id = String(p?.id || '');
+                    const rec = await runtime.entities.get(id);
+                    if (!rec)
+                        throw new Error('ARCHIVE_NOT_FOUND');
+                    const d = agArchiveDomains().find((x) => x.type === rec.type);
+                    if (!d)
+                        throw new Error('ARCHIVE_NOT_A_HUB_RECORD');
+                    if (!rec.archivedAt)
+                        throw new Error('ARCHIVE_NOT_ARCHIVED');
+                    if (p?.expectedRevision !== undefined && rec.revision !== p.expectedRevision)
+                        throw new Error('ARCHIVE_REVISION_CONFLICT');
+                    const svc = runtime[d.serviceKey];
+                    const visible = (await svc.access.list(ctx.actorId, { includeArchived: true })).some((r) => r.id === id);
+                    if (!visible)
+                        throw new Error('ARCHIVE_ACCESS_DENIED');
+                    const hist = Array.isArray(rec.data?.history) ? [...rec.data.history, { kind: 'RESTORED', at: new Date().toISOString(), by: ctx.actorId }].slice(-200) : rec.data?.history;
+                    return runtime.entities.save({ id: rec.id, type: rec.type, ownerApp: rec.ownerApp, schema: rec.schema, spaceIds: rec.spaceIds, data: { ...rec.data, ...(hist ? { history: hist } : {}) }, archivedAt: null, expectedRevision: rec.revision }, { ...ctx, appCode: rec.ownerApp, permissions: [...(ctx.permissions || []), d.permission] });
+                } });
+        }
+        catch (e) {
+            runtime.__kxArchRestore = false;
+            console.warn('archive restore action', e);
+        }
+    } /* registered lazily – the runtime exists only after start */
+    const ARCH_ST = { hub: '', q: '' };
+    const KXArchiveHub = { TABS: [], async mountHub(root) {
+            agRegisterArchiveRestore();
+            const AC = { actorId: CURRENT_USER_ID, appCode: 'APP.KX.ARCHIVE', deviceId: activeDevice?.id, permissions: ['CORE.ARCHIVE.RESTORE'], confirmed: true };
+            const rows = [];
+            for (const d of agArchiveDomains()) {
+                try {
+                    for (const r of await runtime[d.serviceKey].access.list(CURRENT_USER_ID, { includeArchived: true }))
+                        if (r.archivedAt)
+                            rows.push({ r, d });
+                }
+                catch { }
+            }
+            rows.sort((a, b) => String(b.r.archivedAt).localeCompare(String(a.r.archivedAt)));
+            const hubs = [...new Set(rows.map(x => x.d.owner))];
+            const vis = rows.filter(x => (!ARCH_ST.hub || x.d.owner === ARCH_ST.hub) && (!ARCH_ST.q || JSON.stringify(x.r.data || {}).toLowerCase().includes(ARCH_ST.q.toLowerCase())));
+            const nm = (x) => String(x.r.data?.[x.d.nameKey] || x.r.data?.name || x.r.id);
+            root.innerHTML = `<section class="kx-arch"><div class="kx-arch-top"><input data-arch-q placeholder="${esc(TL('arch.search'))}" value="${esc(ARCH_ST.q)}"><select data-arch-hub><option value="">${esc(TL('arch.allHubs'))} (${rows.length})</option>${hubs.map(h => `<option value="${esc(h)}" ${ARCH_ST.hub === h ? 'selected' : ''}>${esc(hubLabel(h))} (${rows.filter(x => x.d.owner === h).length})</option>`).join('')}</select><button type="button" class="btn ghost" data-arch-trash>🗑 ${esc(TL('arch.trash'))}</button></div>
+        <p class="muted">${esc(TL('arch.hint'))}</p>
+        ${vis.length ? `<ul class="kx-arch-list">${vis.map(x => `<li><span><b>${esc(nm(x))}</b><small>${esc(hubLabel(x.d.owner))} · ${esc(x.d.label || '')} · ${esc(TL('arch.archivedAt'))} ${esc(new Date(x.r.archivedAt).toLocaleDateString())}</small></span><button type="button" class="btn" data-arch-restore="${esc(x.r.id)}" data-arch-rev="${esc(String(x.r.revision))}">↶ ${esc(TL('arch.restore'))}</button></li>`).join('')}</ul>` : `<p class="muted">${esc(TL('arch.empty'))}</p>`}</section>`;
+            const again = () => void KXArchiveHub.mountHub(root);
+            root.querySelector('[data-arch-q]').onchange = (e) => { ARCH_ST.q = e.target.value; again(); };
+            root.querySelector('[data-arch-hub]').onchange = (e) => { ARCH_ST.hub = e.target.value; again(); };
+            root.querySelector('[data-arch-trash]').onclick = () => { state.activeSection = 'trash'; render(); };
+            root.querySelectorAll('[data-arch-restore][data-arch-rev]').forEach(b => b.onclick = async () => { try {
+                await runtime.actions.invoke('ACTION.CORE.ARCHIVE.RESTORE', { id: b.dataset.archRestore, expectedRevision: Number(b.dataset.archRev) }, AC);
+                toast(TL('arch.restored'));
+                again();
+            }
+            catch (e) {
+                toast(String(e?.message || e));
+            } });
+        } };
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
