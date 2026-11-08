@@ -991,7 +991,13 @@ var KXAPP;
         else if (k === 'new')
             ins.querySelector('.kx-hub-bar .btn:not(.ghost)')?.click();
         else
-            ins.querySelector('.kx-hub-bar-tools button')?.click(); });
+            ins.querySelector('.kx-hub-bar-tools button')?.click(); }); /* N2.6b+ (user: tool hubs should open the tool directly): a click on the hub in the menu runs its tool and closes the empty landing */
+        if (HUB_TOOL[code] && window.__kxToolDirect === code) {
+            window.__kxToolDirect = '';
+            const go = pl.querySelector('[data-ag-place-go]');
+            setTimeout(() => { const k0 = String(go?.dataset.agPlaceGo || '').split(':')[0]; if (k0 === 'action')
+                ins.querySelector('[data-ins-close]')?.click(); go?.click(); }, 30);
+        }
     }
     /* N2.6b (user: sections feel like settings): work first, settings folded – calendar one compact bar, Kaira conversation first, analytics explained, desk / files clear empty states */
     function alpineSectionTidy() {
@@ -2938,6 +2944,8 @@ var KXAPP;
         i.value = String(i.dataset.kxtRaw || ''); });
     document.addEventListener('focusout', (e) => { const i = e.target?.closest?.('[data-kxt-edit][data-kxt-raw]'); if (i && i.value === i.dataset.kxtRaw)
         i.value = kxtNum(i.value); });
+    document.addEventListener('click', (e) => { const h = e.target?.closest?.('.sidebar [data-tree-hub]:not([data-tree-tab])'); if (h)
+        window.__kxToolDirect = String(h.dataset.treeHub || ''); }, true); /* remembers a menu click for tool hubs (see the landing) */
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
