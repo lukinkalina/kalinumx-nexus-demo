@@ -1133,6 +1133,8 @@ var KXAPP;
             render();
             return;
         }
+        if (kxCloseLayer())
+            return; /* N2.6b+: window → panel → hub first */
         agNav.stack.pop();
         const prev = agNav.stack[agNav.stack.length - 1];
         if (!prev) {
@@ -3184,6 +3186,74 @@ var KXAPP;
     /* N2.6b+ (user): no long press – every item with a context menu shows a ⋯ button instead (visible on touch, on hover on PC) */
     if (KX_TOUCH)
         document.documentElement.classList.add('kx-touch');
+    /* N2.6b+ (Konfigurátor): interface density in one place – the existing ui.density setting, applies right away */
+    function agDensityRow() { const cur = String((typeof effectiveDensity !== 'undefined' ? effectiveDensity : 'EXTRA') || 'EXTRA'); return `<div class="kx-density-row" data-density-row><b>${esc(TL('apd.title'))}</b><small>${esc(TL('apd.hint'))}</small><div class="kx-pills">${['EXTRA', 'COMPACT', 'STANDARD', 'COMFORTABLE'].map(v => `<button type="button" class="${cur === v ? 'on' : ''}" data-density-set="${v}">${esc(TL('apd.' + v))}</button>`).join('')}</div></div>`; }
+    document.addEventListener('click', (e) => { const b = e.target?.closest?.('[data-density-set]'); if (!b)
+        return; e.preventDefault(); const v = String(b.dataset.densitySet); void (async () => { try {
+        await runtime.actions.invoke('ACTION.CORE.SETTING.SET', { key: 'ui.density', scopeType: 'USER', scopeId: CURRENT_USER_ID, value: v }, hubNavActionContext());
+        toast(TL('apd.saved').replace('{v}', TL('apd.' + v)));
+        render();
+    }
+    catch (x) {
+        toast(String(x?.message || x));
+    } })(); }, true);
+    /* N2.6b+ (user: a back button everywhere, PC and phone): one Back = open menu → window → side panel → hub → previous section → My day; used by the top-bar ←, a ← in every window / panel / hub header and the system Back (Android, browser, mouse) */
+    function kxCloseLayer() {
+        const mm = document.querySelectorAll('.kx-more-menu');
+        if (mm.length) {
+            mm.forEach(x => x.remove());
+            return true;
+        }
+        if (closeOpenWindow())
+            return true;
+        if (state.inspector || document.querySelector('.inspector.open')) {
+            const c = document.querySelector('.inspector.open [data-ins-close]');
+            if (c)
+                c.click();
+            else {
+                state.inspector = false;
+                render();
+            }
+            return true;
+        }
+        return false;
+    }
+    function kxGoBack() { if (kxCloseLayer())
+        return true; if (agNav.stack.length > 1) {
+        document.querySelector('[data-ag-back]')?.click();
+        return true;
+    } if (state.activeSection !== 'today') {
+        state.activeSection = 'today';
+        render();
+        return true;
+    } return false; }
+    {
+        const addBack = () => { for (const head of Array.from(document.querySelectorAll('#modal.open .drawer-head, #modal.open .modal-head, #drawer.open .drawer-head, .inspector.open .kx-hub-head, .inspector.open .ins-head'))) {
+            if (head.querySelector(':scope > .kx-back'))
+                continue;
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'icon-btn kx-back';
+            b.textContent = '←';
+            b.title = TL('agd.nav.back');
+            b.setAttribute('aria-label', TL('agd.nav.back'));
+            b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); kxGoBack(); });
+            head.insertBefore(b, head.firstChild);
+        } };
+        let bT = 0;
+        new MutationObserver(() => { if (bT)
+            return; bT = setTimeout(() => { bT = 0; addBack(); }, 120); }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    }
+    try {
+        history.pushState({ kxGuard: 1 }, '');
+        window.addEventListener('popstate', () => { if (kxGoBack()) {
+            try {
+                history.pushState({ kxGuard: 1 }, '');
+            }
+            catch { }
+        } });
+    }
+    catch { }
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -11210,7 +11280,7 @@ var KXAPP;
         return importContent(); if (mode === 'STUDIO') {
         const x = appearanceStudioUi.snapshot;
         if (!x)
-            return `<div class="appearance-summary"><b>${esc(TL('aps.title'))}</b><br>${esc(TL('aps.sub'))}</div><div class="settings-grid"><div class="settings-card"><h3>👤 ${esc(TL('aps.user'))}</h3><p>${esc(TL('aps.userP'))}</p><button class="btn" data-studio-start="USER">${esc(TL('aps.userBtn'))}</button></div><div class="settings-card"><h3>👪 ${esc(TL('aps.ws'))}</h3><p>${esc(TL('aps.wsP'))}</p><button class="btn" data-studio-start="WORKSPACE">${esc(TL('aps.wsBtn'))}</button></div></div>`;
+            return `<div class="appearance-summary"><b>${esc(TL('aps.title'))}</b><br>${esc(TL('aps.sub'))}</div>${agDensityRow()}<div class="settings-grid"><div class="settings-card"><h3>👤 ${esc(TL('aps.user'))}</h3><p>${esc(TL('aps.userP'))}</p><button class="btn" data-studio-start="USER">${esc(TL('aps.userBtn'))}</button></div><div class="settings-card"><h3>👪 ${esc(TL('aps.ws'))}</h3><p>${esc(TL('aps.wsP'))}</p><button class="btn" data-studio-start="WORKSPACE">${esc(TL('aps.wsBtn'))}</button></div></div>`;
         const packs = KXAppearanceAssets.builtInPacks?.() || [], fonts = KXUI.FONT_PROFILES || [], slots = KXAppearanceAssets.iconSlots?.() || [], assetPage = appearanceAssetUi.page || { items: [], total: 0, offset: 0, limit: 32 }, assetRows = assetPage.items || appearanceAssetUi.catalog || [], imageAssets = assetRows.filter((a) => a.usage === 'IMAGE' && !a.stale), assetOptions = imageAssets.map((a) => `<option value="${esc(a.fileId)}">${esc(a.name)} · rev ${esc(a.contentRevision)}</option>`).join('');
         const conflict = studioConflictContent(), d = x.draft || {}, bg = d.background || { mode: 'NONE', fit: 'COVER', position: 'CENTER', opacity: 1, dim: 0, blurPx: 0, scale: 1, focalX: .5, focalY: .5, fixed: true }, ty = d.typography || { fontProfile: 'AUTO', headingProfile: 'AUTO', scale: 1, letterSpacingEm: 0 };
         return `<div class="appearance-summary" data-studio-state="${x.dirty ? 'DRAFT' : 'SAVED'}"><b>${esc(TL(x.scopeType === 'WORKSPACE' ? 'aps.ws' : 'aps.user'))}</b> · ${esc(TL(x.dirty ? 'aps.dirty' : 'aps.saved'))}<br><small>${esc(TL('aps.step').replace('{a}', String(x.historyIndex + 1)).replace('{b}', String(x.historyLength)))}</small></div><div class="studio-toolbar"><button class="btn ghost" data-studio-undo ${x.canUndo ? '' : 'disabled'}>↶ ${esc(TL('aps.undo'))}</button><button class="btn ghost" data-studio-redo ${x.canRedo ? '' : 'disabled'}>↷ ${esc(TL('aps.redo'))}</button><button class="btn" data-studio-commit>✓ ${esc(TL('aps.commit'))}</button><button class="btn ghost" data-studio-discard>✕ ${esc(TL('aps.discard'))}</button></div>${conflict}<div class="settings-grid"><div class="settings-card"><h3>${esc(TL('aps.pack'))}</h3><select id="studioIconPack"><option value="AUTO" ${d.iconPackCode === 'AUTO' ? 'selected' : ''}>${esc(TL('aps.auto'))}</option>${packs.map(p => `<option value="${esc(p.packCode)}" ${d.iconPackCode === p.packCode ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><button class="row-btn compact" data-studio-patch-icon-pack><span>${esc(TL('aps.try'))}</span></button></div><div class="settings-card"><h3>Typografie</h3><select id="studioFont"><option value="AUTO">${esc(TL('aps.auto'))}</option>${fonts.map(f => `<option value="${esc(f.code)}" ${ty.fontProfile === f.code ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select><label class="kx-lf">${esc(TL('aps.size'))} <b data-studio-scale-out>${Math.round(Number(ty.scale || 1) * 100)} %</b><input id="studioScale" type="range" min="0.9" max="1.3" step="0.05" value="${esc(ty.scale || 1)}" oninput="this.previousElementSibling.textContent=Math.round(this.value*100)+' %'"></label><button class="row-btn compact" data-studio-patch-font><span>${esc(TL('aps.try'))}</span></button></div><div class="settings-card"><h3>Pozadí</h3><label class="kx-lf">${esc(TL('aps.bgOpacity'))}<input id="studioBgOpacity" type="number" min="0" max="1" step="0.05" value="${esc(bg.opacity ?? 1)}"></label><label class="kx-lf">${esc(TL('aps.bgDim'))}<input id="studioBgDim" type="number" min="0" max="1" step="0.05" value="${esc(bg.dim ?? 0)}"></label><label class="kx-lf">${esc(TL('aps.bgBlur'))}<input id="studioBgBlur" type="number" min="0" max="48" step="1" value="${esc(bg.blurPx ?? 0)}"></label><button class="row-btn compact" data-studio-patch-background><span>${esc(TL('aps.try'))}</span></button></div><div class="settings-card"><h3>${esc(TL('aps.logo'))}</h3><select id="studioBrandAsset"><option value="">${esc(TL('aps.pickImg'))}</option>${assetOptions}</select><button class="row-btn compact" data-studio-brand-file><span>${esc(TL('aps.useLogo'))}</span></button></div><div class="settings-card"><h3>${esc(TL('aps.ownIcon'))}</h3><select id="studioIconCode">${slots.map(r => `<option value="${esc(r.iconCode)}">${esc(String(r.label || '').replace(/^KalinumX\s+/, ''))}</option>`).join('')}</select><select id="studioIconAsset"><option value="">${esc(TL('aps.pickImg'))}</option>${assetOptions}</select><button class="row-btn compact" data-studio-icon-file><span>${esc(TL('aps.useIcon'))}</span></button></div>${assetLibraryContent(assetRows, assetPage, appearanceAssetUi.diagnostics, appearanceAssetUi.filters, appearanceAssetUi.collections)}<div class="settings-card"><h3>${esc(TL('aps.what'))}</h3><p>${esc(TL('aps.pack'))}: <b>${esc(d.iconPackCode && d.iconPackCode !== 'AUTO' ? d.iconPackCode : TL('aps.auto'))}</b><br>${esc(TL('aps.font'))}: <b>${esc(ty.fontProfile && ty.fontProfile !== 'AUTO' ? ty.fontProfile : TL('aps.auto'))}</b><br>${esc(TL('aps.bg'))}: ${esc(TL('aps.bgOpacity'))} ${esc(bg.opacity ?? 1)} · ${esc(TL('aps.bgDim'))} ${esc(bg.dim ?? 0)} · ${esc(TL('aps.bgBlur'))} ${esc(bg.blurPx ?? 0)}<br>${esc(TL('aps.custom').replace('{l}', String(Object.keys(d.brand || {}).length)).replace('{i}', String(Object.keys(d.iconOverrides || {}).length)))}</p></div></div>`;
