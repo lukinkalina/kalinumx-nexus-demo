@@ -1476,3 +1476,5 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 #drawer.open :is(input,select,textarea){max-width:100%;min-width:0;box-sizing:border-box}
 #drawer.open .settings-card :is(input,select){width:100%}
 #drawer.open :is(p,small,b,strong,span,code,li,dd,dt,label,div){overflow-wrap:anywhere}
+
+#drawer.open .settings-card{min-height:0 !important;align-content:start}#drawer.open .settings-card .row-btn.compact{justify-content:center;width:auto;margin-top:6px}#drawer.open .settings-card label.kx-lf{display:grid;gap:3px;margin:4px 0}
