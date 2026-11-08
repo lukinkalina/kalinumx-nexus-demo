@@ -51,7 +51,7 @@ var KXAPP;
     let schoolInstall = null;
     let identityInstall = null;
     // Stage144: hub-native workspace panels, mounted in the APP inspector.
-    const HUB_WORKSPACES = { 'APP.KX.VEHICLES': () => KXVehicles, 'APP.KX.PETS': () => KXPets, 'APP.KX.HOME': () => KXHome, 'APP.KX.SCHOOL': () => KXSchool, 'APP.KX.CONTRACTS': () => KXContracts, 'APP.KX.HEALTH': () => KXHealth, 'APP.KX.CERTIFY': () => KXCertify, 'APP.KX.WARRANTY': () => KXWarranty, 'APP.KX.SUBSCRIPTIONS': () => KXSubscriptions, 'APP.KX.GARDEN': () => KXGarden, 'APP.KX.ASSETS': () => KXAssets, 'APP.KX.MAINTENANCE': () => KXMaintenance, 'APP.KX.SERVICE': () => KXService, 'APP.KX.PROJECTS': () => KXProjects, 'APP.KX.HR': () => KXHr, 'APP.KX.ENERGY': () => KXEnergy, 'APP.KX.RENTAL': () => KXRental, 'APP.KX.DOCUMENTS': () => KXDocuments, 'APP.KX.FOOD': () => KXFoodHub, 'APP.KX.ARCHIVE': () => KXArchiveHub, 'APP.KX.SALES': () => KXSales, 'APP.KX.BUILD': () => KXBuild, 'APP.KX.STOCK': () => KXStock, 'APP.KX.INVENTORY': () => KXInventory, 'APP.KX.FORMS': () => KXForms, 'APP.KX.GUIDE': () => KXGuide, 'APP.KX.SHIPPING': () => KXShipping, 'APP.KX.VAULT': () => KXVault, 'APP.KX.QR_SOS': () => KXQrHub, 'APP.KX.PRINT': () => KXPrint, 'APP.KX.GRAPHICS': () => KXGraphics, 'APP.KX.GAMES': () => KXGamesHub, 'APP.KX.PRINT3D': () => KXPrint3D, 'APP.KX.SHOP': () => KXShop, 'APP.KX.TIME': () => KXTrackWork, 'APP.KX.HOBBY': () => KXHobby, 'APP.KX.LASER': () => KXLaserHub, 'APP.KX.ADS': () => KXAdsHub, 'APP.KX.FINANCE': () => KXFinanceHub, 'APP.KX.PURCHASE': () => KXPurchaseHub, 'APP.KX.MEDIA': () => KXGalleryHub };
+    const HUB_WORKSPACES = { 'APP.KX.VEHICLES': () => KXVehicles, 'APP.KX.PETS': () => KXPets, 'APP.KX.HOME': () => KXHome, 'APP.KX.SCHOOL': () => KXSchool, 'APP.KX.CONTRACTS': () => KXContracts, 'APP.KX.HEALTH': () => KXHealth, 'APP.KX.CERTIFY': () => KXCertify, 'APP.KX.WARRANTY': () => KXWarranty, 'APP.KX.SUBSCRIPTIONS': () => KXSubscriptions, 'APP.KX.GARDEN': () => KXGarden, 'APP.KX.ASSETS': () => KXAssets, 'APP.KX.MAINTENANCE': () => KXMaintenance, 'APP.KX.SERVICE': () => KXService, 'APP.KX.PROJECTS': () => KXProjects, 'APP.KX.HR': () => KXHr, 'APP.KX.ENERGY': () => KXEnergy, 'APP.KX.RENTAL': () => KXRental, 'APP.KX.DOCUMENTS': () => KXDocuments, 'APP.KX.FOOD': () => KXFoodHub, 'APP.KX.ARCHIVE': () => KXArchiveHub, 'APP.KX.DATA': () => KXDataHub, 'APP.KX.SALES': () => KXSales, 'APP.KX.BUILD': () => KXBuild, 'APP.KX.STOCK': () => KXStock, 'APP.KX.INVENTORY': () => KXInventory, 'APP.KX.FORMS': () => KXForms, 'APP.KX.GUIDE': () => KXGuide, 'APP.KX.SHIPPING': () => KXShipping, 'APP.KX.VAULT': () => KXVault, 'APP.KX.QR_SOS': () => KXQrHub, 'APP.KX.PRINT': () => KXPrint, 'APP.KX.GRAPHICS': () => KXGraphics, 'APP.KX.GAMES': () => KXGamesHub, 'APP.KX.PRINT3D': () => KXPrint3D, 'APP.KX.SHOP': () => KXShop, 'APP.KX.TIME': () => KXTrackWork, 'APP.KX.HOBBY': () => KXHobby, 'APP.KX.LASER': () => KXLaserHub, 'APP.KX.ADS': () => KXAdsHub, 'APP.KX.FINANCE': () => KXFinanceHub, 'APP.KX.PURCHASE': () => KXPurchaseHub, 'APP.KX.MEDIA': () => KXGalleryHub };
     let n2Modules = null;
     let UI_LOCALE = KXI18n.DEFAULT_LOCALE || 'cs';
     let pendingFirstRunLocale = null;
@@ -945,7 +945,7 @@ var KXAPP;
         const sub = (head?.querySelector('h2')?.nextElementSibling?.textContent || '').trim();
         const acts = [];
         const HUB_TOOL = { 'APP.KX.NOTES': ['agd.hp.notes', 'action', 'kx-notes'], 'APP.KX.CONNECT': ['agd.hp.kaira', 'section', 'ai'], 'APP.KX.AI': ['agd.hp.kaira', 'section', 'ai'], 'APP.KX.NEXUS': ['agd.hp.today', 'section', 'today'], 'APP.KX.IDENTITY': ['agd.hp.theme', 'action', 'theme'], 'APP.KX.AUTOMATE': ['agd.hp.processes', 'action', 'kx-processes'], 'APP.KX.LAB': ['agd.hp.lab', 'action', 'kx-insights'], 'APP.KX.CREATOR': ['agd.hp.creator', 'action', 'shell-presets'],
-            'APP.KX.INSIGHT': ['agd.hp.analytics', 'section', 'analytics'], 'APP.KX.DATA': ['agd.hp.gateway', 'action', 'web-gateway'],
+            'APP.KX.INSIGHT': ['agd.hp.analytics', 'section', 'analytics'],
             'APP.KX.BACKUP': ['agd.hp.backup', 'action', 'sync-merge'], 'APP.KX.DEV': ['agd.hp.dev', 'action', 'kx-bugs'] };
         /* every hub that is an entrance to an existing tool gets a direct button to it */ if (HUB_TOOL[code])
             acts.push(HUB_TOOL[code]);
@@ -3011,6 +3011,61 @@ var KXAPP;
             catch (e) {
                 toast(String(e?.message || e));
             } });
+        } };
+    /* N2.6b+ (Data): one overview of every connection – API clients, AI connections, backups / sync, web gateway – with state and a direct way to manage each */
+    function agRunAction(v) { const bound = Array.from(document.querySelectorAll('[data-action]')).find(x => x.dataset.action === v && typeof x.onclick === 'function'); if (bound) {
+        bound.click();
+        return;
+    } let host = document.getElementById('agActHost'); if (!host) {
+        host = document.createElement('div');
+        host.id = 'agActHost';
+        host.hidden = true;
+        document.body.appendChild(host);
+    } if (!Array.from(host.querySelectorAll('[data-action]')).some(x => x.dataset.action === v)) {
+        const nb = document.createElement('button');
+        nb.type = 'button';
+        nb.dataset.action = v;
+        nb.tabIndex = -1;
+        host.appendChild(nb);
+    } render(); setTimeout(() => Array.from(document.querySelectorAll('#agActHost [data-action]')).find(x => x.dataset.action === v)?.click(), 60); }
+    const KXDataHub = { TABS: [], async mountHub(root) {
+            const val = async (k) => { try {
+                return (await runtime.settings.list(k)).find((r) => r.scopeType === 'USER' && r.scopeId === CURRENT_USER_ID)?.value;
+            }
+            catch {
+                return undefined;
+            } };
+            let api = [];
+            try {
+                const C = aiMgmtCtx();
+                const l = await runtime.actions.invoke('ACTION.CORE.API.CLIENT.LIST', {}, C);
+                api = Array.isArray(l) ? l : (l?.clients || []);
+            }
+            catch { }
+            const apiActive = api.filter((c) => !c.revokedAt && c.status !== 'REVOKED').length;
+            const AP = globalThis.KXAiProviders;
+            let ai = [];
+            try {
+                ai = (await AP?.list?.()) || [];
+            }
+            catch { }
+            const last = await val('ui.backup.last');
+            const days = last?.at ? Math.floor((Date.now() - Date.parse(last.at)) / 86400000) : null;
+            const card = (ic, title, state, lvl, btn, go, note = '') => `<article class="kx-data-card"><header><span>${ic}</span><b>${esc(title)}</b></header><p class="lvl-${lvl}">${esc(state)}</p>${note ? `<small class="muted">${esc(note)}</small>` : ''}<button type="button" class="btn ghost" data-data-go="${go}">${esc(btn)}</button></article>`;
+            root.innerHTML = `<section class="kx-data"><p class="muted">${esc(TL('dt.hint'))}</p><div class="kx-data-grid">
+        ${card('🔑', TL('dt.api'), apiActive ? TL('dt.apiN').replace('{n}', String(apiActive)) : TL('dt.none'), apiActive ? 'ok' : 'idle', TL('dt.manage'), 'api', TL('dt.apiNote'))}
+        ${card('🤖', TL('dt.ai'), ai.length ? TL('dt.aiN').replace('{n}', String(ai.length)) : TL('dt.none'), ai.length ? 'ok' : 'idle', TL('dt.manage'), 'ai', TL('dt.aiNote'))}
+        ${card('💾', TL('dt.backup'), days === null ? TL('bk.never') : TL('dt.backupN').replace('{n}', String(days)), days === null ? 'bad' : days <= 14 ? 'ok' : 'warn', TL('dt.open'), 'sync', TL('dt.backupNote'))}
+        ${card('🌐', TL('dt.gateway'), TL('dt.gatewayState'), 'idle', TL('dt.open'), 'gateway', TL('dt.gatewayNote'))}
+      </div></section>`;
+            root.querySelectorAll('[data-data-go]').forEach(b => b.onclick = () => { const g = b.dataset.dataGo; if (g === 'api')
+                void apiClientsModal();
+            else if (g === 'ai')
+                void aiConnectionsModal();
+            else if (g === 'sync')
+                agRunAction('sync-merge');
+            else
+                agRunAction('web-gateway'); });
         } };
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
