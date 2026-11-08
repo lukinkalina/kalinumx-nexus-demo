@@ -11838,12 +11838,48 @@ var KXAPP;
         const err = (e) => { const x = m.querySelector('[data-sync-error]'); if (x)
             x.textContent = String(e?.message || e).replace(/^AUTH_SESSION_REQUIRED_FOR_SYNC.*/, 'Nejdřív se přihlaste (Profil → Ověřená identita)').replace(/^Scope denied: family manager.*/, 'Jen správce rodiny může synchronizovat celý Workspace').replace(/^SYNC_PACKAGE_NEEDS_NEWER_APP.*/, 'Balíček je z novější verze aplikace – aktualizujte NEXUS').replace(/^SYNC_PACKAGE_CORRUPTED.*/, 'Balíček je poškozený (nesedí otisk SHA-256)').replace(/^SYNC_PREVIEW_STALE.*/, 'Data se od náhledu změnila – udělejte náhled znovu'); };
         void agAiMcpCard(m, ctx);
+        void (async () => {
+            try {
+                const exp = m.querySelector('[data-sync-export]');
+                if (!exp || m.querySelector('[data-backup-status]'))
+                    return;
+                const val = async (k) => (await runtime.settings.list(k)).find((r) => r.scopeType === 'USER' && r.scopeId === CURRENT_USER_ID)?.value;
+                const last = await val('ui.backup.last');
+                const remind = Number(await val('ui.backup.remindDays')) || 14;
+                const days = last?.at ? Math.floor((Date.now() - Date.parse(last.at)) / 86400000) : null;
+                const lvl = days === null ? 'bad' : days <= remind ? 'ok' : days <= remind * 2 ? 'warn' : 'bad';
+                const kb = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' kB';
+                const card = document.createElement('section');
+                card.className = 'kx-backup-status';
+                card.dataset.backupStatus = '1';
+                card.innerHTML = `<b>💾 ${esc(TL('bk.title'))}</b><p class="lvl-${lvl}">${days === null ? esc(TL('bk.never')) : esc(TL('bk.last').replace('{d}', new Date(last.at).toLocaleString()).replace('{n}', String(days)).replace('{s}', kb(Number(last.bytes) || 0)))}${lvl !== 'ok' ? ` – ${esc(TL('bk.due'))}` : ''}</p><div class="kx-backup-row"><button type="button" class="btn" data-backup-now>⇩ ${esc(TL('bk.now'))}</button><label>${esc(TL('bk.remind'))} <select data-backup-remind>${[7, 14, 30].map(n => `<option value="${n}" ${n === remind ? 'selected' : ''}>${n} ${esc(TL('bk.days'))}</option>`).join('')}</select></label></div><small class="muted">${esc(TL('bk.needId'))}</small><p class="lvl-warn" data-backup-msg></p>`;
+                const sec = exp.closest('section,.settings-card,.sync-card,div');
+                (sec?.parentElement || m).insertBefore(card, sec || null);
+                card.querySelector('[data-backup-now]').onclick = () => { exp.click(); setTimeout(() => { const er = String(m.querySelector('[data-sync-error]')?.textContent || '').trim(); const out = card.querySelector('[data-backup-msg]'); if (out)
+                    out.textContent = er; }, 1500); }; /* mirror the export result (e.g. sign-in required) into the card */
+                card.querySelector('[data-backup-remind]').onchange = async (e) => { try {
+                    await runtime.actions.invoke('ACTION.CORE.SETTING.SET', { key: 'ui.backup.remindDays', scopeType: 'USER', scopeId: CURRENT_USER_ID, value: Number(e.target.value) }, ctx);
+                    toast(TL('bk.saved'));
+                }
+                catch (x) {
+                    toast(String(x?.message || x));
+                } };
+            }
+            catch { }
+        })();
         m.querySelector('[data-sync-export]')?.addEventListener('click', async () => { try {
             const pkg = await runtime.actions.invoke('ACTION.CORE.SYNC.EXPORT', {}, ctx);
             if (syncUi.url)
                 URL.revokeObjectURL(syncUi.url);
             syncUi.url = URL.createObjectURL(new Blob([JSON.stringify(pkg)], { type: 'application/json' }));
             syncUi.name = `kalinumx-${String(pkg.exportedAt).slice(0, 19).replace(/[:T]/g, '-')}.kxsync.json`;
+            try {
+                await runtime.actions.invoke('ACTION.CORE.SETTING.SET', { key: 'ui.backup.last', scopeType: 'USER', scopeId: CURRENT_USER_ID, value: { at: new Date().toISOString(), bytes: JSON.stringify(pkg).length } }, ctx);
+            }
+            catch (e) {
+                console.warn('backup status', e);
+                toast(String(e?.message || e));
+            } /* N2.6b+: backup status */
             await syncMergeModal();
         }
         catch (e) {

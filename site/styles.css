@@ -1440,3 +1440,7 @@ body{background:var(--ag-bg) radial-gradient(1200px 600px at 70% -10%,#2a1d0c 0%
 #modal.open:not(.kx-wm-float):not(.kx-wm-full) .modal:has(.kx-split){height:min(88vh,920px,calc(100dvh - var(--kx-top,0px) - 24px)) !important}
 /* floating windows keep their own width and never run past the right edge */
 #modal.open.kx-wm-float > .modal,#modal.open.kx-wm-float > .modal:has(.kx-split),#modal.open.kx-wm-float > .modal.ag-lg{width:min(var(--wm-w,960px),calc(100vw - var(--wm-x,0px) - 8px)) !important;max-width:calc(100vw - var(--wm-x,0px) - 8px) !important}
+
+.kx-backup-status{display:grid;gap:6px;margin:0 0 10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(233,181,79,.35);background:rgba(10,15,24,.6)}.kx-backup-status p{margin:0;font-size:13.5px}.kx-backup-status .lvl-ok{color:#7fe0a5}.kx-backup-status .lvl-warn{color:#ffc77a}.kx-backup-status .lvl-bad{color:#ff8a8d}.kx-backup-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+.kx-backup-status [data-backup-msg]:empty{display:none}
