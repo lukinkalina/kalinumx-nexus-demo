@@ -3067,6 +3067,26 @@ var KXAPP;
             else
                 agRunAction('web-gateway'); });
         } };
+    /* N2.6b+: text below 10.5 px is unreadable – inside the side panel (appearance configurator and others) it is raised to 11 px */
+    function agFixTinyText(root) { for (const e of Array.from(root.querySelectorAll('*'))) {
+        if (!e.childNodes.length)
+            continue;
+        if (!Array.from(e.childNodes).some(n => n.nodeType === 3 && (n.textContent || '').trim().length > 1))
+            continue;
+        const fs = parseFloat(getComputedStyle(e).fontSize);
+        if (/^[A-Z0-9_]{3,}( · [A-Z0-9_]{2,})+$/.test((e.textContent || '').trim())) {
+            e.style.setProperty('display', 'none', 'important');
+            continue;
+        }
+        if (fs && fs < 10.5)
+            e.style.setProperty('font-size', '11px', 'important'); /* technical code lines mean nothing to people */
+    } }
+    {
+        let tT = 0;
+        new MutationObserver(() => { if (tT)
+            return; tT = setTimeout(() => { tT = 0; const d = document.getElementById('drawer'); if (d && d.classList.contains('open'))
+            agFixTinyText(d); }, 200); }).observe(document.documentElement, { childList: true, subtree: true });
+    }
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -3483,7 +3503,7 @@ var KXAPP;
     }
     function apps() {
         const modes = KXNavigation.contract().modes || [], items = KXNavigation.contract().items || [];
-        return pageSimple('Aplikace', 'Všechny huby a nástroje na jednom místě · Práce / Domov / Vše', `<div class="hub-nav-context-bar"><div class="hub-nav-context-switch" role="group" aria-label="Kontext navigace"><button data-hub-nav-context="WORK">${esc(CTX('WORK'))}</button><button data-hub-nav-context="HOME">${esc(CTX('HOME'))}</button><button data-hub-nav-context="ALL">${esc(CTX('ALL'))}</button></div><label class="hub-nav-membership-edit">Zařazení<select data-hub-context-item>${items.map(x => `<option value="${esc(x.itemCode)}">${esc(x.label)}</option>`).join('')}</select><select data-hub-context-membership><option value="WORK">${esc(CTX('WORK'))}</option><option value="HOME">${esc(CTX('HOME'))}</option><option value="BOTH">${esc(CTX('BOTH'))}</option></select><button data-hub-context-membership-save>Uložit</button></label></div><div class="hub-nav-toolbar"><select data-hub-nav-mode aria-label="Režim menu">${modes.map(m => `<option value="${esc(m.code)}">${esc(m.label)}</option>`).join('')}</select><input data-hub-nav-search placeholder="Hledat hub, nástroj nebo kategorii…" aria-label="Hledat v navigaci"><span class="hub-nav-toolbar-status" data-hub-nav-status>Načítám navigační profil…</span></div><div id="hubNavHost" tabindex="0"><div class="empty">Načítám navigaci…</div></div>`);
+        return pageSimple('Aplikace', 'Všechny huby a nástroje na jednom místě · Práce / Domov / Vše', `<div class="hub-nav-context-bar"><div class="hub-nav-context-switch" role="group" aria-label="Kontext navigace"><button data-hub-nav-context="WORK">${esc(CTX('WORK'))}</button><button data-hub-nav-context="HOME">${esc(CTX('HOME'))}</button><button data-hub-nav-context="ALL">${esc(CTX('ALL'))}</button></div><label class="hub-nav-membership-edit">Zařazení<select data-hub-context-item>${items.map(x => `<option value="${esc(x.itemCode)}">${esc(x.label)}</option>`).join('')}</select><select data-hub-context-membership><option value="WORK">${esc(CTX('WORK'))}</option><option value="HOME">${esc(CTX('HOME'))}</option><option value="BOTH">${esc(CTX('BOTH'))}</option></select><button data-hub-context-membership-save>Uložit</button></label></div><div class="hub-nav-toolbar"><select data-hub-nav-mode aria-label="Režim menu">${modes.map(m => `<option value="${esc(m.code)}">${esc(m.label)}</option>`).join('')}</select><input data-hub-nav-search placeholder="Hledat hub, nástroj nebo kategorii…" aria-label="Hledat v navigaci"><label class="kx-apps-default">${esc(TL('apf.default'))}<select data-apps-default><option value="FAV">★ ${esc(TL('apf.fav'))}</option><option value="ALL">${esc(TL('apf.all'))}</option><option value="LAST">${esc(TL('apf.last'))}</option></select></label><span class="hub-nav-toolbar-status" data-hub-nav-status>Načítám navigační profil…</span></div><div id="hubNavHost" tabindex="0"><div class="empty">Načítám navigaci…</div></div>`);
     }
     function hubNavDeviceClass() { return window.innerWidth <= 680 ? 'MOBILE' : window.innerWidth <= 1000 ? 'TABLET' : 'DESKTOP'; }
     function hubNavActionContext(extra = []) { return { actorId: CURRENT_USER_ID, appCode: 'APP.NEXUS', deviceId: activeDevice?.id, permissions: ['CORE.SETTING.READ', 'CORE.SETTING.EDIT', ...extra], confirmed: true }; }
@@ -3552,7 +3572,10 @@ var KXAPP;
             agentHostUi.context = { kind: 'NAV_CATEGORY', categoryCode: code };
             agentHostUi.agentCode = '';
             hydrateAgentHost();
-        } root.querySelectorAll('[data-nav-category-filter]').forEach(x => x.classList.toggle('active', x === b)); root.dataset.activeNavCategory = code || 'ALL'; applyHubNavSearch(root, el('[data-hub-nav-search]')?.value || ''); });
+        } root.querySelectorAll('[data-nav-category-filter]').forEach(x => x.classList.toggle('active', x === b)); root.dataset.activeNavCategory = code || 'ALL'; if (APPS_PREFS.def === 'LAST' && APPS_PREFS.last !== (code || 'ALL')) {
+            APPS_PREFS.last = code || 'ALL';
+            void saveAppsPrefs();
+        } applyHubNavSearch(root, el('[data-hub-nav-search]')?.value || ''); });
         const focusables = () => Array.from(root.querySelectorAll('[data-nav-item]:not([hidden])')).filter(x => !x.closest('[hidden]'));
         root.onkeydown = e => { if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
             e.preventDefault();
@@ -3722,11 +3745,76 @@ var KXAPP;
             toast(`Pořadí menu: ${String(error?.message || error)}`);
         } }; });
     }
+    /* N2.6b+ (user: Huby page – favourites first): ★ Favourites = hubs + sub-hubs, default view (favourites / all / last category), stored in ui.apps.prefs */
+    let APPS_PREFS = { fav: [], tabs: [], def: 'FAV', last: 'ALL' };
+    async function saveAppsPrefs() { try {
+        await runtime.actions.invoke('ACTION.CORE.SETTING.SET', { key: 'ui.apps.prefs', scopeType: 'USER', scopeId: CURRENT_USER_ID, value: APPS_PREFS }, hubNavActionContext());
+    }
+    catch (e) {
+        toast(String(e?.message || e));
+    } }
+    function appsSubHubs() { const out = []; try {
+        const M = HUB_TABS();
+        for (const hub of Object.keys(M))
+            for (const [code, label] of (M[hub] || []))
+                out.push({ key: `${hub}::${code}`, hub, tab: code, label: `${hubLabel(hub)} › ${label}` });
+    }
+    catch { } return out.sort((a, b) => a.label.localeCompare(b.label, 'cs')); } /* every sub-hub (HUB_TABS), opened with openHubAt */
+    function decorateFavorites(host) {
+        const fav = APPS_PREFS.fav || [], tabs = APPS_PREFS.tabs || [];
+        host.querySelectorAll('[data-nav-item]').forEach(it => { const code = String(it.dataset.navItem || ''); if (it.querySelector('.kx-star'))
+            return; const st = document.createElement('span'); st.className = 'kx-star' + (fav.includes(code) ? ' on' : ''); st.dataset.favToggle = code; st.textContent = fav.includes(code) ? '★' : '☆'; st.title = TL(fav.includes(code) ? 'apf.unstar' : 'apf.star'); it.appendChild(st); });
+        const rail = host.querySelector('.hub-nav-category-rail');
+        const firstGroup = host.querySelector('[data-nav-group]');
+        if (!rail || !firstGroup)
+            return;
+        const fb = document.createElement('button');
+        fb.dataset.navCategoryFilter = 'FAV';
+        fb.className = 'kx-fav-cat';
+        fb.innerHTML = `<span>★ ${esc(TL('apf.fav'))}</span><small>${fav.length + tabs.length}</small>`;
+        rail.insertBefore(fb, rail.firstChild);
+        const sec = document.createElement('section');
+        sec.className = firstGroup.className + ' kx-fav-group';
+        sec.dataset.navGroup = 'FAV';
+        const cards = fav.map(code => host.querySelector(`[data-nav-group]:not([data-nav-group="FAV"]) [data-nav-item="${CSS.escape(code)}"]`)).filter(Boolean).map(c => { const k = c.cloneNode(true); return k; });
+        const subs = appsSubHubs();
+        const favSubs = tabs.map(k => subs.find(s => s.key === k)).filter(Boolean);
+        const sugg = ['APP.KX.FINANCE', 'APP.KX.HEALTH', 'APP.KX.HOME', 'APP.KX.SHOP'].filter(c => !fav.includes(c) && host.querySelector(`[data-nav-item="${c}"]`));
+        sec.innerHTML = `<header class="kx-fav-head"><b>★ ${esc(TL('apf.fav'))}</b><small>${esc(TL('apf.hint'))}</small></header><div class="kx-fav-grid"></div>
+        <div class="kx-fav-subs"><b>${esc(TL('apf.subs'))}</b>${favSubs.map(s => `<span class="kx-fav-sub"><button type="button" data-fav-sub-open="${esc(s.key)}">${esc(s.label)}</button><button type="button" class="kx-x" data-fav-sub-del="${esc(s.key)}" title="${esc(TL('apf.unstar'))}">×</button></span>`).join('')}
+        <select data-fav-sub-add><option value="">＋ ${esc(TL('apf.addSub'))}</option>${subs.filter(s => !tabs.includes(s.key)).map(s => `<option value="${esc(s.key)}">${esc(s.label)}</option>`).join('')}</select></div>`;
+        const grid = sec.querySelector('.kx-fav-grid');
+        cards.forEach(c => grid.appendChild(c));
+        if (!cards.length) {
+            const e = document.createElement('div');
+            e.className = 'kx-fav-empty';
+            e.dataset.navItem = 'FAV.EMPTY';
+            e.dataset.navText = '';
+            e.innerHTML = `<p>${esc(TL('apf.empty'))}</p>${sugg.map(c => `<button type="button" class="btn ghost" data-fav-toggle="${esc(c)}">☆ ${esc(hubLabel(c))}</button>`).join('')}`;
+            grid.appendChild(e);
+        }
+        firstGroup.parentElement.insertBefore(sec, firstGroup);
+        host.querySelectorAll('[data-fav-toggle]').forEach(s => s.onclick = (e) => { e.stopPropagation(); e.preventDefault(); const code = String(s.dataset.favToggle); APPS_PREFS.fav = fav.includes(code) ? fav.filter(x => x !== code) : [...fav, code]; toast(TL(fav.includes(code) ? 'apf.removed' : 'apf.added')); void saveAppsPrefs().then(() => hydrateApps()); });
+        sec.querySelectorAll('[data-fav-sub-open]').forEach(b => b.onclick = () => { const s = subs.find(x => x.key === b.dataset.favSubOpen); if (s)
+            openHubAt(s.hub, s.tab); });
+        sec.querySelectorAll('[data-fav-sub-del]').forEach(b => b.onclick = () => { APPS_PREFS.tabs = tabs.filter(x => x !== b.dataset.favSubDel); void saveAppsPrefs().then(() => hydrateApps()); });
+        sec.querySelector('[data-fav-sub-add]').onchange = (e) => { const v = e.target.value; if (!v)
+            return; APPS_PREFS.tabs = [...tabs, v]; void saveAppsPrefs().then(() => hydrateApps()); };
+        const ds = document.querySelector('[data-apps-default]');
+        if (ds) {
+            ds.value = APPS_PREFS.def || 'FAV';
+            ds.onchange = () => { APPS_PREFS.def = ds.value; void saveAppsPrefs(); toast(TL('apf.saved')); };
+        }
+    }
     async function hydrateApps() {
         const host = el('#hubNavHost');
         if (!host || !runtime || state.activeSection !== 'apps')
             return;
         const token = ++appsHydration;
+        try {
+            APPS_PREFS = { fav: [], tabs: [], def: 'FAV', last: 'ALL', ...((await runtime.settings.list('ui.apps.prefs')).find((r) => r.scopeType === 'USER' && r.scopeId === CURRENT_USER_ID)?.value || {}) };
+        }
+        catch { }
         try {
             const svc = runtime.navigationContextProfiles;
             if (!svc)
@@ -3739,8 +3827,12 @@ var KXAPP;
             const retainedNavCategory = host.dataset.activeNavCategory || 'ALL';
             const existingSearch = el('[data-hub-nav-search]')?.value || '';
             host.innerHTML = visual.html;
-            host.dataset.activeNavCategory = retainedNavCategory;
-            host.querySelectorAll('[data-nav-category-filter]').forEach(button => button.classList.toggle('active', (button.dataset.navCategoryFilter || 'ALL') === retainedNavCategory));
+            decorateFavorites(host);
+            const firstView = !window.__kxAppsSeen;
+            window.__kxAppsSeen = true;
+            const startCat = firstView ? (APPS_PREFS.def === 'ALL' ? 'ALL' : APPS_PREFS.def === 'LAST' ? (APPS_PREFS.last || 'ALL') : 'FAV') : retainedNavCategory;
+            host.dataset.activeNavCategory = startCat;
+            host.querySelectorAll('[data-nav-category-filter]').forEach(button => button.classList.toggle('active', (button.dataset.navCategoryFilter || 'ALL') === startCat));
             const restoredSearch = host.querySelector('[data-hub-nav-search]');
             if (restoredSearch)
                 restoredSearch.value = existingSearch;
@@ -10996,7 +11088,7 @@ var KXAPP;
         const ev = window.event;
         if (dd && !dd.classList.contains('open') && Date.now() - drawerClosedAt < 4000 && !(ev && (ev.type === 'click' || ev.type === 'keydown' || ev.type === 'pointerup')))
             return;
-    } themeDrawerModeNow = mode; document.querySelectorAll('.kx-more-menu').forEach(x => x.remove()); const d = el('#drawer'); /* review fix: the Apply / Revert session starts whenever the panel opens from closed – however it was closed before (×, Esc, outside click, navigation) */ /* review fix: the Apply / Revert session starts whenever the panel opens from closed – however it was closed before (×, Esc, outside click, navigation) */ const openingFresh = !d.classList.contains('open'); d.className = 'drawer open'; const modes = [['STUDIO', 'Studio'], ['PRESETS', 'Brand Presety'], ['THEMES', 'Motivy'], ['CONTRAST', 'Čitelnost'], ['ICONS', 'Ikony'], ['FONTS', 'Písmo'], ['LIBRARY', 'Písma (40)'], ['IMPORT', 'Import / export'], ['ASSETS', 'Assety / logo / pozadí'], ['EXPORT', 'Platform export']]; d.innerHTML = `<div class="drawer-head"><div><b>Vzhled a identita</b><small>Theme mění charakter UI; ikony a písmo lze přepsat samostatně bez změny business dat.</small></div><button class="icon-btn" data-close>×</button></div>${wmBar('drawer')}<div class="studio-toolbar" data-appearance-defaults-bar><button class="btn ghost compact" data-appearance-defaults title="${esc(TL('appearance.defaultsTitle'))}">${esc(TL('appearance.defaults'))}</button>${state.appearanceBeforeReset ? `<button class="btn ghost compact" data-appearance-undo-defaults>${esc(TL('appearance.undoDefaults'))}</button>` : ''}</div>${appearanceDirty() ? `<div class="appearance-summary" data-appearance-dirty><b>${esc(TW('appearance.live'))}</b> <button class="btn compact" data-appearance-apply>${esc(TW('appearance.apply'))}</button> <button class="btn ghost compact" data-appearance-revert>${esc(TW('appearance.revert'))}</button></div>` : ''}<div class="appearance-mode-tabs">${modes.map(([c, n]) => `<button class="${mode === c ? 'active' : ''}" data-appearance-mode="${c}">${n}</button>`).join('')}</div><div id="appearanceContent">${appearanceContent(mode)}</div>`; /* the appearance session lives in JS (render() rebuilds the drawer element): it starts on opening and ends on closing */ /* the appearance session lives in JS (render() rebuilds the drawer element): it starts on opening and ends on closing */ if (openingFresh || !appearanceSession) {
+    } themeDrawerModeNow = mode; document.querySelectorAll('.kx-more-menu').forEach(x => x.remove()); const d = el('#drawer'); /* review fix: the Apply / Revert session starts whenever the panel opens from closed – however it was closed before (×, Esc, outside click, navigation) */ /* review fix: the Apply / Revert session starts whenever the panel opens from closed – however it was closed before (×, Esc, outside click, navigation) */ const openingFresh = !d.classList.contains('open'); d.className = 'drawer open'; const modes = [['STUDIO', TL('apx.studio')], ['THEMES', TL('apx.themes')], ['PRESETS', TL('apx.presets')], ['CONTRAST', TL('apx.contrast')], ['ICONS', TL('apx.icons')], ['FONTS', TL('apx.fonts')], ['LIBRARY', TL('apx.library')], ['ASSETS', TL('apx.assets')], ['IMPORT', TL('apx.import')], ['EXPORT', TL('apx.export')]]; /* N2.6b+: short Czech names, logical order */ /* N2.6b+: short Czech names, logical order */ d.innerHTML = `<div class="drawer-head"><div><b>${esc(TL('apx.title'))}</b><small>${esc(TL('apx.sub'))}</small></div><button class="icon-btn" data-close>×</button></div>${wmBar('drawer')}<div class="studio-toolbar" data-appearance-defaults-bar><button class="btn ghost compact" data-appearance-defaults title="${esc(TL('appearance.defaultsTitle'))}">${esc(TL('appearance.defaults'))}</button>${state.appearanceBeforeReset ? `<button class="btn ghost compact" data-appearance-undo-defaults>${esc(TL('appearance.undoDefaults'))}</button>` : ''}</div>${appearanceDirty() ? `<div class="appearance-summary" data-appearance-dirty><b>${esc(TW('appearance.live'))}</b> <button class="btn compact" data-appearance-apply>${esc(TW('appearance.apply'))}</button> <button class="btn ghost compact" data-appearance-revert>${esc(TW('appearance.revert'))}</button></div>` : ''}<div class="appearance-mode-tabs">${modes.map(([c, n]) => `<button class="${mode === c ? 'active' : ''}" data-appearance-mode="${c}">${n}</button>`).join('')}</div><div id="appearanceContent">${appearanceContent(mode)}</div>`; /* the appearance session lives in JS (render() rebuilds the drawer element): it starts on opening and ends on closing */ /* the appearance session lives in JS (render() rebuilds the drawer element): it starts on opening and ends on closing */ if (openingFresh || !appearanceSession) {
         appearanceSession = true;
         appearanceSnap = snapAppearance();
     } d.querySelector('[data-close]').addEventListener('click', () => { d.classList.remove('open'); appearanceSession = false; }); bindWm(d, 'drawer'); bindAppearanceDefaults(d, mode); d.querySelector('[data-appearance-apply]')?.addEventListener('click', () => { appearanceSnap = snapAppearance(); toast('Vzhled použit'); themeDrawer(mode); }); d.querySelector('[data-appearance-revert]')?.addEventListener('click', () => { Object.assign(state, structuredClone(appearanceSnap.state)); currentWindow().layout = appearanceSnap.layout; applyAppearance(); save(); render(); toast('Vráceno'); themeDrawer(themeDrawerModeNow || mode); }); d.querySelectorAll('[data-appearance-mode]').forEach(b => b.onclick = () => themeDrawer(b.getAttribute('data-appearance-mode') || 'THEMES')); bindAppearance(mode); }
@@ -11011,10 +11103,10 @@ var KXAPP;
         return importContent(); if (mode === 'STUDIO') {
         const x = appearanceStudioUi.snapshot;
         if (!x)
-            return `<div class="appearance-summary"><b>Appearance / Brand Studio</b><br>Bezpečný actor-bound draft. Aktivní profil se nezmění, dokud nepotvrdíte COMMIT.</div><div class="settings-grid"><div class="settings-card"><h3>USER draft</h3><p>Vlastní vzhled uživatele. 30 kroků Undo/Redo.</p><button class="btn" data-studio-start="USER">Zahájit USER draft</button></div><div class="settings-card"><h3>WORKSPACE draft</h3><p>Sdílený workspace profil; stále bez zápisu před COMMIT.</p><button class="btn" data-studio-start="WORKSPACE">Zahájit WORKSPACE draft</button></div></div>`;
+            return `<div class="appearance-summary"><b>${esc(TL('aps.title'))}</b><br>${esc(TL('aps.sub'))}</div><div class="settings-grid"><div class="settings-card"><h3>👤 ${esc(TL('aps.user'))}</h3><p>${esc(TL('aps.userP'))}</p><button class="btn" data-studio-start="USER">${esc(TL('aps.userBtn'))}</button></div><div class="settings-card"><h3>👪 ${esc(TL('aps.ws'))}</h3><p>${esc(TL('aps.wsP'))}</p><button class="btn" data-studio-start="WORKSPACE">${esc(TL('aps.wsBtn'))}</button></div></div>`;
         const packs = KXAppearanceAssets.builtInPacks?.() || [], fonts = KXUI.FONT_PROFILES || [], slots = KXAppearanceAssets.iconSlots?.() || [], assetPage = appearanceAssetUi.page || { items: [], total: 0, offset: 0, limit: 32 }, assetRows = assetPage.items || appearanceAssetUi.catalog || [], imageAssets = assetRows.filter((a) => a.usage === 'IMAGE' && !a.stale), assetOptions = imageAssets.map((a) => `<option value="${esc(a.fileId)}">${esc(a.name)} · rev ${esc(a.contentRevision)}</option>`).join('');
         const conflict = studioConflictContent(), d = x.draft || {}, bg = d.background || { mode: 'NONE', fit: 'COVER', position: 'CENTER', opacity: 1, dim: 0, blurPx: 0, scale: 1, focalX: .5, focalY: .5, fixed: true }, ty = d.typography || { fontProfile: 'AUTO', headingProfile: 'AUTO', scale: 1, letterSpacingEm: 0 };
-        return `<div class="appearance-summary"><b>Studio draft · ${esc(x.scopeType)}</b> · ${x.dirty ? 'DRAFT' : 'SAVED BASELINE'}<br><small>Session ${esc(x.sessionId)} · historie ${x.historyIndex + 1}/${x.historyLength} · persistentní profil zatím ${x.persistentTouched ? 'ZMĚNĚN' : 'NEZMĚNĚN'}.</small></div><div class="studio-toolbar"><button class="btn ghost" data-studio-undo ${x.canUndo ? '' : 'disabled'}>↶ Undo</button><button class="btn ghost" data-studio-redo ${x.canRedo ? '' : 'disabled'}>↷ Redo</button><button class="btn" data-studio-commit>COMMIT</button><button class="btn ghost" data-studio-discard>DISCARD</button></div>${conflict}<div class="settings-grid"><div class="settings-card"><h3>Icon pack</h3><select id="studioIconPack"><option value="AUTO" ${d.iconPackCode === 'AUTO' ? 'selected' : ''}>AUTO</option>${packs.map(p => `<option value="${esc(p.packCode)}" ${d.iconPackCode === p.packCode ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><button class="row-btn compact" data-studio-patch-icon-pack><span>Použít do draftu</span><b>›</b></button></div><div class="settings-card"><h3>Typografie</h3><select id="studioFont"><option value="AUTO">AUTO</option>${fonts.map(f => `<option value="${esc(f.code)}" ${ty.fontProfile === f.code ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select><button class="row-btn compact" data-studio-patch-font><span>Použít do draftu</span><b>›</b></button></div><div class="settings-card"><h3>Pozadí</h3><label>Opacity<input id="studioBgOpacity" type="number" min="0" max="1" step="0.05" value="${esc(bg.opacity ?? 1)}"></label><label>Dim<input id="studioBgDim" type="number" min="0" max="1" step="0.05" value="${esc(bg.dim ?? 0)}"></label><label>Blur px<input id="studioBgBlur" type="number" min="0" max="48" step="1" value="${esc(bg.blurPx ?? 0)}"></label><button class="row-btn compact" data-studio-patch-background><span>Použít do draftu</span><b>›</b></button></div><div class="settings-card"><h3>Logo · ověřený Asset Catalog</h3><select id="studioBrandAsset"><option value="">Vyberte ověřený obrázek…</option>${assetOptions}</select><button class="row-btn compact" data-studio-brand-file><span>Připojit SYMBOL přes descriptor</span><b>›</b></button></div><div class="settings-card"><h3>Per-icon · ověřený Asset Catalog</h3><select id="studioIconCode">${slots.map(r => `<option value="${esc(r.iconCode)}">${esc(r.label)} · ${esc(r.iconCode)}</option>`).join('')}</select><select id="studioIconAsset"><option value="">Vyberte ověřený obrázek…</option>${assetOptions}</select><button class="row-btn compact" data-studio-icon-file><span>Připojit ikonu přes descriptor</span><b>›</b></button></div>${assetLibraryContent(assetRows, assetPage, appearanceAssetUi.diagnostics, appearanceAssetUi.filters, appearanceAssetUi.collections)}<div class="settings-card"><h3>Live draft preview</h3><p>Pack: <b>${esc(d.iconPackCode || 'AUTO')}</b><br>Font: <b>${esc(ty.fontProfile || 'AUTO')}</b><br>Background: ${esc(bg.mode || 'NONE')} · opacity ${esc(bg.opacity ?? 1)} · dim ${esc(bg.dim ?? 0)} · blur ${esc(bg.blurPx ?? 0)}px<br>Brand slots: ${Object.keys(d.brand || {}).length} · icon overrides: ${Object.keys(d.iconOverrides || {}).length}</p><small>Preview čte draft; live shell binding používá DELTA027 resolver a DELTA028 SAFE artifact guard.</small></div></div>`;
+        return `<div class="appearance-summary"><b>${esc(TL(x.scopeType === 'WORKSPACE' ? 'aps.ws' : 'aps.user'))}</b> · ${esc(TL(x.dirty ? 'aps.dirty' : 'aps.saved'))}<br><small>Session ${esc(x.sessionId)} · historie ${x.historyIndex + 1}/${x.historyLength} · persistentní profil zatím ${x.persistentTouched ? 'ZMĚNĚN' : 'NEZMĚNĚN'}.</small></div><div class="studio-toolbar"><button class="btn ghost" data-studio-undo ${x.canUndo ? '' : 'disabled'}>↶ Undo</button><button class="btn ghost" data-studio-redo ${x.canRedo ? '' : 'disabled'}>↷ Redo</button><button class="btn" data-studio-commit>COMMIT</button><button class="btn ghost" data-studio-discard>DISCARD</button></div>${conflict}<div class="settings-grid"><div class="settings-card"><h3>Icon pack</h3><select id="studioIconPack"><option value="AUTO" ${d.iconPackCode === 'AUTO' ? 'selected' : ''}>AUTO</option>${packs.map(p => `<option value="${esc(p.packCode)}" ${d.iconPackCode === p.packCode ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><button class="row-btn compact" data-studio-patch-icon-pack><span>Použít do draftu</span><b>›</b></button></div><div class="settings-card"><h3>Typografie</h3><select id="studioFont"><option value="AUTO">AUTO</option>${fonts.map(f => `<option value="${esc(f.code)}" ${ty.fontProfile === f.code ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select><button class="row-btn compact" data-studio-patch-font><span>Použít do draftu</span><b>›</b></button></div><div class="settings-card"><h3>Pozadí</h3><label>Opacity<input id="studioBgOpacity" type="number" min="0" max="1" step="0.05" value="${esc(bg.opacity ?? 1)}"></label><label>Dim<input id="studioBgDim" type="number" min="0" max="1" step="0.05" value="${esc(bg.dim ?? 0)}"></label><label>Blur px<input id="studioBgBlur" type="number" min="0" max="48" step="1" value="${esc(bg.blurPx ?? 0)}"></label><button class="row-btn compact" data-studio-patch-background><span>Použít do draftu</span><b>›</b></button></div><div class="settings-card"><h3>Logo · ověřený Asset Catalog</h3><select id="studioBrandAsset"><option value="">Vyberte ověřený obrázek…</option>${assetOptions}</select><button class="row-btn compact" data-studio-brand-file><span>Připojit SYMBOL přes descriptor</span><b>›</b></button></div><div class="settings-card"><h3>Per-icon · ověřený Asset Catalog</h3><select id="studioIconCode">${slots.map(r => `<option value="${esc(r.iconCode)}">${esc(r.label)} · ${esc(r.iconCode)}</option>`).join('')}</select><select id="studioIconAsset"><option value="">Vyberte ověřený obrázek…</option>${assetOptions}</select><button class="row-btn compact" data-studio-icon-file><span>Připojit ikonu přes descriptor</span><b>›</b></button></div>${assetLibraryContent(assetRows, assetPage, appearanceAssetUi.diagnostics, appearanceAssetUi.filters, appearanceAssetUi.collections)}<div class="settings-card"><h3>Live draft preview</h3><p>Pack: <b>${esc(d.iconPackCode || 'AUTO')}</b><br>Font: <b>${esc(ty.fontProfile || 'AUTO')}</b><br>Background: ${esc(bg.mode || 'NONE')} · opacity ${esc(bg.opacity ?? 1)} · dim ${esc(bg.dim ?? 0)} · blur ${esc(bg.blurPx ?? 0)}px<br>Brand slots: ${Object.keys(d.brand || {}).length} · icon overrides: ${Object.keys(d.iconOverrides || {}).length}</p><small>Preview čte draft; live shell binding používá DELTA027 resolver a DELTA028 SAFE artifact guard.</small></div></div>`;
     } if (mode === 'PRESETS') {
         const rows = KXAppearanceBrandPresets.presets?.() || [];
         const c = KXAppearanceBrandPresets.contract?.() || {};
@@ -11030,7 +11122,7 @@ var KXAPP;
         return `<div class="appearance-summary" data-platform-export-panel data-platform-export-actions="${runtime?.actions?.list?.().filter((x) => String(x.code || '').startsWith('ACTION.CORE.APPEARANCE.PLATFORM_EXPORT.')).length || 0}"><b>Platform App Icon Export</b><br>Reálné odvozené FileService artefakty pro Windows / macOS / Android. <b>Bez podpisu/notarizace a bez tvrzení o hotovém instalátoru.</b><br><small>Zdroj i každý výstup jsou svázané přes FILE.ID + contentRevision + SHA-256. SVG smí použít pouze SAFE sanitized derivative.</small></div><div class="settings-grid"><div class="settings-card"><h3>Nový export</h3><label>Platforma<select id="platformExportPlatform"><option value="WINDOWS" ${platform === 'WINDOWS' ? 'selected' : ''}>Windows · ICO</option><option value="MACOS" ${platform === 'MACOS' ? 'selected' : ''}>macOS · ICNS + AppIconset</option><option value="ANDROID" ${platform === 'ANDROID' ? 'selected' : ''}>Android · Adaptive Icon</option></select></label><label>Název<input id="platformExportName" value="KalinumX-AppIcon"></label><label>${platform === 'ANDROID' ? 'Foreground' : 'Zdroj'}<select id="platformExportPrimary"><option value="">Použít platformAppIcons profil</option>${opts}</select></label>${platform === 'ANDROID' ? `<label>Background<select id="platformExportBackground"><option value="">Použít platformAppIcons profil</option>${opts}</select></label>` : ''}<div class="studio-toolbar"><button class="btn ghost" data-platform-export-plan>Plán</button><button class="btn" data-platform-export-run>EXPORT</button></div></div><div class="settings-card"><h3>Plán / release boundary</h3>${plan ? `<p><b>${esc(plan.platform)}</b> · ${plan.outputs?.length || 0} plánovaných souborů · source ${esc(plan.sourceMode)}</p><small>${(plan.outputs || []).map((x) => esc(x.path)).join(' · ')}</small>` : '<p>Nejdřív vytvořte plán. Export nic nemění v Appearance profilu.</p>'}<p><b>UNSIGNED_APP_ICON_ARTIFACTS_ONLY</b></p><small>Nejde o EXE/MSIX/DMG/APK/AAB signing/notarization/store publishing.</small></div></div><div class="settings-card"><h3>Historie exportů</h3>${hist.length ? hist.map((x) => `<div class="row-btn compact"><span><b>${esc(x.data?.platform)}</b> · ${esc(x.data?.name || x.id)}<small>${esc(x.data?.createdAt || '')} · outputs ${(x.data?.outputs || []).length} + manifest</small></span><button class="btn ghost compact" data-platform-export-verify="${esc(x.id)}">Verify</button></div>`).join('') : '<small>Zatím bez exportů.</small>'}${appearancePlatformExportUi.lastVerify ? `<p><b>${appearancePlatformExportUi.lastVerify.valid ? 'VALID' : 'STALE/INVALID'}</b> · checked ${esc(appearancePlatformExportUi.lastVerify.checkedOutputs || 0)} · ${esc((appearancePlatformExportUi.lastVerify.reasons || []).join(', ') || 'bez chyb')}</p>` : ''}</div>`;
     } if (mode === 'ICONS')
         return `<div class="appearance-summary"><b>Aktivní:</b> ${esc(effectiveIconStyle())} ${state.iconStyle === 'AUTO' ? '· podle Theme' : '· vlastní override'}</div><div class="icon-style-grid"><button class="icon-style-card ${state.iconStyle === 'AUTO' ? 'selected' : ''}" data-icon-style="AUTO"><span>${iconSvg('apps', 'Auto')}</span><b>AUTO</b><small>Použít styl motivu (${esc(theme().iconStyle)}).</small></button>${(KXUI.ICON_STYLES || []).map(x => `<button class="icon-style-card ${state.iconStyle === x.code ? 'selected' : ''}" data-icon-style="${x.code}"><span class="icon-style-sample" data-preview-icon-style="${x.code}">${iconSvg('ai', x.name)}</span><b>${esc(x.name)}</b><small>${esc(x.description)}</small></button>`).join('')}</div>`; if (mode === 'FONTS')
-        return `<div class="font-profile-grid"><button class="font-profile-card ${state.fontProfile === 'AUTO' ? 'selected' : ''}" data-font-profile="AUTO"><b>AUTO</b><span style="font-family:${esc(theme().font)}">KalinumX Aa 0123</span><small>Písmo podle motivu.</small></button>${(KXUI.FONT_PROFILES || []).map(x => `<button class="font-profile-card ${state.fontProfile === x.code ? 'selected' : ''}" data-font-profile="${x.code}" style="font-family:${esc(x.stack)}"><b>${esc(x.name)}</b><span>KalinumX Aa 0123</span><small>${esc(x.description)}</small></button>`).join('')}</div>`; return `<div class="filter-tabs">${['ALL', 'BASE', 'LUXURY', 'MINIMAL', 'TEEN_BOYS', 'TEEN_GIRLS', 'TEEN_UNIVERSAL', 'RETRO', 'EXPERIMENTAL'].map(x => `<button data-theme-filter="${x}">${x.replace('_', ' ')}</button>`).join('')}</div><div class="theme-grid" id="themeGrid">${themeCards('ALL')}</div>`; }
+        return `<div class="font-profile-grid"><button class="font-profile-card ${state.fontProfile === 'AUTO' ? 'selected' : ''}" data-font-profile="AUTO"><b>AUTO</b><span style="font-family:${esc(theme().font)}">KalinumX Aa 0123</span><small>Písmo podle motivu.</small></button>${(KXUI.FONT_PROFILES || []).map(x => `<button class="font-profile-card ${state.fontProfile === x.code ? 'selected' : ''}" data-font-profile="${x.code}" style="font-family:${esc(x.stack)}"><b>${esc(x.name)}</b><span>KalinumX Aa 0123</span><small>${esc(x.description)}</small></button>`).join('')}</div>`; return `<div class="filter-tabs">${['ALL', 'BASE', 'LUXURY', 'MINIMAL', 'TEEN_BOYS', 'TEEN_GIRLS', 'TEEN_UNIVERSAL', 'RETRO', 'EXPERIMENTAL'].map(x => `<button data-theme-filter="${x}">${esc(TL('thf.' + x))}</button>`).join('')}</div><div class="theme-grid" id="themeGrid">${themeCards('ALL')}</div>`; }
     function themeCards(filter) { return KXUI.THEMES.filter(t => filter === 'ALL' || t.category === filter).map(t => `<button class="theme-card ${t.code === state.theme ? 'selected' : ''}" data-theme-code="${t.code}" style="--pbg:${t.bg};--ps:${t.surface};--pa:${t.accent};--pa2:${t.accent2};--pr:${t.radius}px" data-preview-pattern="${esc(t.pattern)}" data-preview-surface="${esc(t.surfaceStyle)}" data-preview-icon-style="${esc(t.iconStyle)}"><div class="theme-preview preview-${String(t.category).toLowerCase()}"><i class="preview-nav"></i><span class="preview-head"></span><span class="preview-panel"></span><b class="preview-accent"></b><em>${iconSvg('ai', t.iconStyle)}</em></div><strong>${esc(t.name)}</strong><small>${esc(t.description)}</small><em class="theme-meta">${esc(t.iconStyle)} · ${esc(t.surfaceStyle)} · ${esc(t.pattern)}</em></button>`).join(''); }
     function bindAppearance(mode) { if (mode === 'LIBRARY') {
         bindFontLibrary();
