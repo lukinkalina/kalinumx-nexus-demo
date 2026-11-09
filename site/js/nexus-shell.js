@@ -236,7 +236,7 @@ var KXAPP;
         return appearanceLive; if (appearanceLiveRefresh)
         return appearanceLiveRefresh; appearanceLiveRefresh = runtime.actions.invoke('ACTION.CORE.APPEARANCE.LIVE_BINDING.RESOLVE', { userId: CURRENT_USER_ID, workspaceId: activeWorkspace.id, theme: theme() }, liveAppearanceActionContext()).then((out) => { appearanceLive = out; appearanceLiveThemeCode = themeCode; applyLiveAppearanceDom(); decorateLiveNavigationIcons(document); decoratePackIcons(document); return out; }).catch((error) => { appearanceLive = { live: {}, responsive: { active: false }, contrast: { active: false }, fallbackCount: 1, error: String(error?.message || error) }; appearanceLiveThemeCode = themeCode; return appearanceLive; }).finally(() => { appearanceLiveRefresh = null; /* N2.2g: the theme changed while this refresh was running (e.g. Revert then a new pick) — refresh again for the current theme instead of staying on the previous one */ /* N2.2g: the theme changed while this refresh was running (e.g. Revert then a new pick) — refresh again for the current theme instead of staying on the previous one */ if (theme().code !== themeCode)
         setTimeout(() => { void refreshLiveAppearance(true); }, 0); }); return appearanceLiveRefresh; }
-    function applyAppearance() { const t = theme(), readable = KXAppearanceContrastMatrix?.resolveThemeTokens?.(t) || { tokens: t, fallbackCount: 0 }, rt = readable.tokens || t, l = layout(), r = document.documentElement.style, fp = fontProfile(); r.setProperty('--bg', t.bg); r.setProperty('--surface', t.surface); r.setProperty('--surface2', t.surface2); r.setProperty('--text', rt.text || t.text); r.setProperty('--muted', rt.muted || t.muted); r.setProperty('--accent', rt.accent || t.accent); r.setProperty('--accent2', rt.accent2 || t.accent2); r.setProperty('--border', t.border); r.setProperty('--radius', `${t.radius}px`); r.setProperty('--glow', String(t.glow)); r.setProperty('--brightness', String(t.brightness)); r.setProperty('--font', fontOverrideStack() || fp?.stack || t.font); r.setProperty('--border-width', `${t.borderWidth || 1}px`); r.setProperty('--icon-weight', String(t.iconWeight || 1.6)); r.setProperty('--icon-radius', `${t.iconRadius ?? 8}px`); { /* N2.2d: a manually chosen icon style also sets its own stroke width and radius */
+    function applyAppearance() { const t = theme(), readable = KXAppearanceContrastMatrix?.resolveThemeTokens?.(t) || { tokens: t, fallbackCount: 0 }, rt = readable.tokens || t, l = layout(), r = document.documentElement.style, fp = fontProfile(); r.setProperty('--bg', t.bg); r.setProperty('--surface', t.surface); r.setProperty('--surface2', t.surface2); r.setProperty('--text', rt.text || t.text); r.setProperty('--muted', rt.muted || t.muted); r.setProperty('--accent', rt.accent || t.accent); r.setProperty('--accent2', rt.accent2 || t.accent2); r.setProperty('--border', t.border); r.setProperty('--radius', `${t.radius}px`); r.setProperty('--glow', String(t.glow)); r.setProperty('--brightness', String(t.brightness)); document.documentElement.classList.toggle('kx-bright', Math.abs(Number(t.brightness ?? 1) - 1) > 0.001); /* N2.6b+: a filter (even brightness(1)) makes fixed bars relative to the shell – apply it only when the brightness really changes */ /* N2.6b+: a filter (even brightness(1)) makes fixed bars relative to the shell – apply it only when the brightness really changes */ r.setProperty('--font', fontOverrideStack() || fp?.stack || t.font); r.setProperty('--border-width', `${t.borderWidth || 1}px`); r.setProperty('--icon-weight', String(t.iconWeight || 1.6)); r.setProperty('--icon-radius', `${t.iconRadius ?? 8}px`); { /* N2.2d: a manually chosen icon style also sets its own stroke width and radius */
         const ov = state.iconStyle && state.iconStyle !== 'AUTO' ? KXUI.ICON_APPEARANCE?.[state.iconStyle] : null;
         if (ov) {
             r.setProperty('--icon-weight', String(ov.iconWeight));
@@ -661,7 +661,12 @@ var KXAPP;
     ${viewDock()}
   </div>`;
     }
-    function today() { const w = state.windows[state.activeWindow] || state.windows[0]; const l = layout(); const scopes = [['PERSONAL', 'Osobní'], ['FAMILY', 'Rodina'], ['COMPANY', 'Firma'], ['SHARED', 'Společné'], ['ALL', 'Vše']]; return agDashHtml() + `<div class="page-head"><div><span class="eyebrow">NEXUS · ${state.activeWindow + 1}/${state.windows.length}</span><h1>${esc(w.name)}</h1><p>${esc(personalGreeting())} · ${esc(l.description)} · ${esc(theme().name)}</p></div><div class="head-actions"><button class="btn" data-action="add-widget">＋ ${esc(TL('dash.addCard'))}</button><span class="kx-md-layouts" data-md-layouts>${MD_LAYOUTS.map(([k, ic]) => `<button type="button" class="icon-btn kx-md-lb ${mdLayout() === k ? 'active' : ''}" data-md-layout="${k}" title="${esc(TL('mdl.' + k))}" aria-label="${esc(TL('mdl.' + k))}">${ic}</button>`).join('')}</span><button class="btn ghost" data-action="window-menu">⋯</button></div></div><div class="myday-toolbar"><div class="myday-tabs">${scopes.map(([code, title]) => `<button class="${state.myDayScope === code ? 'active' : ''}" data-myday-scope="${code}">${title}</button>`).join('')}</div><div id="myDayRange" class="myday-range">${esc(TL('ws.loadingToday'))}</div></div><div class="kx-lbars" id="linkBars"></div><section data-md-group="WORK" class="personal-home kx-work" id="workPanel" aria-label="${esc(TL('ws.panel'))}"></section><section data-md-group="NOTIFY" class="personal-home kx-notify" id="notificationsPanel" aria-label="${esc(TL('ws.notifyAria'))}"></section><section data-md-group="NOTIFY" class="personal-home kx-notify kx-wip" id="pokePanel" aria-label="${esc(TL('pk.panel'))}"></section><section data-md-group="WORK" class="personal-home kx-recent" id="recentPanel" aria-label="${esc(TL('ws.recent'))}"></section><section data-md-group="CAL" class="personal-home kx-mdcal" id="myDayCalendar" aria-label="${esc(TL('mdc.title'))}"></section><section data-md-group="KAIRA" class="personal-home kx-kaira" id="kairaCard" aria-label="Kaira"></section><section data-md-group="CARDS" class="personal-home" id="personalHomeCards" aria-label="Personal Home"><div class="desk-card-loading">${esc(TL('ws.loadingHome'))}</div></section><div class="dashboard cols-${Math.min(4, l.columns)} density-${l.density.toLowerCase()}">${w.widgets.map(widget).join('')}</div>`; }
+    function today() { const w = state.windows[state.activeWindow] || state.windows[0]; const l = layout(); const scopes = [['PERSONAL', 'Osobní'], ['FAMILY', 'Rodina'], ['COMPANY', 'Firma'], ['SHARED', 'Společné'], ['ALL', 'Vše']]; return agDashHtml() + `<h1 class="kx-sr">${esc(w.name)}</h1><div class="myday-toolbar"><span class="kx-md-layouts kx-md-layouts-today" title="${esc(TL('mdl.title'))}" data-md-layouts>${MD_LAYOUTS.map(([k, ic]) => `<button type="button" class="icon-btn kx-md-lb ${mdLayout() === k ? 'active' : ''}" data-md-layout="${k}" title="${esc(TL('mdl.' + k))}" aria-label="${esc(TL('mdl.' + k))}">${ic}</button>`).join('')}</span><div class="myday-tabs">${scopes.map(([code, title]) => `<button class="${state.myDayScope === code ? 'active' : ''}" data-myday-scope="${code}">${title}</button>`).join('')}</div><div id="myDayRange" class="myday-range">${esc(TL('ws.loadingToday'))}</div></div><section data-md-group="WORK" class="personal-home kx-work" id="workPanel" aria-label="${esc(TL('ws.panel'))}"></section><section data-md-group="NOTIFY" class="personal-home kx-notify" id="notificationsPanel" aria-label="${esc(TL('ws.notifyAria'))}"></section><section data-md-group="NOTIFY" class="personal-home kx-notify kx-wip" id="pokePanel" aria-label="${esc(TL('pk.panel'))}"></section><section data-md-group="KAIRA" class="personal-home kx-kaira" id="kairaCard" aria-label="Kaira"></section><section data-md-group="WORK" class="personal-home kx-recent" id="recentPanel" aria-label="${esc(TL('ws.recent'))}"></section><section data-md-group="CAL" class="personal-home kx-mdcal" id="myDayCalendar" aria-label="${esc(TL('mdc.title'))}"></section>`; }
+    /* N2.6b+ (user: My day = what is today; the configurable board belongs to the Desk) – the NEXUS board with its pages, cards, layout and links lives on the Desk */
+    /* N2.6b+ (user: no duplicates – three greetings, two weathers, identical lists): of the old My-day tiles only the Action Center (decisions: imports, conflicts, approvals) stays; greeting, Today, Weather, Finance, Across KalinumX, Recent activity, News and Crypto were duplicates or not connected */
+    const DESK_WIDGETS = new Set(['W.LIST.ACTIONS']);
+    globalThis.KXHubLabel = (h) => { const v = hubLabel(h === 'APP.NEXUS' ? 'APP.KX.NEXUS' : h); return v && v !== h ? v : ''; }; /* friendly hub names for the insight views */
+    function deskBoard() { const w = state.windows[state.activeWindow] || state.windows[0]; const l = layout(); return `<div class="page-head"><div><span class="eyebrow">NEXUS · ${state.activeWindow + 1}/${state.windows.length}</span><h2 class="kx-board-title">${esc(w.name)}</h2><p>${esc(TL('desk2.boardSub'))}</p></div><div class="head-actions"><button class="btn" data-action="add-widget">＋ ${esc(TL('dash.addCard'))}</button><button class="btn ghost" data-action="window-menu">⋯</button></div></div><div class="kx-lbars" id="linkBars"></div><section data-md-group="CARDS" class="personal-home" id="personalHomeCards" aria-label="Personal Home"><div class="desk-card-loading">${esc(TL('ws.loadingHome'))}</div></section><div class="dashboard cols-${Math.min(4, l.columns)} density-${l.density.toLowerCase()}">${w.widgets.filter((x) => DESK_WIDGETS.has(x.id)).map(widget).join('')}</div>`; }
     /* ===== N2.6b · Alpine Gold v2 – Společný přehled (horní polovina podle NEXUS_NAVRH_DESIGN_ALPINE_V2) ===== */
     const agUi = { scope: 'ALL', horizon: 7, tab: 'today', filter: 'all' };
     function agDashHtml() {
@@ -670,7 +675,7 @@ var KXAPP;
         return `<section class="ag-dash" data-ag-dash>
       <div class="ag-hero"><div><h2 class="ag-hero-title">👨‍👩‍👧 ${esc(TL('agd.title'))}</h2><b>${esc(TL('agd.subtitle'))}</b><small>${esc(TL('agd.subtitleEn'))}</small></div><div class="ag-motto"><i>${esc(TL('agd.motto1'))}</i><i>${esc(TL('agd.motto2'))}</i><small>${esc(TL('agd.mottoEn'))}</small></div></div>
       <div class="ag-bar"><div class="ag-scope">${sc.map(([k, l, sub, ic]) => `<button type="button" class="${agUi.scope === k ? 'on' : ''}" data-ag-scope="${k}"><span>${ic}</span><b>${esc(TL(l))}</b><small>${esc(TL(sub))}</small></button>`).join('')}</div>
-      <div class="ag-hz"><small>${esc(TL('agd.horizon'))}<br>${esc(TL('agd.horizonEn'))}</small>${[7, 14, 21, 30, 60, 90].map(d => `<button type="button" class="${agUi.horizon === d ? 'on' : ''}" data-ag-hz="${d}">${d} ${esc(TL('agd.days'))}</button>`).join('')}</div></div>
+      <div class="ag-hz"><small>${esc(TL('agd.horizon'))}<br>${esc(TL('agd.horizonEn'))}</small>${[7, 14, 30, 60, 90, 180, 365, 730].map(d => `<button type="button" class="${agUi.horizon === d ? 'on' : ''}" data-ag-hz="${d}">${d === 180 ? esc(TL('agd.halfYear')) : d === 365 ? esc(TL('agd.year1')) : d === 730 ? esc(TL('agd.year2')) : `${d} ${esc(TL('agd.days'))}`}</button>`).join('')}</div></div>
       <div class="ag-kpis">${kpi('payday', '👛', 'green')}${kpi('topay', '🧾', 'red')}${kpi('free', '🪙', 'blue')}${kpi('reserve', '🛡', 'orange')}${kpi('today', '📆', 'violet')}</div>
       <div class="ag-row">${["fam", "com", "all"].map(k => `<div class="ag-card ag-chart" data-ag-chart="${k}"><div class="ag-card-h"><b>${k === "all" ? "◔" : k === "fam" ? "👨‍👩‍👧" : "💼"} ${esc(TL("agd.ch." + k))}</b><small>${esc(TL("agd.ch." + k + ".en"))}</small><span class="ag-delta" data-ag-delta="${k}"></span></div><div class="ag-svg" data-ag-svg="${k}"></div></div>`).join("")}<div class="ag-card ag-acts"><div class="ag-card-h"><b>☑ ${esc(TL('agd.acts'))}</b><small>${esc(TL('agd.actsEn'))}</small><button type="button" class="ag-mini" data-section-jump="calendar">${esc(TL('agd.showAll'))} ›</button></div>
       <div class="ag-tabs">${[['today', 'agd.t.today'], ['week', 'agd.t.week'], ['late', 'agd.t.late']].map(([k, l]) => `<button type="button" class="${agUi.tab === k ? 'on' : ''}" data-ag-tab="${k}">${esc(TL(l))} <span data-ag-cnt="${k}"></span></button>`).join('')}</div><div class="ag-list" data-ag-list><small>…</small></div></div></div>
@@ -694,7 +699,7 @@ var KXAPP;
         let items = [];
         try {
             const scope = agUi.scope === 'ALL' ? 'ALL' : agUi.scope;
-            const snap = await runtime.plannerAgenda.snapshot({ userId: CURRENT_USER_ID, scope, from: new Date(day0 - 60 * D).toISOString(), to: new Date(day0 + agUi.horizon * D).toISOString(), limit: 500 });
+            const snap = await runtime.plannerAgenda.snapshot({ userId: CURRENT_USER_ID, scope, from: new Date(day0 - 60 * D).toISOString(), to: new Date(day0 + agUi.horizon * D).toISOString(), limit: agUi.horizon > 90 ? 3000 : 500 } /* N2.6b+: up to 2 years */);
             items = (snap?.items || []);
         }
         catch (e) {
@@ -797,7 +802,7 @@ var KXAPP;
                 by.get(k).push(x);
             }
             const lbl = (k) => k === day0 ? TL('agd.t.today') : k === day0 + D ? TL('agd.tomorrow') : new Date(k).toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'numeric' });
-            pl.innerHTML = rows.length ? [...by.entries()].slice(0, 6).map(([k, arr]) => `<div class="ag-pday"><div class="ag-pdate"><b>${esc(lbl(k))}</b><small>${new Date(k).toLocaleDateString('cs-CZ')}</small><em>● ${arr.length} ${esc(TL('agd.items'))}</em></div><div class="ag-prows">${arr.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow"><span>${kd === 'pay' ? '💳' : kd === 'task' ? '☑' : '📅'}</span><b>${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : kd === 'task' ? 'blue' : 'teal'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em>${x.kind === 'CALENDAR_EVENT' ? `<button type="button" class="ag-done ag-tmenu" data-ag-emenu data-ag-eid="${esc(String(x.id || ''))}" data-ag-eat="${esc(String(x.at || ''))}" title="${esc(TL('eq.more'))}">⋯</button>` : x.kind === 'PLANNED_PAY' ? `${x.movedFrom ? `<small class="ag-moved">↪ ${esc(TL('pq.movedFrom'))} ${esc(new Date(x.movedFrom + 'T12:00:00').toLocaleDateString())}</small>` : ''}<button type="button" class="ag-done ag-pmenu" data-ag-pmenu data-ag-pid="${esc(x.plannedId)}" data-ag-date="${esc(x.date)}" data-ag-amt="${esc(String(x.amount))}" data-ag-name="${esc(String(x.title || ''))}" data-ag-sp="${esc(x.spaceId)}">${esc(TL('pq.btn'))} ▾</button>` : x.kind === 'TASK' ? `<button type="button" class="ag-done ag-tmenu" data-ag-tmenu data-ag-tid="${esc(String(x.id || x.entityId || ''))}" title="${esc(TL('tq.more'))}">⋯</button><button type="button" class="ag-done" data-ag-done="${esc(String(x.id || x.entityId || ''))}">✓ ${esc(TL(kd === 'pay' ? 'agd.paid' : 'agd.done'))}</button>` : '<span></span>'}</div>`; }).join('')}</div></div>`).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
+            pl.innerHTML = rows.length ? [...by.entries()].slice(0, 6).map(([k, arr]) => `<div class="ag-pday"><div class="ag-pdate"><b>${esc(lbl(k))}</b><small>${new Date(k).toLocaleDateString('cs-CZ')}</small><em>● ${arr.length} ${esc(TL('agd.items'))}</em></div><div class="ag-prows">${arr.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow"><span>${kd === 'pay' ? '💳' : kd === 'task' ? '☑' : '📅'}</span><b>${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : kd === 'task' ? 'blue' : 'teal'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em>${x.kind === 'CALENDAR_EVENT' ? `<button type="button" class="ag-done ag-tmenu" data-ag-emenu data-ag-eid="${esc(String(x.id || ''))}" data-ag-eat="${esc(String(x.at || ''))}" title="${esc(TL('eq.more'))}">⋯</button>` : x.kind === 'PLANNED_PAY' ? `${x.movedFrom ? `<small class="ag-moved">↪ ${esc(TL('pq.movedFrom'))} ${esc(new Date(x.movedFrom + 'T12:00:00').toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}</small>` : ''}<button type="button" class="ag-done ag-pmenu" data-ag-pmenu data-ag-pid="${esc(x.plannedId)}" data-ag-date="${esc(x.date)}" data-ag-amt="${esc(String(x.amount))}" data-ag-name="${esc(String(x.title || ''))}" data-ag-sp="${esc(x.spaceId)}">${esc(TL('pq.btn'))} ▾</button>` : x.kind === 'TASK' ? `<button type="button" class="ag-done ag-tmenu" data-ag-tmenu data-ag-tid="${esc(String(x.id || x.entityId || ''))}" title="${esc(TL('tq.more'))}">⋯</button><button type="button" class="ag-done" data-ag-done="${esc(String(x.id || x.entityId || ''))}">✓ ${esc(TL(kd === 'pay' ? 'agd.paid' : 'agd.done'))}</button>` : '<span></span>'}</div>`; }).join('')}</div></div>`).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
             pl.querySelectorAll('[data-ag-done]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); const id = String(b.dataset.agDone || ''); if (!id)
                 return; try {
                 await runtime.actions.invoke('ACTION.CORE.TASK.COMPLETE', { id }, { actorId: CURRENT_USER_ID, appCode: 'APP.KX.NEXUS', permissions: ['CORE.TASK.EDIT'], confirmed: true });
@@ -1236,6 +1241,35 @@ var KXAPP;
     }
     function agTreeIcons() {
         try {
+            const nx = document.querySelector('.sidebar [data-tree-hub="APP.KX.NEXUS"]:not([data-tree-tab])');
+            if (nx) {
+                nx.style.setProperty('display', 'none', 'important');
+            }
+            const sb = document.querySelector('.sidebar');
+            if (sb) {
+                const tw = document.createTreeWalker(sb, NodeFilter.SHOW_TEXT);
+                let n;
+                while ((n = tw.nextNode())) {
+                    if (/^\s*(Jádro a každý den|Core \/ každý den|Core and every day)\s*$/i.test(n.nodeValue || '')) {
+                        n.nodeValue = TL('tree2.quick');
+                        let row = n.parentElement;
+                        for (let k = 0; k < 4 && row; k++) {
+                            const b = Array.from(row.querySelectorAll('*')).find(x => !x.children.length && /^\d+$/.test((x.textContent || '').trim()));
+                            if (b) {
+                                if (nx && !b.dataset.kxAdj) {
+                                    b.dataset.kxAdj = '1';
+                                    b.textContent = String(Math.max(0, Number(b.textContent) - 1));
+                                }
+                                break;
+                            }
+                            row = row.parentElement;
+                        }
+                    }
+                }
+            }
+        }
+        catch { } /* N2.6b+ (user): NEXUS in the menu only led to My day – home is the logo / 🏠; the core category reads “Quick access” */
+        try {
             document.querySelectorAll('.sidebar [data-tree-hub]:not([data-tree-tab])').forEach(row => { if (row.querySelector(':scope > .kx-ctx-more'))
                 return; const hub = String(row.dataset.treeHub || ''); if (!hub)
                 return; const mb = document.createElement('span'); mb.className = 'kx-ctx-more kx-tree-more'; mb.setAttribute('role', 'button'); mb.tabIndex = 0; mb.textContent = '⋯'; mb.title = TL('ctx.more'); mb.setAttribute('aria-label', TL('ctx.more')); const go = (e) => { e.preventDefault(); e.stopPropagation(); void agTreeMenu(mb, hub); }; mb.addEventListener('click', go); mb.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ')
@@ -1373,7 +1407,7 @@ var KXAPP;
     // D093 Stage141: Personal Home cards. Display states come ONLY from the
     // Personal Home service (LIVE / LAST_KNOWN_GOOD / STALE_LAST_KNOWN / UNAVAILABLE / DENIED).
     // No card is ever filled with generated data; providers are listed truthfully.
-    const PH_STATE_LABEL = { LIVE: 'Živá data', LAST_KNOWN_GOOD: 'Poslední ověřená', STALE_LAST_KNOWN: 'Zastaralá', UNAVAILABLE: 'Nedostupné', DENIED: 'Bez oprávnění' };
+    const PH_STATE_LABEL = { LIVE: 'Aktuální', LAST_KNOWN_GOOD: 'Naposledy ověřeno', STALE_LAST_KNOWN: 'Starší data', UNAVAILABLE: 'Zatím bez dat', DENIED: 'Bez oprávnění' };
     const PH_KIND_LABEL = { HUB_DOMAIN_SERVICE: 'doménová služba hubu', HUB_COMPOSITE: 'doménová služba hubu (složená karta)', CORE_PLANNER_DERIVED: 'z plánovače Core', EXPLICIT_CALLER: 'explicitní zdroj' };
     const PH_PROVIDER_LABEL = { MISSING_PROVIDER: 'Zdroj vlastníka chybí', REGISTERED_UNVERIFIED: 'Zdroj připojen · neověřeno produkčně', BLOCKED_SENSITIVE_POLICY: 'Citlivá data · ukládání blokováno politikou' };
     function personalHomeValue(key, value) { if (value === null || value === undefined)
@@ -1385,9 +1419,9 @@ var KXAPP;
         const fields = snap ? Object.entries(snap).filter(([k]) => k !== 'statusLabel').map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(personalHomeValue(k, v))}</dd></div>`).join('') : '';
         const canRefresh = providerState === 'REGISTERED_UNVERIFIED';
         return `<article class="ph-card ph-${esc(display.toLowerCase())}" data-ph-card="${esc(d.projectionCode)}" data-ph-state="${esc(display)}" data-ph-provider="${esc(providerState)}"><header><b>${esc(d.title || d.projectionCode)}</b><span class="ph-badge">${esc(PH_STATE_LABEL[display] || display)}</span></header>`
-            + `<p class="ph-status">${esc(snap?.statusLabel || (display === 'UNAVAILABLE' ? 'Žádná ověřená data vlastníka' : '—'))}</p>${fields ? `<dl class="ph-fields">${fields}</dl>` : ''}`
-            + `<footer><small>${esc(PH_PROVIDER_LABEL[providerState] || providerState)}${cov?.providerKind ? ` · ${esc(PH_KIND_LABEL[cov.providerKind] || cov.providerKind)}` : ''}${cov?.providerKind === 'HUB_COMPOSITE' ? ` · ${esc(homeInstall?.parts?.CORE_TASKS === 'DISABLED_BY_CALLER' ? 'úkoly Core vypnuty' : '+ úkoly Core (jen s ověřenou identitou)')}` : ''}${card?.lastVerifiedAt ? ` · ověřeno ${esc(new Date(card.lastVerifiedAt).toLocaleString())}` : ''}${card?.freshness && card.freshness !== 'UNKNOWN' ? ` · ${esc(card.freshness)}` : ''}</small>`
-            + `${err ? (/AUTH_SESSION_|AUTH_IDENTITY_UNAVAILABLE/.test(String(err)) ? `<small class="ph-error" role="alert" data-ph-auth-required>Úkoly Core jsou chráněné ověřenou identitou. Přihlaste se (Profil → Ověřená identita). <code>${esc(String(err).match(/AUTH_[A-Z_]+/)?.[0] || 'AUTH')}</code></small>` : `<small class="ph-error" role="alert">${esc(err)}</small>`) : ''}<div class="ph-actions">${err ? (/AUTH_SESSION_|AUTH_IDENTITY_UNAVAILABLE/.test(String(err)) ? `<button class="btn" data-ph-signin>Přihlásit</button>` : '') : ''}${canRefresh ? `<button class="btn ghost" data-ph-refresh="${esc(d.projectionCode)}" ${busy ? 'disabled' : ''}>${busy ? 'Obnovuji…' : 'Obnovit ze zdroje'}</button>` : ''}<button class="btn ghost" data-ph-open="${esc(d.deepLink || d.ownerApp)}">Otevřít hub</button></div></footer></article>`;
+            + `<p class="ph-status">${esc(snap?.statusLabel || (display === 'UNAVAILABLE' ? (providerState === 'BLOCKED_SENSITIVE_POLICY' ? TL('ph2.sensitive') : canRefresh ? TL('ph2.load') : TL('ph2.noSource')) : '—'))}</p>${fields ? `<dl class="ph-fields">${fields}</dl>` : ''}`
+            + `<footer><small>${display !== 'UNAVAILABLE' && cov?.providerKind ? `${esc(TL('ph2.source'))}: ${esc(PH_KIND_LABEL[cov.providerKind] || cov.providerKind)}${card?.lastVerifiedAt ? ' · ' : ''}` : ''}${card?.lastVerifiedAt ? `${esc(TL('ph2.verified'))} ${esc(new Date(card.lastVerifiedAt).toLocaleString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}` : ''}</small>`
+            + `${err ? (/AUTH_SESSION_|AUTH_IDENTITY_UNAVAILABLE/.test(String(err)) ? `<small class="ph-error" role="alert" data-ph-auth-required>Úkoly Core jsou chráněné ověřenou identitou. Přihlaste se (Profil → Ověřená identita). <code>${esc(String(err).match(/AUTH_[A-Z_]+/)?.[0] || 'AUTH')}</code></small>` : `<small class="ph-error" role="alert">${esc(err)}</small>`) : ''}<div class="ph-actions">${err ? (/AUTH_SESSION_|AUTH_IDENTITY_UNAVAILABLE/.test(String(err)) ? `<button class="btn" data-ph-signin>Přihlásit</button>` : '') : ''}${canRefresh ? `<button class="btn ghost" data-ph-refresh="${esc(d.projectionCode)}" ${busy ? 'disabled' : ''}>${busy ? esc(TL('ph2.loading')) : esc(TL('ph2.loadBtn'))}</button>` : ''}<button class="btn ghost" data-ph-open="${esc(d.deepLink || d.ownerApp)}">Otevřít hub</button></div></footer></article>`;
     }
     // The ONLY place where Personal Home reads an owner provider. Called exclusively
     // from explicit user click handlers (guarded by qa/personal_shell_runtime_access_check.py).
@@ -1449,7 +1483,7 @@ var KXAPP;
         }
     }
     async function hydrateToday() {
-        if (!runtime || state.activeSection !== 'today')
+        if (!runtime || (state.activeSection !== 'today' && state.activeSection !== 'desk'))
             return;
         void hydratePersonalHome();
         void hydrateAgDash();
@@ -1457,7 +1491,7 @@ var KXAPP;
         const token = ++myDayHydration, range = myDayLocalRange();
         try {
             const current = await runtime.myDay.snapshot({ userId: CURRENT_USER_ID, scope: state.myDayScope, from: range.from, to: range.to, limit: 12 });
-            if (token !== myDayHydration || state.activeSection !== 'today')
+            if (token !== myDayHydration || (state.activeSection !== 'today' && state.activeSection !== 'desk'))
                 return;
             const rangeEl = el('#myDayRange');
             if (rangeEl)
@@ -1496,7 +1530,7 @@ var KXAPP;
                 requests.push(runtime.workDesk.snapshot(CURRENT_USER_ID, 3).then(x => { const root = el('#myDayDeskQuick'); if (root)
                     root.innerHTML = `<div class="myday-quick-grid"><button data-myday-desk="WORKING"><b>${x.groups.working.count}</b><span>Rozpracované</span></button><button data-myday-desk="PINNED"><b>${x.groups.pinned.count}</b><span>Připnuté</span></button><button data-myday-desk="INBOX"><b>${x.groups.inbox.count}</b><span>Inbox</span></button><button data-myday-desk="RECENT"><b>${x.groups.recent.count}</b><span>Poslední</span></button></div>`; }));
             await Promise.all(requests);
-            if (token !== myDayHydration || state.activeSection !== 'today')
+            if (token !== myDayHydration || (state.activeSection !== 'today' && state.activeSection !== 'desk'))
                 return;
             document.querySelectorAll('[data-myday-link]').forEach(b => b.onclick = e => { e.stopPropagation(); openRecordInspector(b.dataset.mydayLink, { preserveSection: true }); });
             document.querySelectorAll('[data-myday-desk]').forEach(b => b.onclick = e => { e.stopPropagation(); openDeskInFiles(b.dataset.mydayDesk || 'RECENT'); });
@@ -1523,7 +1557,7 @@ var KXAPP;
     function calendarPage() {
         const scopes = [['PERSONAL', 'Osobní'], ['FAMILY', 'Rodina'], ['COMPANY', 'Firma'], ['SHARED', 'Společné'], ['ALL', 'Vše']];
         const types = [['CALENDAR_EVENT', 'Události'], ['TASK', 'Úkoly'], ['ALARM', 'Alarmy']];
-        return pageSimple('Kalendář', 'Události, úkoly a alarmy ze všech hubů v jednom kalendáři', `<div class="calendar-toolbar"><div class="calendar-range-presets">${[1, 7, 30, 60, 90].map(n => `<button class="chip" data-calendar-days="${n}">${n} ${n === 1 ? 'den' : 'dnů'}</button>`).join('')}</div><div class="calendar-date-range"><label>Od<input id="calendarFrom" type="date" value="${esc(calendarUi.from)}"></label><label>Do<input id="calendarTo" type="date" value="${esc(calendarUi.to)}"></label><span id="calendarRangeBadge" class="calendar-range-badge ${calendarUi.customRange ? 'active' : ''}">${calendarUi.customRange ? 'výběr do data' : 'rychlé období'}</span><button class="chip" data-calendar-reset-range>Zrušit výběr</button></div><div class="calendar-scope-tabs">${scopes.map(([code, title]) => `<button class="${calendarUi.scope === code ? 'active' : ''}" data-calendar-scope="${code}">${title}</button>`).join('')}</div><div class="calendar-type-tabs">${types.map(([code, title]) => `<button class="${calendarUi.types[code] ? 'active' : ''}" data-calendar-type="${code}">${title}</button>`).join('')}</div><button class="btn" data-calendar-create>＋ ${esc(TL('cal.newItem'))}</button> <button class="btn ghost" data-calendar-mynames>🎉 ${esc(TL('mynd.title'))}</button></div><div id="calendarCore" class="calendar-core"><div class="empty">Načítám oprávněnou agendu…</div></div>`);
+        return pageSimple('Kalendář', 'Události, úkoly a alarmy ze všech hubů v jednom kalendáři', `<div class="calendar-toolbar"><div class="calendar-range-presets">${[1, 7, 30, 90, 180, 365, 730].map(n => `<button class="chip" data-calendar-days="${n}">${n === 180 ? esc(TL('agd.halfYear')) : n === 365 ? esc(TL('agd.year1')) : n === 730 ? esc(TL('agd.year2')) : `${n} ${n === 1 ? 'den' : 'dnů'}`}</button>`).join('')}</div><div class="calendar-date-range"><label>Od<input id="calendarFrom" type="date" value="${esc(calendarUi.from)}"></label><label>Do<input id="calendarTo" type="date" value="${esc(calendarUi.to)}"></label><span id="calendarRangeBadge" class="calendar-range-badge ${calendarUi.customRange ? 'active' : ''}">${calendarUi.customRange ? 'výběr do data' : 'rychlé období'}</span><button class="chip" data-calendar-reset-range>Zrušit výběr</button></div><div class="calendar-scope-tabs">${scopes.map(([code, title]) => `<button class="${calendarUi.scope === code ? 'active' : ''}" data-calendar-scope="${code}">${title}</button>`).join('')}</div><div class="calendar-type-tabs">${types.map(([code, title]) => `<button class="${calendarUi.types[code] ? 'active' : ''}" data-calendar-type="${code}">${title}</button>`).join('')}</div><button class="btn" data-calendar-create>＋ ${esc(TL('cal.newItem'))}</button> <button class="btn ghost" data-calendar-mynames>🎉 ${esc(TL('mynd.title'))}</button></div><div id="calendarCore" class="calendar-core"><div class="empty">Načítám oprávněnou agendu…</div></div>`);
     }
     const calendarRangeIso = () => ({ from: new Date(`${calendarUi.from}T00:00:00`).toISOString(), to: new Date(`${calendarUi.to}T23:59:59.999`).toISOString() });
     function bindCalendarControls() {
@@ -1914,7 +1948,7 @@ var KXAPP;
             toast(`Nelze vytvořit: ${String(error?.message || error)}`);
         } };
     }
-    function desk() { return pageSimple('Pracovní stůl', 'Rozpracované, připnuté a sdílené soubory – jen to, k čemu máte přístup', `<div id="deskSummary" class="file-summary"><span>Načítám Pracovní stůl…</span></div><div id="deskLive" class="desk-grid">${['WORKING', 'PINNED', 'RECENT', 'FOLDERS', 'SHARED_WITH_ME', 'INBOX'].map(code => `<section class="folder-card desk-live-card" data-desk-code="${code}"><div class="desk-card-loading">Načítám…</div></section>`).join('')}</div>`); }
+    function desk() { return `<div class="page-head kx-desk-head"><div><span class="eyebrow">KALINUMX NEXUS</span><h1>${esc(TL('desk2.title'))}</h1><p>${esc(TL('desk2.sub'))}</p></div></div>` + deskBoard() + `<h2 class="kx-desk-files-h">📁 ${esc(TL('desk2.files'))}</h2>` + `<div class="kx-desk-files"><div id="deskSummary" class="file-summary"><span>Načítám Pracovní stůl…</span></div><div id="deskLive" class="desk-grid">${['WORKING', 'PINNED', 'RECENT', 'FOLDERS', 'SHARED_WITH_ME', 'INBOX'].map(code => `<section class="folder-card desk-live-card" data-desk-code="${code}"><div class="desk-card-loading">Načítám…</div></section>`).join('')}</div></div>`; }
     function openDeskInFiles(code, collectionId = '') {
         fileExplorerUi.text = '';
         fileExplorerUi.pinnedOnly = false;
@@ -1942,7 +1976,7 @@ var KXAPP;
             const groups = [snapshot.groups.working, snapshot.groups.pinned, snapshot.groups.recent, snapshot.groups.folders, snapshot.groups.shared, snapshot.groups.inbox];
             const icons = { WORKING: '◫', PINNED: '★', RECENT: '◷', FOLDERS: '▣', SHARED_WITH_ME: '⇄', INBOX: '↓' };
             const renderRows = (rows = []) => rows.length ? `<div class="desk-preview-list">${rows.slice(0, 4).map(({ file }) => `<button class="desk-preview-row" data-desk-file="${esc(runtime.deepLinks.build({ kind: 'FILE', id: file.id }))}"><b>${esc(file.name)}</b><small>${esc(file.mime)} · ${formatBytes(file.size)}</small></button>`).join('')}</div>` : `<div class="desk-empty">Zatím prázdné</div>`;
-            root.innerHTML = groups.map(g => { const folders = g.folders || []; const body = g.code === 'FOLDERS' ? (folders.length ? `<div class="desk-preview-list">${folders.slice(0, 4).map(f => `<button class="desk-preview-row" data-desk-folder="${esc(f.id)}"><b>${esc(f.name)}</b><small>Složka</small></button>`).join('')}</div>` : `<div class="desk-empty">Zatím žádné vlastní složky</div>`) : renderRows(g.rows || []); return `<section class="folder-card desk-live-card" data-desk-code="${esc(g.code)}"><header><span>${icons[g.code] || '◫'}</span><div><b>${esc(g.title)}</b><small><strong>${g.count}</strong> ${g.count === 1 ? 'položka' : 'položek'}</small></div><button class="desk-open" data-desk-open="${esc(g.code)}" data-collection-id="${esc(g.collectionId || '')}">Otevřít</button></header>${body}</section>`; }).join('');
+            root.innerHTML = groups.map(g => { const folders = g.folders || []; const body = g.code === 'FOLDERS' ? (folders.length ? `<div class="desk-preview-list">${folders.slice(0, 4).map(f => `<button class="desk-preview-row" data-desk-folder="${esc(f.id)}"><b>${esc(f.name)}</b><small>Složka</small></button>`).join('')}</div>` : `<div class="desk-empty">Zatím žádné vlastní složky</div>`) : renderRows(g.rows || []); return `<section class="folder-card desk-live-card" data-desk-code="${esc(g.code)}"><header><span>${icons[g.code] || '◫'}</span><div><b>${esc(TL('deskt.' + g.code) !== 'deskt.' + g.code ? TL('deskt.' + g.code) : g.title)}</b><small><strong>${g.count}</strong> ${g.count === 1 ? 'položka' : 'položek'}</small></div><button class="desk-open" data-desk-open="${esc(g.code)}" data-collection-id="${esc(g.collectionId || '')}">Otevřít</button></header>${body}</section>`; }).join('');
             const summary = el('#deskSummary');
             if (summary)
                 summary.innerHTML = `<span><b>${groups.reduce((n, g) => n + Number(g.count || 0), 0)}</b> vazeb v přehledu</span><span>uživatel <b>${esc(CURRENT_USER_ID.replace('USER.', ''))}</b></span><span>Workspace <b>${esc(activeWorkspace?.name || '')}</b></span>`;
@@ -1980,7 +2014,7 @@ var KXAPP;
     function agFilesGrid(root, rows) {
         agThumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
         root.closest('.file-table')?.classList.add('ag-grid-mode');
-        root.innerHTML = `<div class="ag-fgrid">${rows.map(({ file, pinned }, i) => { const k = agFileKind(file.mime || '', file.name || ''); const link = runtime.deepLinks.build({ kind: 'FILE', id: file.id }); return `<div class="ag-fcard"><button type="button" class="ag-fthumb ag-k-${k}" data-ag-fprev="${i}" title="${esc(TL('agd.pv.open'))}">${k === 'img' ? `<img alt="" data-ag-thumb="${esc(file.id)}">` : `<i>${AG_FILE_IC[k]}</i>`}</button><button type="button" class="ag-fname" data-file-link="${esc(link)}" title="${esc(TL('agd.pv.detail'))}"><b>${pinned ? '★ ' : ''}${esc(file.name)}</b><small>${formatBytes(file.size)} · ${esc(new Date(file.updatedAt).toLocaleDateString())}</small></button></div>`; }).join('')}</div>`;
+        root.innerHTML = `<div class="ag-fgrid">${rows.map(({ file, pinned }, i) => { const k = agFileKind(file.mime || '', file.name || ''); const link = runtime.deepLinks.build({ kind: 'FILE', id: file.id }); return `<div class="ag-fcard"><button type="button" class="ag-fthumb ag-k-${k}" data-ag-fprev="${i}" title="${esc(TL('agd.pv.open'))}">${k === 'img' ? `<img alt="" data-ag-thumb="${esc(file.id)}">` : `<i>${AG_FILE_IC[k]}</i>`}</button><button type="button" class="ag-fname" data-file-link="${esc(link)}" title="${esc(TL('agd.pv.detail'))}"><b>${pinned ? '★ ' : ''}${esc(file.name)}</b><small>${formatBytes(file.size)} · ${esc(new Date(file.updatedAt).toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}</small></button></div>`; }).join('')}</div>`;
         root.querySelectorAll('img[data-ag-thumb]').forEach(async (im) => { try {
             const b = await runtime.files.getBlob(String(im.dataset.agThumb));
             if (b) {
@@ -2791,7 +2825,7 @@ var KXAPP;
         const FC = { actorId: CURRENT_USER_ID, appCode: 'APP.KX.FINANCE', deviceId: activeDevice?.id, permissions: [], confirmed: true };
         const CH = (x) => runtime.actions.invoke('ACTION.FINANCE.PLANNED.CHANGE', { id: pid, ...x }, FC);
         const kc = amount.toLocaleString('cs-CZ') + ' ' + TL('viz.czk');
-        const dl = new Date(date + 'T12:00:00').toLocaleDateString();
+        const dl = new Date(date + 'T12:00:00').toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ');
         const ok = async (f, msg, undo) => { try {
             await f();
             toast(msg);
@@ -2855,7 +2889,7 @@ var KXAPP;
         const base = new Date(t.dueAt || Date.now());
         const at = (days, months = 0) => { const d = new Date(Math.max(Date.now(), base.getTime())); d.setDate(d.getDate() + days); if (months)
             d.setMonth(d.getMonth() + months); return d.toISOString(); };
-        const dl = (iso) => new Date(iso).toLocaleDateString();
+        const dl = (iso) => new Date(iso).toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ');
         kxMoreMenu(b, [
             { key: 'd1', group: TL('tq.move'), label: `📅 ${TL('tq.tomorrow')}`, hint: dl(at(1)), run: () => save({ dueAt: at(1) }, TL('tq.moved').replace('{d}', dl(at(1)))) },
             { key: 'd7', group: TL('tq.move'), label: `📅 ${TL('tq.week')}`, hint: dl(at(7)), run: () => save({ dueAt: at(7) }, TL('tq.moved').replace('{d}', dl(at(7)))) },
@@ -2881,7 +2915,7 @@ var KXAPP;
         }
         const d = new Date(at || ev.startsAt);
         const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        const dl = d.toLocaleDateString();
+        const dl = d.toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ');
         const go = async (f, msg) => { try {
             await f();
             toast(msg);
@@ -2939,7 +2973,7 @@ var KXAPP;
             const spaces = await runtime.memberships.listSpaces();
             const sp = String(opts?.defaultSpaceId || spaces.find((s) => s.kind === 'FAMILY')?.id || spaces[0]?.id || '');
             const open = rows.filter(r => !r.checked), done = rows.filter(r => r.checked);
-            const li = (r) => `<li class="kx-shop-row${r.checked ? ' done' : ''}"><label><input type="checkbox" data-shop-check="${esc(r.id)}" data-shop-rev="${esc(String(r.revision))}" ${r.checked ? 'checked' : ''}> <span>${esc(String(r.title || '').replace(/^DEMO\s*·\s*/, ''))}</span></label>${r.dueAt ? `<small>${esc(new Date(r.dueAt).toLocaleDateString())}</small>` : ''}</li>`;
+            const li = (r) => `<li class="kx-shop-row${r.checked ? ' done' : ''}"><label><input type="checkbox" data-shop-check="${esc(r.id)}" data-shop-rev="${esc(String(r.revision))}" ${r.checked ? 'checked' : ''}> <span>${esc(String(r.title || '').replace(/^DEMO\s*·\s*/, ''))}</span></label>${r.dueAt ? `<small>${esc(new Date(r.dueAt).toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}</small>` : ''}</li>`;
             host.innerHTML = `<section class="kx-shop"><div class="kx-shop-add"><input data-shop-new placeholder="${esc(TL('food.addPh'))}" maxlength="120"><button type="button" class="btn" data-shop-add>＋ ${esc(TL('food.add'))}</button></div>
         <p class="muted">${esc(TL('food.shopHint'))}</p>
         ${open.length ? `<ul class="kx-shop-list">${open.map(li).join('')}</ul>` : `<p class="muted">${esc(TL('food.empty'))}</p>`}
@@ -3029,7 +3063,7 @@ var KXAPP;
             const nm = (x) => String(x.r.data?.[x.d.nameKey] || x.r.data?.name || x.r.id);
             root.innerHTML = `<section class="kx-arch"><div class="kx-arch-top"><input data-arch-q placeholder="${esc(TL('arch.search'))}" value="${esc(ARCH_ST.q)}"><select data-arch-hub><option value="">${esc(TL('arch.allHubs'))} (${rows.length})</option>${hubs.map(h => `<option value="${esc(h)}" ${ARCH_ST.hub === h ? 'selected' : ''}>${esc(hubLabel(h))} (${rows.filter(x => x.d.owner === h).length})</option>`).join('')}</select><button type="button" class="btn ghost" data-arch-trash>🗑 ${esc(TL('arch.trash'))}</button></div>
         <p class="muted">${esc(TL('arch.hint'))}</p>
-        ${vis.length ? `<ul class="kx-arch-list">${vis.map(x => `<li><span><b>${esc(nm(x))}</b><small>${esc(hubLabel(x.d.owner))} · ${esc(x.d.label || '')} · ${esc(TL('arch.archivedAt'))} ${esc(new Date(x.r.archivedAt).toLocaleDateString())}</small></span><button type="button" class="btn" data-arch-restore="${esc(x.r.id)}" data-arch-rev="${esc(String(x.r.revision))}">↶ ${esc(TL('arch.restore'))}</button></li>`).join('')}</ul>` : `<p class="muted">${esc(TL('arch.empty'))}</p>`}</section>`;
+        ${vis.length ? `<ul class="kx-arch-list">${vis.map(x => `<li><span><b>${esc(nm(x))}</b><small>${esc(hubLabel(x.d.owner))} · ${esc(x.d.label || '')} · ${esc(TL('arch.archivedAt'))} ${esc(new Date(x.r.archivedAt).toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}</small></span><button type="button" class="btn" data-arch-restore="${esc(x.r.id)}" data-arch-rev="${esc(String(x.r.revision))}">↶ ${esc(TL('arch.restore'))}</button></li>`).join('')}</ul>` : `<p class="muted">${esc(TL('arch.empty'))}</p>`}</section>`;
             const again = () => void KXArchiveHub.mountHub(root);
             root.querySelector('[data-arch-q]').onchange = (e) => { ARCH_ST.q = e.target.value; again(); };
             root.querySelector('[data-arch-hub]').onchange = (e) => { ARCH_ST.hub = e.target.value; again(); };
@@ -3239,7 +3273,11 @@ var KXAPP;
             b.setAttribute('aria-label', TL('agd.nav.back'));
             b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); kxGoBack(); });
             head.insertBefore(b, head.firstChild);
-        } };
+        } const narrow = window.matchMedia('(max-width:680px)').matches; document.querySelectorAll('#inspector .kx-hub-head :is([data-ins-wide],[data-ins-tab])').forEach(x => { const floatHide = x.hasAttribute('data-ins-wide') && !!document.querySelector('#inspector.kx-wm-float'); if (narrow || floatHide)
+            x.setAttribute('hidden', '');
+        else
+            x.removeAttribute('hidden'); }); /* wide / tab tools make no sense on a phone */ };
+        window.addEventListener('resize', () => setTimeout(addBack, 120));
         let bT = 0;
         new MutationObserver(() => { if (bT)
             return; bT = setTimeout(() => { bT = 0; addBack(); }, 120); }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
@@ -3254,6 +3292,53 @@ var KXAPP;
         } });
     }
     catch { }
+    /* N2.6b+ (user: My day is long, jumpy and repetitive): compact layout – overview on top, Notifications | Work in progress and Kaira | Pokes side by side, the rest under “More overviews ▸” (collapsed, remembered) */
+    function kxMyDayLayout() {
+        const c = document.querySelector('.content');
+        if (!c)
+            return;
+        const on = state.activeSection === 'today' && !!c.querySelector('[data-ag-dash]');
+        c.classList.toggle('kx-md2', on);
+        if (!on)
+            return;
+        const more = Array.from(c.children).filter(e => e.matches('.kx-recent,.kx-mdcal,.dashboard,[data-home-widgets]') || (e.matches('.personal-home') && !e.matches('.kx-work,.kx-notify,.kx-kaira')));
+        more.forEach(e => e.classList.add('kx-md-more'));
+        let tg = c.querySelector(':scope > .kx-md-more-toggle');
+        const first = more[0];
+        if (first && !tg) {
+            tg = document.createElement('button');
+            tg.type = 'button';
+            tg.className = 'kx-md-more-toggle';
+            c.insertBefore(tg, first);
+            tg.onclick = () => { const o = !c.classList.contains('kx-md-more-open'); try {
+                localStorage.setItem('kx.md.more', o ? '1' : '0');
+            }
+            catch { } c.classList.toggle('kx-md-more-open', o); paint(); };
+        }
+        const paint = () => { if (tg)
+            tg.innerHTML = `<span>${c.classList.contains('kx-md-more-open') ? '▾' : '▸'}</span> ${esc(TL('md2.more'))} <small>${more.length}</small>`; };
+        /* tabs layout: hide tabs of groups that are not on this page (e.g. Moje karty lives on the Desk) */ c.querySelectorAll('[data-md-tabs] [data-md-go]').forEach(b => { const g = b.dataset.mdGo; const miss = !!g && !c.querySelector(`[data-md-group="${g}"]`); if (miss)
+            b.style.setProperty('display', 'none', 'important');
+        else
+            b.style.removeProperty('display'); });
+        let open = false;
+        try {
+            open = localStorage.getItem('kx.md.more') === '1';
+        }
+        catch { }
+        if (!c.dataset.mdInit) {
+            c.dataset.mdInit = '1';
+            c.classList.toggle('kx-md-more-open', open);
+        }
+        paint();
+    }
+    {
+        let mT = 0;
+        new MutationObserver(() => { if (mT)
+            return; mT = setTimeout(() => { mT = 0; kxMyDayLayout(); }, 120); }).observe(document.documentElement, { childList: true, subtree: false });
+        setInterval(() => { if (state.activeSection === 'today')
+            kxMyDayLayout(); }, 800); /* also catches the tabs layout rendered later */
+    }
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -5190,6 +5275,11 @@ var KXAPP;
         hideTip(); }, true);
     document.addEventListener('focusin', (e) => { const el = e.target?.closest?.('[data-kx-help-long]'); if (el && e.target.matches?.(':focus-visible'))
         helpTimer = setTimeout(() => showTip(el), 400); }, true);
+    document.addEventListener('click', (e) => { const b = e.target?.closest?.('[data-wx-open]'); if (b) {
+        e.preventDefault();
+        e.stopPropagation();
+        void kxWxModal(7);
+    } }, true);
     document.addEventListener('focusout', hideTip, true);
     document.addEventListener('pointerdown', () => { clearTimeout(helpTimer); hideTip(); }, true); /* N2.6b: the x close fallback was removed - inner panels also use data-close and close by hiding, so it closed whole windows (prompt library); the ghost-window cause is fixed in CSS */ /* N2.6b: napoveda nezustane viset, kdyz se prvek po kliknuti prekresli */
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape')
@@ -5558,7 +5648,7 @@ var KXAPP;
     /* N2.5r (user): PLANNERS shared by all calendars – week (default), day, month; item = kind chip + title + area; side panel of the chosen day */
     const PK_ICON = { CALENDAR_EVENT: 'calendar', TASK: 'check', ALARM: 'bell' };
     const isAllDay = (x) => String(x.subtitle || '') === 'Celý den';
-    const pkItem = (x, cls = '') => { const a = areaOf(x.ownerApp); const et = x.eventTypeCode ? etOf(x.eventTypeCode) : null; const t = isAllDay(x) ? '' : new Date(x.at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }) + ' '; return `<button type="button" class="kx-pk-it ${cls}" style="border-left-color:${et ? esc(et.color) : a.color}" data-pk-open="${esc(x.deepLink || '')}" title="${esc((x.title || '') + ' · ' + (et ? et.name + ' · ' : '') + a.label)}">${et ? esc(et.icon) : KXTags.iconSvg(PK_ICON[x.kind] || 'calendar', 10)} <b>${esc(t)}</b>${esc(x.title || '')}</button>`; };
+    const pkItem = (x, cls = '') => { const a = areaOf(x.ownerApp); const et = x.eventTypeCode ? etOf(x.eventTypeCode) : null; const t = isAllDay(x) ? '' : new Date(x.at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }) + ' '; return `<button type="button" class="kx-pk-it ${cls}" style="border-left-color:${et ? esc(et.color) : a.color}" data-pk-open="${esc(x.deepLink || '')}" title="${esc((x.title || '') + ' · ' + (et ? et.name + ' · ' : '') + a.label)}">${et ? esc(et.icon) : KXTags.iconSvg(PK_ICON[x.kind] || 'calendar', 10)} <b>${esc(t)}</b>${esc(String(x.title || '').replace(/^DEMO\s*[·:–-]\s*/, ''))}</button>`; };
     const weekStart = (d) => { const x = new Date(d + 'T12:00:00'); const off = (x.getDay() + 6) % 7; return addDaysValue(d, -off); };
     /* N2.5r (user): „＋ Nový ▾“ and „🔎 Co má Kaira najít?“ in every calendar – choices like in New item / Where is it */
     const newMenuHtml = (day) => `<span class="kx-nm"><button type="button" class="btn compact" data-nm-open>＋ ${esc(TL('nm.new'))} ▾</button><span class="kx-nm-list" data-nm-list hidden>${['CALENDAR_EVENT', 'TASK', 'ALARM'].map(k => `<button type="button" class="chip" data-nm-type="${k}|${day}">${KXTags.iconSvg(PK_ICON[k], 12)} ${esc(TL('pk2.k.' + k))}</button>`).join('')}${(etCache || []).map((x) => `<button type="button" class="chip" data-nm-et="${esc(x.code)}|${day}">${esc(x.icon)} ${esc(x.name)}</button>`).join('')}<button type="button" class="chip" data-nm-pay>💰 ${esc(TL('nm.pay'))}</button><button type="button" class="chip" data-nm-anniv>🎂 ${esc(TL('nm.anniv'))}</button><button type="button" class="chip" data-ics-open>⬆ ${esc(TL('ics.import'))}</button></span></span><button type="button" class="btn ghost compact" data-nm-find>🔎 ${esc(TL('gs.title').replace(/^🔎\s*/, ''))}</button>`;
@@ -8313,8 +8403,12 @@ var KXAPP;
         hydrateToday();
         void mountHomeWidgets();
     } if (state.activeSection === 'calendar')
-        hydrateCalendar(); if (state.activeSection === 'desk')
-        hydrateDesk(); if (state.activeSection === 'files')
+        hydrateCalendar(); if (state.activeSection === 'desk') {
+        hydrateToday();
+        void linkBars();
+        void mountHomeWidgets();
+        hydrateDesk();
+    } if (state.activeSection === 'files')
         hydrateFiles(); if (state.activeSection === 'trash')
         hydrateTrash(); if (state.activeSection === 'apps')
         hydrateApps(); if (state.activeSection === 'ai')
@@ -8621,7 +8715,7 @@ var KXAPP;
         } };
     }
     // ---------------- N2.2f: window manager (drawer + tool windows) and Apply / Revert ----------------
-    const WM_MODES = { drawer: [['RIGHT', 'wm.right'], ['LEFT', 'wm.left'], ['FLOAT', 'wm.float'], ['WIDE', 'wm.wide']], modal: [['CENTER', 'wm.center'], ['RIGHT', 'wm.right'], ['LEFT', 'wm.left'], ['FLOAT', 'wm.float']] }; /* labels from the i18n catalogue (cs / en) */
+    const WM_MODES = { inspector: [['FLOAT', 'wm.float'], ['FULL', 'wmx.full']], drawer: [['RIGHT', 'wm.right'], ['LEFT', 'wm.left'], ['FLOAT', 'wm.float'], ['WIDE', 'wm.wide']], modal: [['CENTER', 'wm.center'], ['RIGHT', 'wm.right'], ['LEFT', 'wm.left'], ['FLOAT', 'wm.float']] }; /* labels from the i18n catalogue (cs / en) */
     const TW = (k) => runtime?.i18n?.t(k, UI_LOCALE) || k;
     let appearanceSnap = null, appearanceSession = false;
     const snapAppearance = () => ({ state: { theme: state.theme, iconStyle: state.iconStyle, fontProfile: state.fontProfile, fontOverride: state.fontOverride || null, shellPreset: state.shellPreset }, layout: currentWindow().layout });
@@ -8631,11 +8725,16 @@ var KXAPP;
         const top = Math.round(document.querySelector('.topbar')?.getBoundingClientRect().bottom || 64);
         const desk = vw >= 1100;
         const fw = Math.min(1000, Math.round(vw * 0.62));
-        const def = { mode: kind === 'drawer' ? 'RIGHT' : (desk ? 'FLOAT' : 'CENTER'), x: kind === 'drawer' ? 80 : Math.max(0, Math.round((vw - fw) / 2)), y: top + 12, w: kind === 'drawer' ? 460 : (desk ? fw : 640), h: Math.max(260, Math.min(Math.round(vh * 0.8), vh - top - 28)), opacity: 1, min: false };
+        if (kind === 'inspector') {
+            const sb = Math.round(document.querySelector('.sidebar')?.getBoundingClientRect().right || 0);
+            const iw = Math.min(1320, Math.round((vw - sb) * 0.86));
+            return { mode: desk ? 'FLOAT' : 'FULL', x: Math.max(sb + 12, Math.round(sb + (vw - sb - iw) / 2)), y: top + 10, w: iw, h: Math.max(320, vh - top - 24), opacity: 1, min: false, ...(state.wm?.inspector || {}) };
+        }
+        const def = { mode: desk ? 'FLOAT' : (kind === 'drawer' ? 'RIGHT' : 'CENTER'), x: kind === 'drawer' ? Math.max(0, vw - 520 - 24) : Math.max(0, Math.round((vw - fw) / 2)), y: top + 12, w: kind === 'drawer' ? 520 : (desk ? fw : 640), /* N2.6b+ (user): floating by default on PC, panel included */ h: Math.max(260, Math.min(Math.round(vh * 0.8), vh - top - 28)), opacity: 1, min: false };
         return { ...def, ...(state.wm?.[kind] || {}) };
     };
     function wmSet(kind, patch) { state.wm = { ...(state.wm || {}), [kind]: { ...wmGet(kind), ...patch } }; save(); }
-    function wmBar(kind) { const w = wmGet(kind); return `<div data-wm-bar="${kind}">${WM_MODES[kind].map(([c, n]) => `<button type="button" class="${w.mode === c ? 'active' : ''}" data-wm-mode="${c}">${esc(TW(n))}</button>`).join('')}<label title="${esc(TW('wm.opacity'))}"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg> <input type="range" min="0.5" max="1" step="0.05" value="${w.opacity}" data-wm-opacity></label><button type="button" data-wm-min title="${esc(TW(w.min ? 'wm.restore' : 'wm.minimize'))}">${w.min ? '▢' : '▁'}</button></div>`; }
+    function wmBar(kind) { const w = wmGet(kind); return `<div data-wm-bar="${kind}">${WM_MODES[kind].map(([c, n]) => `<button type="button" class="${w.mode === c ? 'active' : ''}" data-wm-mode="${c}">${esc(TW(n))}</button>`).join('')}<label title="${esc(TW('wm.opacity'))}"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg> <input type="range" min="0.5" max="1" step="0.05" value="${w.opacity}" data-wm-opacity></label><span class="kx-wm-size"><button type="button" data-wm-size="-1" title="${esc(TL('wmx.smaller'))}">−</button><button type="button" data-wm-size="1" title="${esc(TL('wmx.bigger'))}">＋</button><button type="button" data-wm-max title="${esc(TL(w.prev ? 'wmx.restore' : 'wmx.max'))}">${w.prev ? '⤡' : '⤢'}</button></span><button type="button" data-wm-min title="${esc(TW(w.min ? 'wm.restore' : 'wm.minimize'))}">${w.min ? '▢' : '▁'}</button></div>`; }
     function applyWm(elm, kind) {
         const w = wmGet(kind); /* change classes only when they differ — the tool-window observer watches class changes (no feedback loop) */
         const want = [...(!(kind === 'modal' && w.mode === 'CENTER') ? ['kx-wm-' + w.mode.toLowerCase()] : []), ...(w.min ? ['kx-wm-min'] : [])].sort().join(' ');
@@ -8649,15 +8748,29 @@ var KXAPP;
         }
         const box = kind === 'modal' ? (elm.querySelector('.modal') || elm) : elm;
         const vw = window.innerWidth, vh = window.innerHeight;
-        const x = Math.max(0, Math.min(vw - 120, w.x)), y = Math.max(0, Math.min(vh - 60, w.y));
+        const topB = Math.round(document.querySelector('.topbar')?.getBoundingClientRect().bottom || 0);
+        const ww = Math.max(320, Math.min(vw, w.w));
+        const hh = Math.max(200, Math.min(w.h, vh - topB - 12));
+        const x = Math.max(0, Math.min(vw - ww, w.x)), y = Math.max(topB, Math.min(vh - hh - 8, w.y)); /* the whole window always stays on screen – it moves back instead of being squashed */
         for (const t of [elm, box]) {
             t.style.setProperty('--wm-x', x + 'px');
             t.style.setProperty('--wm-y', y + 'px');
-            t.style.setProperty('--wm-w', Math.max(320, Math.min(vw, w.w)) + 'px');
-            t.style.setProperty('--wm-h', Math.max(200, Math.min(vh - y - 12, w.h)) + 'px'); /* never below the bottom edge */
+            t.style.setProperty('--wm-w', ww + 'px');
+            t.style.setProperty('--wm-h', hh + 'px'); /* never below the bottom edge */
         }
         box.style.opacity = String(w.opacity);
         elm.dataset.wmMode = w.mode;
+        if (w.mode === 'FLOAT' && !w.min) {
+            const r = box.getBoundingClientRect();
+            const dy = r.bottom - (vh - 6), dx = r.right - (vw - 2);
+            if (dy > 0 || dx > 0) {
+                const ny = Math.max(topB, y - Math.max(0, dy)), nx = Math.max(0, x - Math.max(0, dx));
+                for (const t2 of [elm, box]) {
+                    t2.style.setProperty('--wm-y', ny + 'px');
+                    t2.style.setProperty('--wm-x', nx + 'px');
+                }
+            }
+        } /* correct by the real position (e.g. the DEMO bar shifts the page) */
     }
     function bindWm(root, kind) {
         const host = kind === 'modal' ? el('#modal') : root;
@@ -8670,6 +8783,56 @@ var KXAPP;
         bar.querySelector('[data-wm-min]').onclick = (e) => { const m = !wmGet(kind).min; wmSet(kind, { min: m }); applyWm(host, kind); e.target.textContent = m ? '▢' : '▁'; };
         const box = () => kind === 'modal' ? host.querySelector('.modal') : host;
         const handles = [bar, root.querySelector('.drawer-head')].filter(Boolean);
+        const toFloat = () => { if (wmGet(kind).mode !== 'FLOAT') {
+            wmSet(kind, { mode: 'FLOAT', min: false });
+            bar.querySelectorAll('[data-wm-mode]').forEach((x) => x.classList.toggle('active', x.dataset.wmMode === 'FLOAT'));
+        } };
+        bar.querySelectorAll('[data-wm-size]').forEach(sb => sb.onclick = () => { toFloat(); const s = wmGet(kind), f = Number(sb.dataset.wmSize) > 0 ? 1.15 : 1 / 1.15, vw = window.innerWidth, vh = window.innerHeight; const nw = Math.round(Math.max(320, Math.min(vw, s.w * f))), nh = Math.round(Math.max(220, Math.min(vh - 60, s.h * f))); wmSet(kind, { w: nw, h: nh, x: Math.round(s.x - (nw - s.w) / 2), y: Math.round(s.y - (nh - s.h) / 2), prev: null }); applyWm(host, kind); });
+        const mx = bar.querySelector('[data-wm-max]');
+        if (mx)
+            mx.onclick = () => { toFloat(); const s = wmGet(kind); if (s.prev) {
+                wmSet(kind, { ...s.prev, prev: null });
+                mx.textContent = '⤢';
+                mx.title = TL('wmx.max');
+            }
+            else {
+                const top = Math.round(document.querySelector('.topbar')?.getBoundingClientRect().bottom || 0);
+                wmSet(kind, { prev: { x: s.x, y: s.y, w: s.w, h: s.h }, x: 8, y: top + 6, w: window.innerWidth - 16, h: window.innerHeight - top - 14 });
+                mx.textContent = '⤡';
+                mx.title = TL('wmx.restore');
+            } applyWm(host, kind); };
+        {
+            const bx = box();
+            if (bx && !bx.querySelector(':scope > .kx-rz')) {
+                for (const dir of ['e', 'w', 's', 'se', 'sw']) {
+                    const hz = document.createElement('div');
+                    hz.className = 'kx-rz kx-rz-' + dir;
+                    hz.dataset.rz = dir;
+                    bx.appendChild(hz);
+                }
+            }
+            bx?.querySelectorAll(':scope > .kx-rz').forEach(hz => hz.onpointerdown = (ev) => {
+                if (wmGet(kind).mode !== 'FLOAT')
+                    return;
+                ev.preventDefault();
+                ev.stopPropagation();
+                const s0 = wmGet(kind), x0 = ev.clientX, y0 = ev.clientY, dir = String(hz.dataset.rz);
+                const mv = (m) => { const dx = m.clientX - x0, dy = m.clientY - y0; let { x, w, h } = s0; if (dir.includes('e'))
+                    w = s0.w + dx; if (dir.includes('w')) {
+                    w = s0.w - dx;
+                    x = s0.x + dx;
+                } if (dir.includes('s'))
+                    h = s0.h + dy; if (w < 320) {
+                    if (dir.includes('w'))
+                        x -= 320 - w;
+                    w = 320;
+                } if (h < 200)
+                    h = 200; wmSet(kind, { x, w, h, prev: null }); applyWm(host, kind); };
+                const up = () => { document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); };
+                document.addEventListener('pointermove', mv);
+                document.addEventListener('pointerup', up);
+            });
+        }
         for (const h of handles)
             h.onpointerdown = (e) => {
                 if (wmGet(kind).mode !== 'FLOAT' || e.target.closest('button,input,select,label'))
@@ -8689,6 +8852,115 @@ var KXAPP;
                 if (Math.abs(r.width - w.w) > 4 || Math.abs(r.height - w.h) > 4)
                     wmSet(kind, { w: Math.round(r.width), h: Math.round(r.height) });
             } };
+    }
+    window.addEventListener('resize', () => { const m = el('#modal'); if (m?.classList.contains('open'))
+        applyWm(m, 'modal'); const d = el('#drawer'); if (d?.classList.contains('open'))
+        applyWm(d, 'drawer'); });
+    /* N2.6b+ (user: floating windows everywhere, resizable, floating by default): hubs float on PC – drag by the header, resize by edges / corner, − ＋ ⤢, Floating ⇄ Full */
+    function kxHubFloat() {
+        const ins = document.querySelector('#inspector');
+        if (!ins)
+            return;
+        const hub = ins.classList.contains('open') && ins.classList.contains('hub-full');
+        const narrow = window.matchMedia('(max-width:680px)').matches;
+        const on = hub && !narrow && wmGet('inspector').mode === 'FLOAT';
+        ins.classList.toggle('kx-wm-float', on);
+        if (!on)
+            kxHubRzSync(ins, false);
+        document.querySelectorAll('#inspector .kx-rz').forEach(x => x.remove()); /* clean up handles that ended inside the hub */
+        const head = ins.querySelector('.kx-hub-head');
+        if (!hub || narrow || !head)
+            return;
+        let tb = head.querySelector('.kx-hubwm');
+        if (!tb) {
+            tb = document.createElement('span');
+            tb.className = 'kx-hubwm';
+            const tools = head.querySelector('.kx-ins-tools');
+            (tools || head).insertBefore(tb, tools ? tools.firstChild : null);
+        }
+        const s = wmGet('inspector');
+        const tbHtml = `${on ? `<button type="button" class="icon-btn" data-hubwm-size="-1" title="${esc(TL('wmx.smaller'))}">−</button><button type="button" class="icon-btn" data-hubwm-size="1" title="${esc(TL('wmx.bigger'))}">＋</button><button type="button" class="icon-btn" data-hubwm-max title="${esc(TL(s.prev ? 'wmx.restore' : 'wmx.max'))}">${s.prev ? '⤡' : '⤢'}</button>` : ''}<button type="button" class="icon-btn" data-hubwm-mode title="${esc(TL(on ? 'wmx.toFull' : 'wmx.toFloat'))}">${on ? '▣' : '⧠'}</button>`;
+        if (tb.dataset.sig !== tbHtml) {
+            tb.dataset.sig = tbHtml;
+            tb.innerHTML = tbHtml;
+        } /* write only on change – rewriting on every DOM change fed the observer in a loop */
+        head.querySelectorAll('[data-ins-wide]').forEach(x => { if (on)
+            x.setAttribute('hidden', '');
+        else if (!narrow)
+            x.removeAttribute('hidden'); });
+        tb.querySelector('[data-hubwm-mode]').onclick = (e) => { e.stopPropagation(); wmSet('inspector', { mode: on ? 'FULL' : 'FLOAT', min: false }); kxHubFloat(); };
+        if (!on)
+            return;
+        applyWm(ins, 'inspector');
+        tb.querySelectorAll('[data-hubwm-size]').forEach(sb => sb.onclick = (e) => { e.stopPropagation(); const s0 = wmGet('inspector'), f = Number(sb.dataset.hubwmSize) > 0 ? 1.12 : 1 / 1.12, vw = window.innerWidth, vh = window.innerHeight; const nw = Math.round(Math.max(420, Math.min(vw, s0.w * f))), nh = Math.round(Math.max(300, Math.min(vh - 60, s0.h * f))); wmSet('inspector', { w: nw, h: nh, x: Math.round(s0.x - (nw - s0.w) / 2), y: Math.round(s0.y - (nh - s0.h) / 2), prev: null }); applyWm(ins, 'inspector'); kxHubRzSync(ins, true); });
+        const mx = tb.querySelector('[data-hubwm-max]');
+        if (mx)
+            mx.onclick = (e) => { e.stopPropagation(); const s0 = wmGet('inspector'); if (s0.prev)
+                wmSet('inspector', { ...s0.prev, prev: null });
+            else {
+                const top = Math.round(document.querySelector('.topbar')?.getBoundingClientRect().bottom || 0);
+                wmSet('inspector', { prev: { x: s0.x, y: s0.y, w: s0.w, h: s0.h }, x: 6, y: top + 4, w: window.innerWidth - 12, h: window.innerHeight - top - 10 });
+            } kxHubFloat(); };
+        if (!head.dataset.hubwmDrag) {
+            head.dataset.hubwmDrag = '1';
+            head.addEventListener('pointerdown', (e) => {
+                if (!ins.classList.contains('kx-wm-float') || e.target.closest('button,input,select,label,a,[role=button]'))
+                    return;
+                const s0 = wmGet('inspector'), x0 = e.clientX, y0 = e.clientY;
+                e.preventDefault();
+                const mv = (ev) => { wmSet('inspector', { x: s0.x + ev.clientX - x0, y: s0.y + ev.clientY - y0, prev: null }); applyWm(ins, 'inspector'); kxHubRzSync(ins, true); };
+                const up = () => { document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); };
+                document.addEventListener('pointermove', mv);
+                document.addEventListener('pointerup', up);
+            });
+        }
+        kxHubRzSync(ins, true);
+    }
+    /* resize handles live in an overlay outside the hub (the hub moves foreign children into its admin section) */
+    function kxHubRzSync(ins, on) {
+        let ov = document.getElementById('kxHubRz');
+        if (!on) {
+            ov?.remove();
+            return;
+        }
+        if (!ov) {
+            ov = document.createElement('div');
+            ov.id = 'kxHubRz';
+            for (const dir of ['e', 'w', 's', 'se', 'sw']) {
+                const hz = document.createElement('div');
+                hz.className = 'kx-rz kx-rz-' + dir;
+                hz.dataset.rz = dir;
+                ov.appendChild(hz);
+                hz.onpointerdown = (ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    const s0 = wmGet('inspector'), x0 = ev.clientX, y0 = ev.clientY;
+                    const mv = (m) => { const dx = m.clientX - x0, dy = m.clientY - y0; let { x, w, h } = s0; if (dir.includes('e'))
+                        w = s0.w + dx; if (dir.includes('w')) {
+                        w = s0.w - dx;
+                        x = s0.x + dx;
+                    } if (dir.includes('s'))
+                        h = s0.h + dy; if (w < 420) {
+                        if (dir.includes('w'))
+                            x -= 420 - w;
+                        w = 420;
+                    } if (h < 300)
+                        h = 300; wmSet('inspector', { x, w, h, prev: null }); const i2 = document.querySelector('#inspector'); applyWm(i2, 'inspector'); kxHubRzSync(i2, true); };
+                    const up = () => { document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); };
+                    document.addEventListener('pointermove', mv);
+                    document.addEventListener('pointerup', up);
+                };
+            }
+            document.body.appendChild(ov);
+        }
+        const r = ins.getBoundingClientRect();
+        Object.assign(ov.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+    }
+    {
+        let hT = 0;
+        new MutationObserver(() => { if (hT)
+            return; hT = setTimeout(() => { hT = 0; kxHubFloat(); }, 90); }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+        window.addEventListener('resize', () => setTimeout(kxHubFloat, 100));
     }
     function ensureModalWm() {
         const m = el('#modal');
@@ -10210,10 +10482,10 @@ var KXAPP;
                 const base = new Date(Math.max(Date.now(), cur?.dueAt ? Date.parse(cur.dueAt + 'T12:00:00') : 0));
                 const plus = (d, m = 0) => { const x = new Date(base); x.setDate(x.getDate() + d); if (m)
                     x.setMonth(x.getMonth() + m); return ymd(x); };
-                const mv = (due) => run(async () => { const r = await runtime.entities.get(rid); return runtime.actions.invoke(RS, { id: rid, expectedRevision: r.revision, [cfg.itemIdKey]: iid, dueAt: due }, C); }, TL('tq.moved').replace('{d}', new Date(due + 'T12:00:00').toLocaleDateString()));
-                items.push({ key: 'rs1', group: TL('tq.move'), label: `📅 ${TL('tq.tomorrow')}`, hint: new Date(plus(1) + 'T12:00:00').toLocaleDateString(), run: () => mv(plus(1)) });
-                items.push({ key: 'rs7', group: TL('tq.move'), label: `📅 ${TL('tq.week')}`, hint: new Date(plus(7) + 'T12:00:00').toLocaleDateString(), run: () => mv(plus(7)) });
-                items.push({ key: 'rsm', group: TL('tq.move'), label: `📅 ${TL('tq.month')}`, hint: new Date(plus(0, 1) + 'T12:00:00').toLocaleDateString(), run: () => mv(plus(0, 1)) });
+                const mv = (due) => run(async () => { const r = await runtime.entities.get(rid); return runtime.actions.invoke(RS, { id: rid, expectedRevision: r.revision, [cfg.itemIdKey]: iid, dueAt: due }, C); }, TL('tq.moved').replace('{d}', new Date(due + 'T12:00:00').toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ')));
+                items.push({ key: 'rs1', group: TL('tq.move'), label: `📅 ${TL('tq.tomorrow')}`, hint: new Date(plus(1) + 'T12:00:00').toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'), run: () => mv(plus(1)) });
+                items.push({ key: 'rs7', group: TL('tq.move'), label: `📅 ${TL('tq.week')}`, hint: new Date(plus(7) + 'T12:00:00').toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'), run: () => mv(plus(7)) });
+                items.push({ key: 'rsm', group: TL('tq.move'), label: `📅 ${TL('tq.month')}`, hint: new Date(plus(0, 1) + 'T12:00:00').toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'), run: () => mv(plus(0, 1)) });
                 items.push({ key: 'rsx', group: TL('tq.move'), label: `📅 ${TL('tq.pick')}`, run: async () => { const v = await agAskDate(TL('tq.pickT').replace('{n}', String(it.title || cur?.label || '')), String(cur?.dueAt || '').slice(0, 10)); if (v)
                         await mv(v); } });
             }
@@ -12902,7 +13174,7 @@ var KXAPP;
           ${src.hubAware && !cfg.lockHub ? `<select data-insight-hub aria-label="Hub"><option value="">Všechny huby</option>${hubs.map(h => `<option value="${esc(h)}" ${st.params.hub === h ? 'selected' : ''}>${esc(hubLabel(h))}</option>`).join('')}</select>` : ''}
           <span style="flex:1"></span><button class="icon-btn" data-insight-more title="Další akce" aria-haspopup="menu">⋮</button></div>
           <div data-insight-body style="overflow:auto">${data.error ? `<p class="empty" role="alert">${esc(data.error)}</p>` : KXInsights.render(st.viz, data, { title: cfg.title || src.title })}</div>
-          <small style="opacity:.7" data-insight-range-label>${esc(new Date(data.from || r.from).toLocaleDateString())} – ${esc(new Date((data.to || r.to) - 1).toLocaleDateString())}</small></div>`;
+          <small style="opacity:.7" data-insight-range-label>${esc(new Date(data.from || r.from).toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ', { timeZone: 'UTC' }))} – ${esc(new Date((data.to || r.to) - 1).toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ', { timeZone: 'UTC' }))}</small></div>`;
         const re = () => void mountInsightView(host, cfg);
         if (cfg.placeKey)
             host.dataset.insightPlace = cfg.placeKey;
@@ -12922,7 +13194,7 @@ var KXAPP;
             { key: 'save', label: '💾 Uložit jako můj přehled…', run: async () => { const t = prompt('Název přehledu', cfg.title || src.title); if (!t)
                     return; const w = await runtime.actions.invoke('ACTION.CORE.INSIGHT.WIDGET_SAVE', { title: t, sourceId: st.sourceId, viz: st.viz, params: { ...st.params, hub: cfg.lockHub || st.params.hub || null } }, C); await registerWidgetViews(); toast(`Uloženo: ${w.title}`); } },
             { key: 'pin', label: '📌 Připnout na Můj den…', run: async () => { const t = prompt('Název přehledu na Můj den', cfg.title || src.title); if (!t)
-                    return; await runtime.actions.invoke('ACTION.CORE.INSIGHT.WIDGET_SAVE', { title: t, sourceId: st.sourceId, viz: st.viz, params: { ...st.params, hub: cfg.lockHub || st.params.hub || null }, pinHome: true }, C); await registerWidgetViews(); toast('Připnuto na Můj den'); if (state.activeSection === 'today')
+                    return; await runtime.actions.invoke('ACTION.CORE.INSIGHT.WIDGET_SAVE', { title: t, sourceId: st.sourceId, viz: st.viz, params: { ...st.params, hub: cfg.lockHub || st.params.hub || null }, pinHome: true }, C); await registerWidgetViews(); toast('Připnuto na Pracovní stůl'); if (state.activeSection === 'desk')
                     render(); } },
             { key: 'pane', label: '⊞ Otevřít vedle (v panelu)', run: async () => { const w = await runtime.actions.invoke('ACTION.CORE.INSIGHT.WIDGET_SAVE', { title: cfg.title || src.title, sourceId: st.sourceId, viz: st.viz, params: { ...st.params, hub: cfg.lockHub || st.params.hub || null } }, C); await registerWidgetViews(); lyUi.state = await runtime.actions.invoke('ACTION.CORE.LAYOUT.OPEN_VIEW', { deviceClass: deviceClass(), viewId: 'INSIGHT:w.' + w.id, placement: 'NEW_PANE' }, C); await hydrateLayout(); } },
             { key: 'pin-hub', label: '📌 Připnout do hubu…', run: () => kxMoreMenu(more, Object.keys(HUB_WORKSPACES).map(h => ({ key: 'pinhub-' + h, label: `▣ ${hubLabel(h)}`, run: async () => { const t = prompt('Název přehledu v hubu', cfg.title || src.title); if (!t)
@@ -13019,7 +13291,7 @@ var KXAPP;
                     body = `<div class="muted">${esc(TL('home.wx.off'))}</div><button class="btn compact" data-wx-enable>${esc(TL('home.wx.enable'))}</button>`;
                 else if (homeWx.data) {
                     const w = homeWx.data;
-                    body = `<div class="kx-wx"><span class="kx-wx-icon">${w.icon}</span><b>${w.temp} °C</b> <span>${esc(TL('wx.' + w.group))}</span></div><div class="muted">${w.min != null ? `${w.min} / ${w.max} °C` : ''}${w.rain != null ? ` · ${w.rain} mm` : ''}${w.place ? ` · ${esc(w.place)}` : ''}</div>${homeWx.err ? `<div class="muted">${esc(TL('home.wx.offline'))} · ${esc(TL('home.wx.last'))} ${esc(new Date(w.at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }))}</div>` : ''}`;
+                    body = `<div class="kx-wx"><span class="kx-wx-icon">${w.icon}</span><b>${w.temp} °C</b> <span>${esc(TL('wx.' + w.group))}</span></div>${kxWxSpark(w.hours)}<button type="button" class="btn ghost compact kx-wx-more" data-wx-open>${esc(TL('wx2.forecast'))} ›</button><div class="muted">${w.min != null ? `${w.min} / ${w.max} °C` : ''}${w.rain != null ? ` · ${w.rain} mm` : ''}${w.place ? ` · ${esc(w.place)}` : ''}</div>${homeWx.err ? `<div class="muted">${esc(TL('home.wx.offline'))} · ${esc(TL('home.wx.last'))} ${esc(new Date(w.at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }))}</div>` : ''}`;
                 }
                 else
                     body = homeWx.err ? `<div class="muted">${esc(TL('home.wx.err.' + homeWx.err) || TL('home.wx.offline'))}</div>${wxSrc === 'CITY' || homeWx.err === 'DENIED' ? `<input data-wx-city placeholder="${esc(TL('home.wx.cityPh'))}" value="${esc(wxCity)}"> <button class="btn compact" data-wx-city-save>${esc(TL('home.wx.useCity'))}</button>` : ''}` : `<div class="muted" data-wx-loading>${esc(TL('home.wx.loading'))}</div>`;
@@ -13048,12 +13320,23 @@ var KXAPP;
         host.querySelector('[data-wx-enable]')?.addEventListener('click', async () => { if (!confirm(TL('home.wx.consent')))
             return; await uPut('home.weather.enabled', true); void mountHomeStrip(host, editing); });
         host.querySelector('[data-wx-city-save]')?.addEventListener('click', async () => { const v = host.querySelector('[data-wx-city]').value.trim(); await uPut('home.weather.source', 'CITY'); await uPut('home.weather.city', v); homeWx.err = ''; homeWx.at = 0; void mountHomeStrip(host, editing); });
+        /* N2.6b+ safety net: while the tile shows “loading”, re-check every 1.2 s (max 20 s) and repaint once the data is there */
+        if (host.querySelector('[data-wx-loading]')) {
+            let tries = 0;
+            const poll = () => { if (!document.body.contains(host))
+                return; if (homeWx.data || homeWx.err) {
+                void mountHomeStrip(host, editing);
+                return;
+            } if (++tries < 17)
+                setTimeout(poll, 1200); };
+            setTimeout(poll, 1200);
+        }
         /* weather: only when enabled; cached 30 min; device position needs the system's permission */
         if (wxOn && !homeWx.loading && (Date.now() - homeWx.at > 30 * 60000)) {
             homeWx.loading = true;
-            const done = () => { homeWx.loading = false; if (document.body.contains(host))
-                void mountHomeStrip(host, editing); };
-            const go = async (src) => { try {
+            const done = () => { homeWx.loading = false; const h = document.querySelector('[data-home-strip]') || (document.body.contains(host) ? host : null); if (h)
+                void mountHomeStrip(h, editing); }; /* N2.6b+: repaint My day once the weather arrives (max. once per 30 min) */ /* N2.6b+: the strip may have been re-rendered meanwhile – paint the current one */
+            const go = async (src) => { homeWx.src = src; try {
                 homeWx.data = await HT.fetchWeather(src, globalThis.fetch?.bind(globalThis), lang);
                 homeWx.err = '';
             }
@@ -13071,20 +13354,86 @@ var KXAPP;
             }
         }
     }
+    /* N2.6b+ Weather v2 (phase A): 48 h sparkline on the tile, forecast window – 48 h chart (temperature + rain probability) and 7 / 16 days */
+    function kxWxSpark(hours) {
+        const H = (hours || []).filter((h) => h.temp != null);
+        if (H.length < 4)
+            return '';
+        const T = H.map((h) => h.temp), mn = Math.min(...T), mx = Math.max(...T), span = Math.max(1, mx - mn);
+        const pts = H.map((h, i) => `${(i / (H.length - 1) * 100).toFixed(1)},${(26 - (h.temp - mn) / span * 22).toFixed(1)}`).join(' ');
+        return `<svg class="kx-wx-spark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-label="${esc(TL('wx2.next48'))}"><polyline points="${pts}" fill="none" stroke="var(--accent,#f2c869)" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg><small class="muted kx-wx-sparklab">${esc(TL('wx2.next48'))}: ${mn}–${mx} °C</small>`;
+    }
+    function kxWxChart(hours) {
+        const H = (hours || []).filter((h) => h.temp != null);
+        if (H.length < 4)
+            return `<p class="muted">${esc(TL('wx2.noHours'))}</p>`;
+        const W = 960, Hh = 190, pad = 28, T = H.map((h) => h.temp), mn = Math.min(...T) - 1, mx = Math.max(...T) + 1, span = Math.max(1, mx - mn);
+        const x = (i) => pad + i / (H.length - 1) * (W - pad * 2), y = (v) => Hh - 30 - (v - mn) / span * (Hh - 60);
+        const bars = H.map((h, i) => h.pop ? `<rect x="${(x(i) - 6).toFixed(1)}" y="${(Hh - 30 - (h.pop / 100) * 50).toFixed(1)}" width="12" height="${((h.pop / 100) * 50).toFixed(1)}" fill="color-mix(in srgb,#4ea3ff 55%,transparent)"><title>${h.pop} %</title></rect>` : '').join('');
+        const line = H.map((h, i) => `${x(i).toFixed(1)},${y(h.temp).toFixed(1)}`).join(' ');
+        const labs = H.map((h, i) => i % 6 === 0 ? `<text x="${x(i).toFixed(1)}" y="${Hh - 10}" text-anchor="middle" font-size="12" fill="currentColor" opacity=".75">${new Date(h.t).toLocaleString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ', { weekday: 'short', hour: '2-digit' })}</text><text x="${x(i).toFixed(1)}" y="${(y(h.temp) - 8).toFixed(1)}" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">${h.temp}°</text><text x="${x(i).toFixed(1)}" y="${(y(h.temp) + 22).toFixed(1)}" text-anchor="middle" font-size="15">${h.icon}</text>` : '').join('');
+        return `<svg class="kx-wx-chart" viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${esc(TL('wx2.next48'))}">${bars}<polyline points="${line}" fill="none" stroke="var(--accent,#f2c869)" stroke-width="2.5"/>${labs}</svg><small class="muted">${esc(TL('wx2.chartHint'))}</small>`;
+    }
+    async function kxWxModal(days = 7) {
+        const HT = globalThis.KXHomeTiles;
+        const m = toolHost('weather');
+        let w = homeWx.data;
+        const paint = (note = '') => {
+            const loc = UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ';
+            const tm = (s) => s ? new Date(s).toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' }) : '—';
+            const d0 = w?.days?.[0];
+            m.innerHTML = `<div class="modal" data-wx-modal><div class="drawer-head"><div><b>🌤 ${esc(TL('wx2.title'))}${w?.place ? ` · ${esc(w.place)}` : ''}</b><small>${esc(TL('wx2.sub'))}</small></div><button class="icon-btn" data-close>×</button></div><div class="ins-section kx-wx2">
+          ${w ? `<div class="kx-wx2-now"><span class="kx-wx2-big">${w.icon} ${w.temp} °C</span><span>${esc(TL('wx.' + w.group))}</span><span class="muted">${w.feels != null ? `${esc(TL('wx2.feels'))} ${w.feels} °C · ` : ''}${w.humidity != null ? `💧 ${w.humidity} % · ` : ''}${w.wind != null ? `💨 ${w.wind} km/h · ` : ''}🌅 ${tm(d0?.sunrise)} · 🌇 ${tm(d0?.sunset)}</span></div>
+          <h4>${esc(TL('wx2.next48'))}</h4>${kxWxChart(w.hours)}
+          <div class="kx-wx2-dayshead"><h4>${esc(TL('wx2.daysTitle'))}</h4><span class="kx-pills"><button type="button" class="${days === 7 ? 'active' : ''}" data-wx-days="7">7 ${esc(TL('agd.days'))}</button><button type="button" class="${days === 16 ? 'active' : ''}" data-wx-days="16">16 ${esc(TL('agd.days'))}</button></span></div>
+          <div class="kx-wx2-days">${(w.days || []).slice(0, days).map((d) => `<div class="kx-wx2-day"><b>${esc(new Date(d.date).toLocaleDateString(loc, { weekday: 'short', day: 'numeric', month: 'numeric' }))}</b><span class="kx-wx2-ic">${d.icon}</span><span class="kx-wx2-t"><b>${d.max ?? '—'}°</b> / ${d.min ?? '—'}°</span><span class="muted">${d.pop != null ? `☔ ${d.pop} %` : ''}${d.rain ? ` · ${d.rain} mm` : ''}</span></div>`).join('')}</div>` : `<p class="muted">${esc(TL('home.wx.off'))}</p>`}
+          ${note ? `<p class="muted">${esc(note)}</p>` : ''}</div></div>`;
+            m.querySelector('[data-close]').onclick = () => { m.className = 'modal-wrap'; m.innerHTML = ''; };
+            m.querySelectorAll('[data-wx-days]').forEach(b => b.onclick = () => void kxWxModal(Number(b.dataset.wxDays)));
+        };
+        paint();
+        if (days > ((w?.days || []).length) && homeWx.src && HT?.fetchWeather) {
+            paint(TL('wx2.loading'));
+            try {
+                w = await HT.fetchWeather({ ...homeWx.src, days }, globalThis.fetch?.bind(globalThis), UI_LOCALE);
+                paint();
+            }
+            catch {
+                paint(TL('home.wx.offline'));
+            }
+        }
+    }
     async function mountHomeWidgets() {
-        if (state.activeSection !== 'today')
-            return; /* N2.2b perf: a burst of renders of Můj den re-ran the whole board each time (default composition = agenda queries) — collapse the burst into one board render after a short pause, drop stale ones */
+        if (state.activeSection !== 'desk' && state.activeSection !== 'today')
+            return; /* N2.6b+: My overviews live on the Desk */ /* N2.2b perf: a burst of renders of Můj den re-ran the whole board each time (default composition = agenda queries) — collapse the burst into one board render after a short pause, drop stale ones */
         const __hg = kxGen('homeboard');
         await new Promise(r => setTimeout(r, 180));
-        if (!kxLatest('homeboard', __hg) || state.activeSection !== 'today')
+        if (!kxLatest('homeboard', __hg) || (state.activeSection !== 'desk' && state.activeSection !== 'today'))
             return;
         const c = el('#content');
         if (!c || !runtime.insights)
             return;
         let ws = [];
         void ws;
-        if (state.activeSection !== 'today')
+        if (state.activeSection !== 'desk' && state.activeSection !== 'today')
             return;
+        if (state.activeSection === 'today') { /* N2.4q: the home strip sits right under the page header (top of Můj den), not under the big cards */
+            let top = c.querySelector('[data-home-strip]');
+            if (!top) {
+                top = document.createElement('div');
+                top.dataset.homeStrip = '1';
+                const dash = c.querySelector('[data-ag-dash]');
+                const first = c.firstElementChild;
+                if (dash)
+                    c.insertBefore(top, dash);
+                else if (first && first.nextSibling)
+                    c.insertBefore(top, first.nextSibling);
+                else
+                    c.prepend(top);
+            } /* N2.6b: the home strip (clock, holiday, weather – N2.4q decision) stays at the top, above the overview */
+            void mountHomeStrip(top);
+            return;
+        } /* N2.6b+: My day = the clock / holiday / weather strip, the Desk = My overviews */
         let sec = c.querySelector('[data-home-widgets]');
         if (!sec) {
             sec = document.createElement('section');
@@ -13092,21 +13441,6 @@ var KXAPP;
             sec.className = 'page-section';
             c.appendChild(sec);
         }
-        /* N2.4q: the home strip sits right under the page header (top of Můj den), not under the big cards */
-        let top = c.querySelector('[data-home-strip]');
-        if (!top) {
-            top = document.createElement('div');
-            top.dataset.homeStrip = '1';
-            const dash = c.querySelector('[data-ag-dash]');
-            const first = c.firstElementChild;
-            if (dash)
-                c.insertBefore(top, dash);
-            else if (first && first.nextSibling)
-                c.insertBefore(top, first.nextSibling);
-            else
-                c.prepend(top);
-        } /* N2.6b: the home strip (clock, holiday, weather – N2.4q decision) stays at the top, above the overview */
-        void mountHomeStrip(top);
         sec.innerHTML = '<h2>Moje přehledy</h2><div data-home-board></div>';
         await renderBoard(sec.querySelector('[data-home-board]'), 'HOME', () => void mountHomeWidgets());
         return;
@@ -13131,9 +13465,9 @@ var KXAPP;
         const items = virtual && comp ? comp.variantIds.map((id) => ({ virtual: true, ...P.variants.find((v) => v.id === id) })) : ws;
         host.dataset.board = board;
         host.dataset.boardDefault = virtual ? '1' : '0';
-        host.innerHTML = `<div class="studio-toolbar" data-board-toolbar style="gap:4px;font-size:12px">${virtual ? `<small data-board-default-note>Výchozí sestava „${esc(comp?.title || '')}“ – vyberte jinou nebo přidejte vlastní.</small>` : `<small>${ws.length} přehledů</small>`}<span style="flex:1"></span>
-          <button class="btn ghost compact" data-board-presets>▤ Sestavy (${P.compositions.length})</button><button class="btn ghost compact" data-board-variants>＋ Varianta (${P.variants.length})</button>${meta.customized ? '<button class="btn ghost compact" data-board-reset>↺ Výchozí</button>' : ''}</div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px">${items.map((w, i) => `<div class="settings-card" ${w.virtual ? `data-board-virtual="${esc(w.id)}"` : `data-board-widget="${esc(w.id)}" ${board === 'HOME' ? `data-home-widget="${esc(w.id)}"` : ''}`} data-board-slot="${i}"></div>`).join('')}</div>`;
+        host.innerHTML = `<div class="studio-toolbar" data-board-toolbar style="gap:4px;font-size:12px">${virtual ? `<small data-board-default-note>${esc(TL('brd.note').replace('{t}', String(comp?.title || '')))}</small>` : `<small>${ws.length} přehledů</small>`}<span style="flex:1"></span>
+          <button class="btn ghost compact" data-board-presets data-count="${P.compositions.length}" title="${esc(TL('brd.presetsHint'))} (${P.compositions.length})">▤ ${esc(TL('brd.presets'))}</button><button class="btn compact" data-board-variants data-count="${P.variants.length}" title="${esc(TL('brd.addHint'))} (${P.variants.length})">＋ ${esc(TL('brd.add'))}</button>${meta.customized ? '<button class="btn ghost compact" data-board-reset>↺ Výchozí</button>' : ''}</div>
+          <div class="kx-board-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:10px">${items.map((w, i) => `<div class="settings-card" ${w.virtual ? `data-board-virtual="${esc(w.id)}"` : `data-board-widget="${esc(w.id)}" ${board === 'HOME' ? `data-home-widget="${esc(w.id)}"` : ''}`} data-board-slot="${i}"></div>`).join('')}</div>`;
         const pres = host.querySelector('[data-board-presets]');
         pres.onclick = () => kxMoreMenu(pres, P.compositions.map((c) => ({ key: 'bp-' + c.id, label: `▤ ${c.title} (${c.variantIds.length})`, run: async () => { const mode = ws.length && !confirm('Nahradit současné přehledy na nástěnce? (Zrušit = přidat k nim.) Nic se nesmaže – nahrazené zůstanou v Moje přehledy.') ? 'ADD' : 'REPLACE'; await runtime.actions.invoke('ACTION.CORE.INSIGHT.APPLY_PRESET', { board, compositionId: c.id, mode }, C); await registerWidgetViews(); toast(`Sestava „${c.title}“`); refresh(); } })));
         const vb = host.querySelector('[data-board-variants]');
@@ -13211,7 +13545,7 @@ var KXAPP;
         }
         catch { }
         host.dataset.hubProcesses = hub;
-        host.innerHTML = `<div class="studio-toolbar"><b>🧩 Postupy hubu</b><small>${list.length}</small><span style="flex:1"></span><button class="btn ghost compact" data-hub-process-new aria-haspopup="menu">＋ Postup</button></div>${list.map((x) => `<button class="row-btn compact" data-hub-process-open="${esc(x.id)}"><span><b>${esc(x.name)}</b>${x.description ? `<small class="ag-proc-desc">${esc(String(x.description).slice(0, 140))}</small>` : ''}${x.dueAt || x.responsible ? `<small class="ag-proc-meta">${x.dueAt ? `📅 ${esc(new Date(x.dueAt).toLocaleDateString())}` : ''}${x.dueAt && x.responsible ? ' · ' : ''}${x.responsible ? `👤 ${esc(x.responsible)}` : ''}</small>` : ''}<small>${x.steps.length} kroků · ${x.running} běží</small></span><em>${x.progress} %</em></button>`).join('') || '<p class="empty" data-hub-process-none>Žádné postupy tohoto hubu.</p>'}`;
+        host.innerHTML = `<div class="studio-toolbar"><b>🧩 Postupy hubu</b><small>${list.length}</small><span style="flex:1"></span><button class="btn ghost compact" data-hub-process-new aria-haspopup="menu">＋ Postup</button></div>${list.map((x) => `<button class="row-btn compact" data-hub-process-open="${esc(x.id)}"><span><b>${esc(x.name)}</b>${x.description ? `<small class="ag-proc-desc">${esc(String(x.description).slice(0, 140))}</small>` : ''}${x.dueAt || x.responsible ? `<small class="ag-proc-meta">${x.dueAt ? `📅 ${esc(new Date(x.dueAt).toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}` : ''}${x.dueAt && x.responsible ? ' · ' : ''}${x.responsible ? `👤 ${esc(x.responsible)}` : ''}</small>` : ''}<small>${x.steps.length} kroků · ${x.running} běží</small></span><em>${x.progress} %</em></button>`).join('') || '<p class="empty" data-hub-process-none>Žádné postupy tohoto hubu.</p>'}`;
         const nb = host.querySelector('[data-hub-process-new]');
         nb.onclick = () => kxMoreMenu(nb, tpl.filter((t) => t.hub === hub).concat(tpl.filter((t) => !t.hub)).map((t) => ({ key: 'htpl-' + t.id, label: `${t.hub ? '▣' : '▤'} ${t.name}`, run: async () => {
                 const n = prompt('Název postupu', t.name);
@@ -13249,7 +13583,7 @@ var KXAPP;
               <td style="white-space:nowrap">${x.status === 'TODO' ? `<button class="btn ghost compact" data-step-start="${esc(x.id)}">▶</button>` : ''}${x.status === 'RUNNING' ? `<button class="btn compact" data-step-done="${esc(x.id)}">✓ Hotovo</button>` : ''}<button class="icon-btn" data-kx-propagate-source="STEP" data-kx-propagate-id="${esc(cur.id)}#${esc(x.id)}" title="${esc(TL('propagate.title'))}">↗</button>${['TODO', 'RUNNING'].includes(x.status) ? `<button class="icon-btn" data-step-skip="${esc(x.id)}" title="Přeskočit">⤼</button>` : ''}<button class="icon-btn" data-step-move="${esc(x.id)}|-1">↑</button><button class="icon-btn" data-step-move="${esc(x.id)}|1">↓</button>${x.status !== 'RUNNING' ? `<button class="icon-btn" data-step-remove="${esc(x.id)}" title="Odebrat">🗑</button>` : ''}</td></tr>`).join('')}</tbody></table>
             <div class="studio-toolbar"><input data-step-new placeholder="Nový krok" style="flex:1"><input type="number" min="0" data-step-new-plan placeholder="min" style="width:64px"><button class="btn compact" data-step-add>＋ Krok</button></div>
             <h3>Gantt postupu</h3><small>Plánovaný (šedý) pruh přetáhněte = posunout začátek; tažením za pravý okraj = změnit délku.</small><div data-process-gantt>${KXInsights.render('GANTT', { segments: cur.segments }, { title: 'Gantt – ' + cur.name })}</div></div>`
-            : `<div data-process-list>${mine.length ? `<h3>Moje kroky (${mine.length})</h3><div data-process-mine>${mine.map((x) => `<button class="row-btn compact" data-mine-open="${esc(x.processId)}"><span><b>${esc(x.title)}</b><small>${esc(x.process)}</small></span><em data-mine-state="${x.overdue ? 'OVERDUE' : x.status === 'RUNNING' ? 'RUNNING' : x.ready ? 'READY' : 'WAIT'}">${x.overdue ? '⚠ po plánu' : x.status === 'RUNNING' ? '▶ běží' : x.ready ? 'připraven' : 'čeká'}</em></button>`).join('')}</div>` : ''}<div class="studio-toolbar"><button class="btn compact" data-process-new aria-haspopup="menu">＋ Nový postup</button><small>${tpl.length} šablon</small></div>${list.map((x) => `<button class="row-btn" data-process-open="${esc(x.id)}"><span><b>${esc(x.name)}</b>${x.description ? `<small class="ag-proc-desc">${esc(String(x.description).slice(0, 140))}</small>` : ''}${x.dueAt || x.responsible ? `<small class="ag-proc-meta">${x.dueAt ? `📅 ${esc(new Date(x.dueAt).toLocaleDateString())}` : ''}${x.dueAt && x.responsible ? ' · ' : ''}${x.responsible ? `👤 ${esc(x.responsible)}` : ''}</small>` : ''}<small>${x.steps.length} kroků · ${x.running} běží · ${x.status === 'DONE' ? 'dokončeno' : 'otevřený'}</small></span><em>${bar(x)}</em></button>`).join('') || '<p class="empty" data-process-none>Zatím žádné postupy.</p>'}</div>`;
+            : `<div data-process-list>${mine.length ? `<h3>Moje kroky (${mine.length})</h3><div data-process-mine>${mine.map((x) => `<button class="row-btn compact" data-mine-open="${esc(x.processId)}"><span><b>${esc(x.title)}</b><small>${esc(x.process)}</small></span><em data-mine-state="${x.overdue ? 'OVERDUE' : x.status === 'RUNNING' ? 'RUNNING' : x.ready ? 'READY' : 'WAIT'}">${x.overdue ? '⚠ po plánu' : x.status === 'RUNNING' ? '▶ běží' : x.ready ? 'připraven' : 'čeká'}</em></button>`).join('')}</div>` : ''}<div class="studio-toolbar"><button class="btn compact" data-process-new aria-haspopup="menu">＋ Nový postup</button><small>${tpl.length} šablon</small></div>${list.map((x) => `<button class="row-btn" data-process-open="${esc(x.id)}"><span><b>${esc(x.name)}</b>${x.description ? `<small class="ag-proc-desc">${esc(String(x.description).slice(0, 140))}</small>` : ''}${x.dueAt || x.responsible ? `<small class="ag-proc-meta">${x.dueAt ? `📅 ${esc(new Date(x.dueAt).toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}` : ''}${x.dueAt && x.responsible ? ' · ' : ''}${x.responsible ? `👤 ${esc(x.responsible)}` : ''}</small>` : ''}<small>${x.steps.length} kroků · ${x.running} běží · ${x.status === 'DONE' ? 'dokončeno' : 'otevřený'}</small></span><em>${bar(x)}</em></button>`).join('') || '<p class="empty" data-process-none>Zatím žádné postupy.</p>'}</div>`;
         m.innerHTML = `<div class="modal" data-processes-tool style="max-width:1100px;width:96vw"><div class="drawer-head"><div><b>Pracovní postupy</b><small>Kroky libovolně přidávejte a ubírejte · každý krok má vlastní stopky · souběh i závislosti · Gantt</small></div><button class="icon-btn" data-close>×</button></div><div style="max-height:74vh;overflow:auto">${body}</div></div>`;
         m.querySelector('[data-close]').onclick = () => m.classList.remove('open');
         m.querySelector('[data-processes-tool]').addEventListener('click', e => e.stopPropagation());
@@ -15069,13 +15403,14 @@ var KXAPP;
             const name = (o) => runtime.i18n?.label(o, UI_LOCALE, { short: true }) || o;
             const T = (k) => runtime.i18n?.t(k, UI_LOCALE) || k;
             const rules = await svc.rules(CURRENT_USER_ID);
-            root.innerHTML = `<div class="ph-head"><div><b>${esc(T('notify.title'))}</b><small>${box.counts.total} ${esc(T('notify.total'))} · ${box.counts.overdue} ${esc(T('notify.overdueCount'))} · ${box.counts.unread} ${esc(T('notify.unread'))}${box.quiet ? ` · ${esc(T('notify.quiet'))}` : ''}</small></div><div class="veh-actions"><label>${esc(T('ui.language'))} <select data-ui-locale>${(runtime.i18n?.locales() || []).map((l) => `<option value="${esc(l)}" ${l === UI_LOCALE ? 'selected' : ''}>${l === 'cs' ? 'Čeština' : 'English'}</option>`).join('')}</select></label><label><input type="checkbox" data-notify-sensitive="APP.KX.HEALTH" ${rules.sensitiveShow?.['APP.KX.HEALTH'] || rules.showSensitiveDetails ? 'checked' : ''}> ${esc(T('notify.healthNames'))}</label></div></div>`
+            root.innerHTML = `<div class="ph-head"><div><b>${esc(T('notify.title'))}</b><small>${box.counts.total} ${esc(T('notify.total'))} · ${box.counts.overdue} ${esc(T('notify.overdueCount'))} · ${box.counts.unread} ${esc(T('notify.unread'))}${box.quiet ? ` · ${esc(T('notify.quiet'))}` : ''}</small></div><details class="kx-ntf-set"><summary title="${esc(TL('ntf2.settings'))}">⚙</summary><div class="kx-ntf-set-body"><label>${esc(T('ui.language'))} <select data-ui-locale>${(runtime.i18n?.locales() || []).map((l) => `<option value="${esc(l)}" ${l === UI_LOCALE ? 'selected' : ''}>${l === 'cs' ? 'Čeština' : 'English'}</option>`).join('')}</select></label><label><input type="checkbox" data-notify-sensitive="APP.KX.HEALTH" ${rules.sensitiveShow?.['APP.KX.HEALTH'] || rules.showSensitiveDetails ? 'checked' : ''}> ${esc(T('notify.healthNames'))}</label></div></details></div>`
                 + (box.sourceErrors.length ? `<small class="ph-error" role="alert" data-notify-source-error>${esc(T('notify.sourceDown'))}: ${box.sourceErrors.map((x) => esc(name(x.ownerApp))).join(', ')}</small>` : '') + (box.lockedSources?.length ? `<small class="ph-error" data-notify-locked="${esc(box.lockedSources.join(' '))}">🔒 ${esc(UI_LOCALE === 'cs' ? 'Zamčeno – přihlaste se' : 'Locked – sign in')}: ${box.lockedSources.map((x) => esc(name(x))).join(', ')}</small>` : '')
                 + (notifyUi.error ? `<small class="ph-error" role="alert">${esc(notifyUi.error)}</small>` : '')
-                + (box.items.length ? `<ul class="kx-notify-list">${box.items.slice(0, 50).map((n) => `<li data-notify-id="${esc(n.id)}" data-notify-state="${esc(n.state)}" data-notify-level="${esc(n.level || '')}" class="${n.read ? 'read' : ''} lv-${esc(n.level || '')}"><span>${ntfChip(n)} <b>${esc(T('notify.state.' + n.state))}</b> · ${esc(name(n.ownerApp))} · ${n.redacted ? esc(T('notify.sensitive')) : esc([n.subject, n.title].filter(Boolean).join(' – '))} · ${esc(new Date(n.dueAt + 'T00:00:00').toLocaleDateString())}</span><span class="veh-actions"><button class="btn ghost" data-notify-open="${esc(n.ownerApp)}">${esc(T('notify.open'))}</button>${n.read ? '' : `<button class="btn ghost" data-notify-read="${esc(n.id)}">${esc(T('notify.read'))}</button>`}<button class="btn ghost" data-notify-dismiss="${esc(n.id)}">${esc(T('notify.dismiss'))}</button><button class="btn ghost" data-ntf-level-open="${esc(n.id)}">${esc(TL('nlv.levelBtn'))} ▾</button></span><div class="kx-ntf-lv" data-ntf-lv-box="${esc(n.id)}" hidden>${['ALARM', 'WARNING', 'NOTICE', 'INFO'].map(l => `<button type="button" class="btn ghost compact ${n.level === l ? 'active' : ''}" data-ntf-lv="${l}" data-ntf-id="${esc(n.id)}">${NLV_ICON[l]} ${esc(TL('nlv.' + l))}</button>`).join('')}<button type="button" class="btn ghost compact" data-ntf-lv="POSTPONED" data-ntf-id="${esc(n.id)}">📝 ${esc(TL('nlv.toUnfinished'))}</button>${[[60, 'nlv.mute1h'], [1440, 'nlv.muteDay'], [10080, 'nlv.muteWeek']].map(([m, k]) => `<button type="button" class="btn ghost compact" data-ntf-mute="${m}" data-ntf-id="${esc(n.id)}">🔕 ${esc(TL(k))}</button>`).join('')}<button type="button" class="btn ghost compact" data-ntf-rule="${esc(n.ownerApp)}|${esc(n.kindCode || '')}|${esc(n.level || '')}">${esc(TL('nlv.forSimilar'))}</button>${n.levelSource === 'OWN' || n.muted ? `<button type="button" class="btn ghost compact" data-ntf-lv="" data-ntf-id="${esc(n.id)}">↺ ${esc(TL('nlv.reset'))}</button>` : ''}</div></li>`).join('')}</ul>` : `<div class="desk-empty">${esc(T('notify.empty'))}</div>`);
+                + (box.items.length ? (() => { const its = box.items.slice(0, 50); const groups = {}; for (const n of its)
+                    (groups[n.ownerApp] = groups[n.ownerApp] || []).push(n); return `<div class="kx-ntf-groups">${Object.keys(groups).map(app => `<section class="kx-ntf-grp" data-ntf-group="${esc(app)}"><h5><span>${esc(name(app))}</span><small>${groups[app].length}</small></h5><ul class="kx-notify-list">${groups[app].map((n) => `<li data-notify-id="${esc(n.id)}" data-notify-state="${esc(n.state)}" data-notify-level="${esc(n.level || '')}" class="kx-ntf-row ${n.read ? 'read' : ''} lv-${esc(n.level || '')}"><span class="kx-ntf-l">${ntfChip(n)}<span class="kx-ntf-t"><b>${n.redacted ? esc(T('notify.sensitive')) : esc([n.subject, n.title].filter(Boolean).join(' – '))}</b><small><span class="kx-ntf-st st-${esc(n.state)}">${esc(T('notify.state.' + n.state))}</span> · ${esc(new Date(n.dueAt + 'T00:00:00').toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}</small></span></span><span class="veh-actions kx-ntf-a"><button class="btn ghost compact" data-notify-open="${esc(n.ownerApp)}">${esc(T('notify.open'))}</button>${n.read ? '' : `<button class="btn ghost compact" data-notify-read="${esc(n.id)}" title="${esc(T('notify.read'))}">✓ ${esc(T('notify.read'))}</button>`}<button class="icon-btn" data-notify-dismiss="${esc(n.id)}" title="${esc(T('notify.dismiss'))}" aria-label="${esc(T('notify.dismiss'))}">✕</button><button class="icon-btn" data-ntf-level-open="${esc(n.id)}" title="${esc(TL('ntf2.more'))}" aria-label="${esc(TL('ntf2.more'))}">⋯</button></span><div class="kx-ntf-lv" data-ntf-lv-box="${esc(n.id)}" hidden>${['ALARM', 'WARNING', 'NOTICE', 'INFO'].map(l => `<button type="button" class="btn ghost compact ${n.level === l ? 'active' : ''}" data-ntf-lv="${l}" data-ntf-id="${esc(n.id)}">${NLV_ICON[l]} ${esc(TL('nlv.' + l))}</button>`).join('')}<button type="button" class="btn ghost compact" data-ntf-lv="POSTPONED" data-ntf-id="${esc(n.id)}">📝 ${esc(TL('nlv.toUnfinished'))}</button>${[[60, 'nlv.mute1h'], [1440, 'nlv.muteDay'], [10080, 'nlv.muteWeek']].map(([m, k]) => `<button type="button" class="btn ghost compact" data-ntf-mute="${m}" data-ntf-id="${esc(n.id)}">🔕 ${esc(TL(k))}</button>`).join('')}<button type="button" class="btn ghost compact" data-ntf-rule="${esc(n.ownerApp)}|${esc(n.kindCode || '')}|${esc(n.level || '')}">${esc(TL('nlv.forSimilar'))}</button>${n.levelSource === 'OWN' || n.muted ? `<button type="button" class="btn ghost compact" data-ntf-lv="" data-ntf-id="${esc(n.id)}">↺ ${esc(TL('nlv.reset'))}</button>` : ''}</div></li>`).join('')}</ul></section>`).join('')}</div>`; })() : `<div class="desk-empty">${esc(T('notify.empty'))}</div>`);
             /* N2.5q: items moved to „unfinished“ – listed apart with Return */
             if ((box.postponed || []).length)
-                root.insertAdjacentHTML('beforeend', `<details class="kx-ntf-postponed"><summary>📝 ${esc(TL('nlv.postponedTitle'))} (${box.postponed.length})</summary><ul class="kx-notify-list">${box.postponed.map((n) => `<li><span>${esc(name(n.ownerApp))} · ${n.redacted ? esc(T('notify.sensitive')) : esc([n.subject, n.title].filter(Boolean).join(' – '))} · ${esc(new Date(n.dueAt + 'T00:00:00').toLocaleDateString())}</span><span class="veh-actions"><button class="btn ghost compact" data-ntf-lv="" data-ntf-id="${esc(n.id)}">↺ ${esc(TL('nlv.return'))}</button></span></li>`).join('')}</ul></details>`);
+                root.insertAdjacentHTML('beforeend', `<details class="kx-ntf-postponed"><summary>📝 ${esc(TL('nlv.postponedTitle'))} (${box.postponed.length})</summary><ul class="kx-notify-list">${box.postponed.map((n) => `<li><span>${esc(name(n.ownerApp))} · ${n.redacted ? esc(T('notify.sensitive')) : esc([n.subject, n.title].filter(Boolean).join(' – '))} · ${esc(new Date(n.dueAt + 'T00:00:00').toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}</span><span class="veh-actions"><button class="btn ghost compact" data-ntf-lv="" data-ntf-id="${esc(n.id)}">↺ ${esc(TL('nlv.return'))}</button></span></li>`).join('')}</ul></details>`);
             const lvAct = async (code, payload) => { notifyUi.error = ''; try {
                 await runtime.actions.invoke(code, payload, ctx);
             }

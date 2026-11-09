@@ -94,7 +94,11 @@ var KXInsights;
         return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.title || 'Ganttův diagram')}" data-viz="GANTT" style="width:100%;height:auto">${labels}${bars}${nowLine}<text x="${pad}" y="${H - 4}" font-size="9" fill="currentColor" opacity=".7">${esc(day(from))}</text><text x="${W - 10}" y="${H - 4}" font-size="9" text-anchor="end" fill="currentColor" opacity=".7">${esc(day(to))}</text></svg>`;
     }
     function table(series) { return `<table data-viz="TABLE" style="width:100%;font-size:12px;border-collapse:collapse"><tbody>${series.map(s => `<tr data-viz-item="${esc(s.key)}"><td>${esc(s.label)}</td><td style="text-align:right"><b>${esc(s.display ?? s.value)}</b></td></tr>`).join('')}</tbody></table>`; }
-    const itemLi = (it) => `<li data-viz-item="${esc(it.key)}" data-viz-link="${esc(it.deepLink || '')}" style="cursor:pointer"><small>${esc(new Date(it.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}</small> ${esc(it.title)}${it.hub ? ` <small>· ${esc(it.hubLabel || it.hub)}</small>` : ''}</li>`;
+    const vLoc = () => String(globalThis.document?.documentElement?.lang || 'cs').startsWith('en') ? 'en-GB' : 'cs-CZ';
+    const hubName = (h) => String(globalThis.KXHubLabel?.(h) || String(h || '').replace(/^APP\.(KX\.)?/, ''));
+    const shortT = (t) => String(t || '').replace(/^DEMO\s*[·:–-]\s*/, '');
+    const dayTitle = (k) => { const s2 = new Date(k + 'T00:00:00').toLocaleDateString(vLoc(), { weekday: 'long', day: 'numeric', month: 'numeric' }); return s2.charAt(0).toUpperCase() + s2.slice(1); };
+    const itemLi = (it) => `<li data-viz-item="${esc(it.key)}" data-viz-link="${esc(it.deepLink || '')}" style="cursor:pointer"><small>${esc(new Date(it.at).toLocaleTimeString(vLoc(), { hour: '2-digit', minute: '2-digit' }))}</small> ${esc(it.title)}${it.hub ? ` <small>· ${esc(it.hubLabel || hubName(it.hub))}</small>` : ''}</li>`;
     function month(items, o = {}) {
         const base = new Date(o.from ?? Date.now());
         const y = base.getUTCFullYear(), m = base.getUTCMonth();
@@ -112,7 +116,7 @@ var KXInsights;
         for (let d = 1; d <= days; d++) {
             const k = day(Date.UTC(y, m, d));
             const its = by.get(k) || [];
-            cells += `<td data-viz-day="${k}" style="vertical-align:top;border:1px solid var(--line,#ddd);padding:2px;height:54px;${k === today ? 'outline:2px solid var(--accent,#c9a227);' : ''}"><b style="font-size:11px">${d}</b>${its.slice(0, 3).map(it => `<div data-viz-item="${esc(it.key)}" data-viz-link="${esc(it.deepLink || '')}" style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">• ${esc(it.title)}</div>`).join('')}${its.length > 3 ? `<small>+${its.length - 3}</small>` : ''}</td>`;
+            cells += `<td data-viz-day="${k}" style="vertical-align:top;border:1px solid var(--line,#ddd);padding:2px;height:54px;${k === today ? 'outline:2px solid var(--accent,#c9a227);' : ''}"><b style="font-size:11px">${d}</b>${its.slice(0, 3).map(it => `<div data-viz-item="${esc(it.key)}" data-viz-link="${esc(it.deepLink || '')}" style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer" title="${esc(it.title)}">• ${esc(shortT(it.title))}</div>`).join('')}${its.length > 3 ? `<small>+${its.length - 3}</small>` : ''}</td>`;
             if ((lead + d) % 7 === 0)
                 cells += '</tr><tr>';
         }
@@ -145,7 +149,7 @@ var KXInsights;
             const k = day(it.at);
             by.set(k, [...(by.get(k) || []), it]);
         }
-        return `<div data-viz="AGENDA">${[...by].map(([k, its]) => `<h4 style="margin:6px 0 2px">${esc(k)}</h4><ul style="list-style:none;padding:0;margin:0;font-size:12px">${its.map(itemLi).join('')}</ul>`).join('') || '<p class="empty" data-viz-empty>Nic naplánováno</p>'}</div>`;
+        return `<div data-viz="AGENDA">${[...by].map(([k, its]) => `<h4 style="margin:6px 0 2px" data-viz-date="${esc(k)}">${esc(dayTitle(k))}</h4><ul style="list-style:none;padding:0;margin:0;font-size:12px">${its.map(itemLi).join('')}</ul>`).join('') || '<p class="empty" data-viz-empty>Nic naplánováno</p>'}</div>`;
     }
     function number(series, o = {}) { const tot = series.reduce((a, s) => a + (Number(s.value) || 0), 0); return `<div data-viz="NUMBER" style="font-size:32px;font-weight:700">${esc(o.format ? o.format(tot) : tot)}<small style="font-size:12px;font-weight:400;display:block">${esc(o.title || '')}</small></div>`; }
     function render(viz, data, o = {}) {

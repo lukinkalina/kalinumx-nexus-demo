@@ -53,8 +53,8 @@ var KXHomeTiles;
     const byLanguage = (lang) => ({ cs: ['CZ'], sk: ['SK'], de: ['DE'], pl: ['PL'], en: ['GB'] }[String(lang || 'cs').slice(0, 2)] || ['CZ']);
     /* weather – Open-Meteo (no key); only coordinates / city name leave the device; never called unless the user enabled it */
     const WX_HOSTS = ['https://api.open-meteo.com', 'https://geocoding-api.open-meteo.com'];
-    function weatherUrl(lat, lon) { if (!(Math.abs(lat) <= 90 && Math.abs(lon) <= 180))
-        throw new Error('WEATHER_COORDS'); return `${WX_HOSTS[0]}/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days=1`; }
+    function weatherUrl(lat, lon, days = 7) { if (!(Math.abs(lat) <= 90 && Math.abs(lon) <= 180))
+        throw new Error('WEATHER_COORDS'); return `${WX_HOSTS[0]}/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day&hourly=temperature_2m,precipitation_probability,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunrise,sunset&timezone=auto&forecast_days=${Math.max(2, Math.min(16, Math.round(days || 7)))}`; } /* N2.6b+ Weather v2: 48 h + 7–16 days */
     function geocodeUrl(city, lang = 'cs') { const c = String(city || '').trim(); if (!c || c.length > 80)
         throw new Error('WEATHER_CITY'); return `${WX_HOSTS[1]}/v1/search?name=${encodeURIComponent(c)}&count=1&language=${encodeURIComponent(lang)}&format=json`; }
     /* WMO weather code → group (text key wx.*) + icon */
@@ -74,7 +74,14 @@ var KXHomeTiles;
         if (cur.temperature_2m == null)
             throw new Error('WEATHER_DATA');
         const [group, icon] = wmo(cur.weather_code);
-        return { temp: Math.round(cur.temperature_2m), group, icon, max: d.temperature_2m_max?.[0] != null ? Math.round(d.temperature_2m_max[0]) : null, min: d.temperature_2m_min?.[0] != null ? Math.round(d.temperature_2m_min[0]) : null, rain: d.precipitation_sum?.[0] ?? null, at: new Date().toISOString() };
+        return { temp: Math.round(cur.temperature_2m), group, icon, max: d.temperature_2m_max?.[0] != null ? Math.round(d.temperature_2m_max[0]) : null, min: d.temperature_2m_min?.[0] != null ? Math.round(d.temperature_2m_min[0]) : null, rain: d.precipitation_sum?.[0] ?? null, at: new Date().toISOString(),
+            feels: cur.apparent_temperature != null ? Math.round(cur.apparent_temperature) : null, humidity: cur.relative_humidity_2m ?? null, wind: cur.wind_speed_10m != null ? Math.round(cur.wind_speed_10m) : null, isDay: cur.is_day !== 0,
+            hours: (() => { const h = j?.hourly || {}; const T = h.time || []; const now = Date.now() - 3600000; const out = []; for (let i = 0; i < T.length && out.length < 48; i++) {
+                if (Date.parse(T[i]) < now)
+                    continue;
+                out.push({ t: T[i], temp: h.temperature_2m?.[i] != null ? Math.round(h.temperature_2m[i]) : null, pop: h.precipitation_probability?.[i] ?? null, icon: wmo(h.weather_code?.[i])[1] });
+            } return out; })(),
+            days: (d.time || []).map((t, i) => ({ date: t, icon: wmo(d.weather_code?.[i])[1], max: d.temperature_2m_max?.[i] != null ? Math.round(d.temperature_2m_max[i]) : null, min: d.temperature_2m_min?.[i] != null ? Math.round(d.temperature_2m_min[i]) : null, rain: d.precipitation_sum?.[i] ?? null, pop: d.precipitation_probability_max?.[i] ?? null, sunrise: d.sunrise?.[i] || null, sunset: d.sunset?.[i] || null })) };
     }
     async function fetchWeather(src, fetcher = globalThis.fetch, lang = 'cs') {
         let lat = src.lat, lon = src.lon, place = '';
@@ -87,7 +94,7 @@ var KXHomeTiles;
             lon = r.longitude;
             place = r.name;
         }
-        const w = parseWeather(await (await fetcher(weatherUrl(Number(lat), Number(lon)))).json());
+        const w = parseWeather(await (await fetcher(weatherUrl(Number(lat), Number(lon), src.days || 7))).json());
         return { ...w, place };
     }
     KXHomeTiles = { WX_HOSTS, weatherUrl, geocodeUrl, wmo, parseWeather, fetchWeather, TILES, SIZES, FAMILY, familyOf, defaults, effective, clockParts, today, byLanguage };
