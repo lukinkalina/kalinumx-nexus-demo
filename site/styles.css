@@ -1752,3 +1752,12 @@ html.kx-bright .app-shell{filter:brightness(var(--brightness))}
 .kx-board-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
 .kx-board-tabs button{padding:5px 14px;border-radius:10px 10px 4px 4px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 30%,transparent);background:color-mix(in srgb,var(--surface2,#0a0f18) 55%,transparent);color:var(--text,#f3e3bd);font-size:15px;font-weight:600;cursor:pointer}
 .kx-board-tabs button.active{border-color:var(--accent,#f2c869);color:var(--accent,#f2c869);background:color-mix(in srgb,var(--accent,#f2c869) 12%,transparent)}
+
+/* Vehicles: deadlines as rows like the other hubs */
+.veh-card > .veh-rows{list-style:none;margin:6px 0;padding:0;display:grid;gap:4px}
+.veh-card > .veh-rows > li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:6px 10px;border-radius:9px;border-left:3px solid color-mix(in srgb,var(--accent,#f2c869) 55%,transparent);background:color-mix(in srgb,var(--surface2,#0a0f18) 55%,transparent)}
+.veh-card > .veh-rows > li > span:first-child{display:grid;min-width:0}.veh-card > .veh-rows > li small{color:var(--muted,#a39e8e);font-size:12px}
+.veh-card > .veh-rows .veh-actions{display:flex;gap:6px;align-items:center;flex-wrap:nowrap}
+.veh-card > .veh-rows input[type=number]{width:130px}
+@media (max-width:680px){.veh-card > .veh-rows > li{grid-template-columns:minmax(0,1fr)}.veh-card > .veh-rows .veh-actions{flex-wrap:wrap}}
+.veh-card > .veh-rows > li > span:first-child{justify-self:start !important;text-align:left !important;grid-column:1}
