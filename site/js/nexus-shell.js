@@ -677,7 +677,7 @@ var KXAPP;
       <div class="ag-bar"><div class="ag-scope">${sc.map(([k, l, sub, ic]) => `<button type="button" class="${agUi.scope === k ? 'on' : ''}" data-ag-scope="${k}"><span>${ic}</span><b>${esc(TL(l))}</b><small>${esc(TL(sub))}</small></button>`).join('')}</div>
       <div class="ag-hz"><small>${esc(TL('agd.horizon'))}<br>${esc(TL('agd.horizonEn'))}</small>${[7, 14, 30, 60, 90, 180, 365, 730].map(d => `<button type="button" class="${agUi.horizon === d ? 'on' : ''}" data-ag-hz="${d}">${d === 180 ? esc(TL('agd.halfYear')) : d === 365 ? esc(TL('agd.year1')) : d === 730 ? esc(TL('agd.year2')) : `${d} ${esc(TL('agd.days'))}`}</button>`).join('')}</div></div>
       <div class="ag-kpis">${kpi('payday', '👛', 'green')}${kpi('topay', '🧾', 'red')}${kpi('free', '🪙', 'blue')}${kpi('reserve', '🛡', 'orange')}${kpi('today', '📆', 'violet')}</div>
-      <div class="ag-row">${["fam", "com", "all"].map(k => `<div class="ag-card ag-chart" data-ag-chart="${k}"><div class="ag-card-h"><b>${k === "all" ? "◔" : k === "fam" ? "👨‍👩‍👧" : "💼"} ${esc(TL("agd.ch." + k))}</b><small>${esc(TL("agd.ch." + k + ".en"))}</small><span class="ag-delta" data-ag-delta="${k}"></span></div><div class="ag-svg" data-ag-svg="${k}"></div></div>`).join("")}<div class="ag-card ag-acts"><div class="ag-card-h"><b>☑ ${esc(TL('agd.acts'))}</b><small>${esc(TL('agd.actsEn'))}</small><button type="button" class="ag-mini" data-section-jump="calendar">${esc(TL('agd.showAll'))} ›</button></div>
+      <div class="ag-row">${(() => { const cur = String(agUi.chart || "all"); return `<div class="ag-card ag-chart-one" data-ag-chart-one><div class="ag-card-h ag-ch-head"><b>💰 ${esc(TL("agd.ch.money"))}</b><span class="ag-ch-tabs">${["fam", "com", "all"].map(k => `<button type="button" class="${k === cur ? "active" : ""}" data-ag-ch-tab="${k}">${k === "all" ? "◔" : k === "fam" ? "👨‍👩‍👧" : "💼"} ${esc(TL("agd.ch.tab." + k))}</button>`).join("")}</span><button type="button" class="btn ghost compact" data-ag-ch-open title="${esc(TL("agd.ch.openHint"))}">${esc(TL("agd.ch.open"))} ›</button></div>${["fam", "com", "all"].map(k => `<div class="ag-ch-pane${k === cur ? " on" : ""}" data-ag-chart="${k}" data-ag-ch-pane="${k}"><div class="ag-ch-sub"><small>${esc(TL("agd.ch." + k))}</small><span class="ag-delta" data-ag-delta="${k}"></span></div><div class="ag-svg" data-ag-svg="${k}" title="${esc(TL("agd.ch.openHint"))}"></div></div>`).join("")}</div>`; })()}<div class="ag-card ag-acts"><div class="ag-card-h"><b>☑ ${esc(TL('agd.acts'))}</b><small>${esc(TL('agd.actsEn'))}</small><button type="button" class="ag-mini" data-section-jump="calendar">${esc(TL('agd.showAll'))} ›</button></div>
       <div class="ag-tabs">${[['today', 'agd.t.today'], ['week', 'agd.t.week'], ['late', 'agd.t.late']].map(([k, l]) => `<button type="button" class="${agUi.tab === k ? 'on' : ''}" data-ag-tab="${k}">${esc(TL(l))} <span data-ag-cnt="${k}"></span></button>`).join('')}</div><div class="ag-list" data-ag-list><small>…</small></div></div></div>
       </div>
       <div class="ag-card ag-cal"><div class="ag-cal-h"><b>📅 ${esc(TL('agd.cal'))}</b><small>${esc(TL('agd.calEn'))}</small></div><div class="ag-cal-days" data-ag-cal></div></div>
@@ -3339,6 +3339,22 @@ var KXAPP;
         setInterval(() => { if (state.activeSection === 'today')
             kxMyDayLayout(); }, 800); /* also catches the tabs layout rendered later */
     }
+    /* N2.6b+ (user: one chart with a switch, click goes to the hub) */
+    document.addEventListener('click', (e) => {
+        const tab = e.target?.closest?.('[data-ag-ch-tab]');
+        if (tab) {
+            const k = String(tab.dataset.agChTab);
+            agUi.chart = k;
+            const card = tab.closest('[data-ag-chart-one]');
+            card?.querySelectorAll('[data-ag-ch-tab]').forEach(b => b.classList.toggle('active', b === tab));
+            card?.querySelectorAll('[data-ag-ch-pane]').forEach(p => p.classList.toggle('on', p.dataset.agChPane === k));
+            return;
+        }
+        if (e.target?.closest?.('[data-ag-ch-open]') || e.target?.closest?.('[data-ag-chart-one] .ag-svg')) {
+            e.preventDefault();
+            openHubAt('APP.KX.FINANCE', 'OUTLOOK');
+        }
+    }, true);
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)

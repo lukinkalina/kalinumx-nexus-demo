@@ -1730,3 +1730,17 @@ html.kx-bright .app-shell{filter:brightness(var(--brightness))}
 .kx-md-pill{display:inline-flex;align-items:center;gap:5px;height:30px;padding:2px 11px;border-radius:999px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 30%,transparent);background:color-mix(in srgb,var(--surface2,#0a0f18) 55%,transparent);color:var(--text,#f3e3bd);font-size:13px;white-space:nowrap;cursor:pointer}
 .kx-md-pill.active{border-color:var(--accent,#f2c869);color:var(--accent,#f2c869);box-shadow:none}
 .kx-md-pill .kx-md-lb-t{font-size:12px}
+
+/* My day: one money chart with a switch */
+.ag-dash .ag-row:has(.ag-chart-one){grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) !important}
+.ag-chart-one .ag-ch-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ag-ch-tabs{display:inline-flex;gap:4px;margin-left:auto}
+.ag-ch-tabs button{padding:3px 11px;border-radius:999px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 30%,transparent);background:none;color:var(--text,#f3e3bd);font-size:12.5px;cursor:pointer}
+.ag-ch-tabs button.active{border-color:var(--accent,#f2c869);color:var(--accent,#f2c869);background:color-mix(in srgb,var(--accent,#f2c869) 12%,transparent)}
+.ag-ch-pane{display:none}.ag-ch-pane.on{display:block}
+.ag-ch-sub{display:flex;align-items:center;gap:8px;margin:4px 0}
+.ag-chart-one .ag-svg{cursor:pointer}
+@media (max-width:900px){.ag-dash .ag-row:has(.ag-chart-one){grid-template-columns:minmax(0,1fr) !important}}
+/* My day: left column = needs attention (Notifications, Pokes), right column = work (Work in progress, Kaira) */
+.content.kx-md2 > .kx-wip{grid-column:1 !important}
+.content.kx-md2 > .kx-kaira{grid-column:2 !important}
