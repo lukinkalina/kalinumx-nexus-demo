@@ -3355,6 +3355,14 @@ var KXAPP;
             openHubAt('APP.KX.FINANCE', 'OUTLOOK');
         }
     }, true);
+    document.addEventListener('click', (e) => { if (!e.target?.closest?.('[data-att-desk]'))
+        return; e.preventDefault(); document.querySelector('[data-top-section="desk"]')?.click(); let n = 0; const go = () => { const ac = document.querySelector('#myDayActions')?.closest('.widget,.settings-card,section,div'); if (ac) {
+        ac.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        ac.classList.add('kx-flash');
+        setTimeout(() => ac.classList.remove('kx-flash'), 1600);
+    }
+    else if (++n < 20)
+        setTimeout(go, 200); }; setTimeout(go, 300); }, true); /* N2.6b+: from “Needs attention” to the decisions (Action Center) on the Desk */
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -15419,7 +15427,7 @@ var KXAPP;
             const name = (o) => runtime.i18n?.label(o, UI_LOCALE, { short: true }) || o;
             const T = (k) => runtime.i18n?.t(k, UI_LOCALE) || k;
             const rules = await svc.rules(CURRENT_USER_ID);
-            root.innerHTML = `<div class="ph-head"><div><b>⚠ ${esc(TL('att.title'))}</b><small><span class="kx-att-src">${esc(T('notify.title'))}</span> · ${box.counts.total} ${esc(T('notify.total'))} · ${box.counts.overdue} ${esc(T('notify.overdueCount'))} · ${box.counts.unread} ${esc(T('notify.unread'))}${box.quiet ? ` · ${esc(T('notify.quiet'))}` : ''}</small></div><details class="kx-ntf-set"><summary title="${esc(TL('ntf2.settings'))}">⚙</summary><div class="kx-ntf-set-body"><label>${esc(T('ui.language'))} <select data-ui-locale>${(runtime.i18n?.locales() || []).map((l) => `<option value="${esc(l)}" ${l === UI_LOCALE ? 'selected' : ''}>${l === 'cs' ? 'Čeština' : 'English'}</option>`).join('')}</select></label><label><input type="checkbox" data-notify-sensitive="APP.KX.HEALTH" ${rules.sensitiveShow?.['APP.KX.HEALTH'] || rules.showSensitiveDetails ? 'checked' : ''}> ${esc(T('notify.healthNames'))}</label></div></details></div>`
+            root.innerHTML = `<div class="ph-head"><div><b>⚠ ${esc(TL('att.title'))}</b><small><span class="kx-att-src">${esc(T('notify.title'))}</span> · ${box.counts.total} ${esc(T('notify.total'))} · ${box.counts.overdue} ${esc(T('notify.overdueCount'))} · ${box.counts.unread} ${esc(T('notify.unread'))}${box.quiet ? ` · ${esc(T('notify.quiet'))}` : ''}</small></div><button type="button" class="btn ghost compact kx-att-desk" data-att-desk title="${esc(TL('att.deskHint'))}">${esc(TL('att.desk'))} ›</button><details class="kx-ntf-set"><summary title="${esc(TL('ntf2.settings'))}">⚙</summary><div class="kx-ntf-set-body"><label>${esc(T('ui.language'))} <select data-ui-locale>${(runtime.i18n?.locales() || []).map((l) => `<option value="${esc(l)}" ${l === UI_LOCALE ? 'selected' : ''}>${l === 'cs' ? 'Čeština' : 'English'}</option>`).join('')}</select></label><label><input type="checkbox" data-notify-sensitive="APP.KX.HEALTH" ${rules.sensitiveShow?.['APP.KX.HEALTH'] || rules.showSensitiveDetails ? 'checked' : ''}> ${esc(T('notify.healthNames'))}</label></div></details></div>`
                 + (box.sourceErrors.length ? `<small class="ph-error" role="alert" data-notify-source-error>${esc(T('notify.sourceDown'))}: ${box.sourceErrors.map((x) => esc(name(x.ownerApp))).join(', ')}</small>` : '') + (box.lockedSources?.length ? `<small class="ph-error" data-notify-locked="${esc(box.lockedSources.join(' '))}">🔒 ${esc(UI_LOCALE === 'cs' ? 'Zamčeno – přihlaste se' : 'Locked – sign in')}: ${box.lockedSources.map((x) => esc(name(x))).join(', ')}</small>` : '')
                 + (notifyUi.error ? `<small class="ph-error" role="alert">${esc(notifyUi.error)}</small>` : '')
                 + (box.items.length ? (() => { const its = box.items.slice(0, 50); const groups = {}; for (const n of its)

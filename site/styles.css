@@ -1744,3 +1744,6 @@ html.kx-bright .app-shell{filter:brightness(var(--brightness))}
 /* My day: left column = needs attention (Notifications, Pokes), right column = work (Work in progress, Kaira) */
 .content.kx-md2 > .kx-wip{grid-column:1 !important}
 .content.kx-md2 > .kx-kaira{grid-column:2 !important}
+
+.kx-att-desk{margin-left:auto}
+@keyframes kxflash{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent,#f2c869) 70%,transparent)}100%{box-shadow:0 0 0 14px transparent}}.kx-flash{animation:kxflash 1.4s ease-out 1}
