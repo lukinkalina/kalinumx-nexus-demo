@@ -1700,3 +1700,13 @@ html.kx-bright .app-shell{filter:brightness(var(--brightness))}
 /* Calendar: scope buttons as readable as the other filters */
 .calendar-toolbar [data-calendar-scope]{font-size:12.5px !important;opacity:1 !important;min-height:30px;padding:3px 12px !important;color:var(--text,#f3e3bd) !important}
 .calendar-toolbar [data-calendar-scope].active,.calendar-toolbar [data-calendar-scope][aria-pressed="true"]{color:var(--accent,#f2c869) !important;border-color:var(--accent,#f2c869) !important}
+/* Calendar: type filters (Události / Úkoly / Alarmy) as readable as the other filters */
+.calendar-type-tabs [data-calendar-type]{font-size:12.5px !important;min-height:30px;padding:3px 12px !important}
+
+/* hub records: sharing collapsed into one status chip (expands to the checkboxes) */
+.kx-rc-det{margin:6px 0 2px}
+.kx-rc-det > summary{display:inline-flex;align-items:center;gap:6px;list-style:none;cursor:pointer;font-size:12px;padding:2px 10px;border-radius:999px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 35%,transparent);color:var(--muted,#a39e8e)}
+.kx-rc-det > summary::-webkit-details-marker{display:none}
+.kx-rc-det > summary::after{content:'▾';font-size:10px;opacity:.7}
+.kx-rc-det[open] > summary::after{content:'▴'}
+.kx-rc-det > .kx-record-controls{margin-top:6px}
