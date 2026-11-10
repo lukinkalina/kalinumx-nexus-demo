@@ -1710,3 +1710,20 @@ html.kx-bright .app-shell{filter:brightness(var(--brightness))}
 .kx-rc-det > summary::after{content:'▾';font-size:10px;opacity:.7}
 .kx-rc-det[open] > summary::after{content:'▴'}
 .kx-rc-det > .kx-record-controls{margin-top:6px}
+
+.kx-pk-filters .kx-pk-lab{margin:0 2px 0 12px;font-size:12px;color:var(--muted,#a39e8e);align-self:center}
+
+/* My day: layout switch at the top of the page */
+.kx-md-top{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:0 0 -4px}
+.kx-md-top-lab{font-size:12px;color:var(--muted,#a39e8e)}
+.kx-md-top .kx-md-layouts-today{margin-left:0 !important;order:0}
+
+.kx-md-top .kx-md-lb{width:auto !important;min-width:0 !important;padding:2px 10px !important;gap:5px;display:inline-flex !important;align-items:center}
+.kx-md-top .kx-md-lb-t{font-size:12px}
+@media (max-width:680px){.kx-md-top .kx-md-lb-t{display:none}}
+#content .kx-md-top button.icon-btn.kx-md-lb{width:auto !important;min-width:0 !important;height:30px !important;padding:2px 10px !important;display:inline-flex !important;flex-direction:row !important;align-items:center !important;gap:5px !important;white-space:nowrap !important}
+#content .kx-md-top button.icon-btn.kx-md-lb .kx-md-lb-t{font-size:12px !important;line-height:1 !important}
+@media (max-width:680px){#content .kx-md-top button.icon-btn.kx-md-lb .kx-md-lb-t{display:none !important}}
+
+#content .kx-md-top .kx-md-pill{display:inline-flex;align-items:center;gap:5px;min-height:28px;padding:2px 11px;font-size:12px;white-space:nowrap;border-radius:999px}
+#content .kx-md-top .kx-md-pill.active{border-color:var(--accent,#f2c869);color:var(--accent,#f2c869);box-shadow:none}
