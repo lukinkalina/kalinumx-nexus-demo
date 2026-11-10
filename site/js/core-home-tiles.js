@@ -95,8 +95,14 @@ var KXHomeTiles;
             place = r.name;
         }
         const w = parseWeather(await (await fetcher(weatherUrl(Number(lat), Number(lon), src.days || 7))).json());
-        return { ...w, place };
+        return { ...w, place, lat: Number(lat), lon: Number(lon) };
     }
-    KXHomeTiles = { WX_HOSTS, weatherUrl, geocodeUrl, wmo, parseWeather, fetchWeather, TILES, SIZES, FAMILY, familyOf, defaults, effective, clockParts, today, byLanguage };
+    /* N2.6b+ Weather v2 phase B: air quality and pollen (Open-Meteo air-quality API, separate host – the weather host list stays as it is) */
+    const AQ_HOST = 'https://air-quality-api.open-meteo.com';
+    function airUrl(lat, lon) { if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180)
+        throw new Error('WEATHER_COORDS'); return `${AQ_HOST}/v1/air-quality?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&current=european_aqi,pm2_5,pm10,birch_pollen,grass_pollen,ragweed_pollen&timezone=auto`; }
+    function parseAir(j) { const c = j?.current || {}; const n = (v) => v == null || !Number.isFinite(Number(v)) ? null : Math.round(Number(v)); return { aqi: n(c.european_aqi), pm25: n(c.pm2_5), pm10: n(c.pm10), birch: n(c.birch_pollen), grass: n(c.grass_pollen), ragweed: n(c.ragweed_pollen), at: new Date().toISOString() }; }
+    async function fetchAir(lat, lon, fetcher = globalThis.fetch) { return parseAir(await (await fetcher(airUrl(Number(lat), Number(lon)))).json()); }
+    KXHomeTiles = { WX_HOSTS, AQ_HOST, airUrl, parseAir, fetchAir, weatherUrl, geocodeUrl, wmo, parseWeather, fetchWeather, TILES, SIZES, FAMILY, familyOf, defaults, effective, clockParts, today, byLanguage };
     globalThis.KXHomeTiles = KXHomeTiles;
 })();

@@ -1761,3 +1761,8 @@ html.kx-bright .app-shell{filter:brightness(var(--brightness))}
 .veh-card > .veh-rows input[type=number]{width:130px}
 @media (max-width:680px){.veh-card > .veh-rows > li{grid-template-columns:minmax(0,1fr)}.veh-card > .veh-rows .veh-actions{flex-wrap:wrap}}
 .veh-card > .veh-rows > li > span:first-child{justify-self:start !important;text-align:left !important;grid-column:1}
+
+/* Weather v2 phase B: air quality and pollen */
+.kx-wx3-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.kx-wx3-grid > div{display:grid;gap:2px;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--surface2,#0a0f18) 55%,transparent)}
+.kx-wx3-aqi b{font-size:22px}.kx-wx3-aqi.lv-ok b,.kx-wx3-aqi.lv-ok span{color:#7fe0a5}.kx-wx3-aqi.lv-warn b,.kx-wx3-aqi.lv-warn span{color:#ffc77a}.kx-wx3-aqi.lv-bad b,.kx-wx3-aqi.lv-bad span{color:#ff8a8d}

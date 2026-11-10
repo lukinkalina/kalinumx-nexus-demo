@@ -13423,18 +13423,36 @@ var KXAPP;
             m.innerHTML = `<div class="modal" data-wx-modal><div class="drawer-head"><div><b>🌤 ${esc(TL('wx2.title'))}${w?.place ? ` · ${esc(w.place)}` : ''}</b><small>${esc(TL('wx2.sub'))}</small></div><button class="icon-btn" data-close>×</button></div><div class="ins-section kx-wx2">
           ${w ? `<div class="kx-wx2-now"><span class="kx-wx2-big">${w.icon} ${w.temp} °C</span><span>${esc(TL('wx.' + w.group))}</span><span class="muted">${w.feels != null ? `${esc(TL('wx2.feels'))} ${w.feels} °C · ` : ''}${w.humidity != null ? `💧 ${w.humidity} % · ` : ''}${w.wind != null ? `💨 ${w.wind} km/h · ` : ''}🌅 ${tm(d0?.sunrise)} · 🌇 ${tm(d0?.sunset)}</span></div>
           <h4>${esc(TL('wx2.next48'))}</h4>${kxWxChart(w.hours)}
+          <div class="kx-wx2-air" data-wx-air><small class="muted">${esc(TL('wx3.airLoading'))}</small></div>
           <div class="kx-wx2-dayshead"><h4>${esc(TL('wx2.daysTitle'))}</h4><span class="kx-pills"><button type="button" class="${days === 7 ? 'active' : ''}" data-wx-days="7">7 ${esc(TL('agd.days'))}</button><button type="button" class="${days === 16 ? 'active' : ''}" data-wx-days="16">16 ${esc(TL('agd.days'))}</button></span></div>
           <div class="kx-wx2-days">${(w.days || []).slice(0, days).map((d) => `<div class="kx-wx2-day"><b>${esc(new Date(d.date).toLocaleDateString(loc, { weekday: 'short', day: 'numeric', month: 'numeric' }))}</b><span class="kx-wx2-ic">${d.icon}</span><span class="kx-wx2-t"><b>${d.max ?? '—'}°</b> / ${d.min ?? '—'}°</span><span class="muted">${d.pop != null ? `☔ ${d.pop} %` : ''}${d.rain ? ` · ${d.rain} mm` : ''}</span></div>`).join('')}</div>` : `<p class="muted">${esc(TL('home.wx.off'))}</p>`}
           ${note ? `<p class="muted">${esc(note)}</p>` : ''}</div></div>`;
             m.querySelector('[data-close]').onclick = () => { m.className = 'modal-wrap'; m.innerHTML = ''; };
             m.querySelectorAll('[data-wx-days]').forEach(b => b.onclick = () => void kxWxModal(Number(b.dataset.wxDays)));
         };
+        const airPaint = async () => {
+            const box = m.querySelector('[data-wx-air]');
+            if (!box || !w?.lat || !HT?.fetchAir)
+                return;
+            try {
+                const a = await HT.fetchAir(w.lat, w.lon, globalThis.fetch?.bind(globalThis));
+                const lv = (x) => x == null ? ['—', 'na'] : x <= 20 ? [TL('wx3.aq1'), 'ok'] : x <= 40 ? [TL('wx3.aq2'), 'ok'] : x <= 60 ? [TL('wx3.aq3'), 'warn'] : x <= 80 ? [TL('wx3.aq4'), 'bad'] : [TL('wx3.aq5'), 'bad'];
+                const pl = (x) => x == null ? '—' : x < 1 ? TL('wx3.p0') : x < 10 ? TL('wx3.p1') : x < 50 ? TL('wx3.p2') : TL('wx3.p3');
+                const [lab, cls] = lv(a.aqi);
+                box.innerHTML = `<h4>${esc(TL('wx3.air'))}</h4><div class="kx-wx3-grid"><div class="kx-wx3-aqi lv-${cls}"><b>${a.aqi ?? '—'}</b><span>${esc(lab)}</span><small>${esc(TL('wx3.aqiName'))}</small></div><div><small class="muted">PM2,5</small><b>${a.pm25 ?? '—'} µg/m³</b></div><div><small class="muted">PM10</small><b>${a.pm10 ?? '—'} µg/m³</b></div><div><small class="muted">🌳 ${esc(TL('wx3.birch'))}</small><b>${esc(pl(a.birch))}</b></div><div><small class="muted">🌾 ${esc(TL('wx3.grass'))}</small><b>${esc(pl(a.grass))}</b></div><div><small class="muted">🌿 ${esc(TL('wx3.ragweed'))}</small><b>${esc(pl(a.ragweed))}</b></div></div>`;
+            }
+            catch {
+                box.innerHTML = `<small class="muted">${esc(TL('wx3.airOff'))}</small>`;
+            }
+        };
         paint();
+        void airPaint();
         if (days > ((w?.days || []).length) && homeWx.src && HT?.fetchWeather) {
             paint(TL('wx2.loading'));
             try {
                 w = await HT.fetchWeather({ ...homeWx.src, days }, globalThis.fetch?.bind(globalThis), UI_LOCALE);
                 paint();
+                void airPaint();
             }
             catch {
                 paint(TL('home.wx.offline'));
