@@ -666,7 +666,7 @@ var KXAPP;
     /* N2.6b+ (user: no duplicates – three greetings, two weathers, identical lists): of the old My-day tiles only the Action Center (decisions: imports, conflicts, approvals) stays; greeting, Today, Weather, Finance, Across KalinumX, Recent activity, News and Crypto were duplicates or not connected */
     const DESK_WIDGETS = new Set(['W.LIST.ACTIONS']);
     globalThis.KXHubLabel = (h) => { const v = hubLabel(h === 'APP.NEXUS' ? 'APP.KX.NEXUS' : h); return v && v !== h ? v : ''; }; /* friendly hub names for the insight views */
-    function deskBoard() { const w = state.windows[state.activeWindow] || state.windows[0]; const l = layout(); return `<div class="page-head"><div><span class="eyebrow">NEXUS · ${state.activeWindow + 1}/${state.windows.length}</span><h2 class="kx-board-title">${esc(w.name)}</h2><p>${esc(TL('desk2.boardSub'))}</p></div><div class="head-actions"><button class="btn" data-action="add-widget">＋ ${esc(TL('dash.addCard'))}</button><button class="btn ghost" data-action="window-menu">⋯</button></div></div><div class="kx-lbars" id="linkBars"></div><section data-md-group="CARDS" class="personal-home" id="personalHomeCards" aria-label="Personal Home"><div class="desk-card-loading">${esc(TL('ws.loadingHome'))}</div></section><div class="dashboard cols-${Math.min(4, l.columns)} density-${l.density.toLowerCase()}">${w.widgets.filter((x) => DESK_WIDGETS.has(x.id)).map(widget).join('')}</div>`; }
+    function deskBoard() { const w = state.windows[state.activeWindow] || state.windows[0]; const l = layout(); return `<div class="page-head"><div><span class="eyebrow">${esc(TL('desk2.pages'))}</span><span class="kx-board-tabs" role="tablist">${state.windows.map((x, i) => `<button type="button" role="tab" class="${i === state.activeWindow ? 'active' : ''}" aria-selected="${i === state.activeWindow}" data-window="${i}">${esc(x.name)}</button>`).join('')}</span><h2 class="kx-board-title kx-sr">${esc(w.name)}</h2><p>${esc(TL('desk2.boardSub'))}</p></div><div class="head-actions"><button class="btn" data-action="add-widget">＋ ${esc(TL('dash.addCard'))}</button><button class="btn ghost" data-action="window-menu">⋯</button></div></div><div class="kx-lbars" id="linkBars"></div><section data-md-group="CARDS" class="personal-home" id="personalHomeCards" aria-label="Personal Home"><div class="desk-card-loading">${esc(TL('ws.loadingHome'))}</div></section><div class="dashboard cols-${Math.min(4, l.columns)} density-${l.density.toLowerCase()}">${w.widgets.filter((x) => DESK_WIDGETS.has(x.id)).map(widget).join('')}</div>`; }
     /* ===== N2.6b · Alpine Gold v2 – Společný přehled (horní polovina podle NEXUS_NAVRH_DESIGN_ALPINE_V2) ===== */
     const agUi = { scope: 'ALL', horizon: 7, tab: 'today', filter: 'all' };
     function agDashHtml() {
@@ -13314,8 +13314,11 @@ var KXAPP;
                 if (!wxOn)
                     body = `<div class="muted">${esc(TL('home.wx.off'))}</div><button class="btn compact" data-wx-enable>${esc(TL('home.wx.enable'))}</button>`;
                 else if (homeWx.data) {
-                    const w = homeWx.data;
-                    body = `<div class="kx-wx"><span class="kx-wx-icon">${w.icon}</span><b>${w.temp} °C</b> <span>${esc(TL('wx.' + w.group))}</span></div>${kxWxSpark(w.hours)}<button type="button" class="btn ghost compact kx-wx-more" data-wx-open>${esc(TL('wx2.forecast'))} ›</button><div class="muted">${w.min != null ? `${w.min} / ${w.max} °C` : ''}${w.rain != null ? ` · ${w.rain} mm` : ''}${w.place ? ` · ${esc(w.place)}` : ''}</div>${homeWx.err ? `<div class="muted">${esc(TL('home.wx.offline'))} · ${esc(TL('home.wx.last'))} ${esc(new Date(w.at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }))}</div>` : ''}`;
+                    body = kxWxTileHtml();
+                    if (false) {
+                        const w = homeWx.data;
+                        body = `<div class="kx-wx"><span class="kx-wx-icon">${w.icon}</span><b>${w.temp} °C</b> <span>${esc(TL('wx.' + w.group))}</span></div>${kxWxSpark(w.hours)}<button type="button" class="btn ghost compact kx-wx-more" data-wx-open>${esc(TL('wx2.forecast'))} ›</button><div class="muted">${w.min != null ? `${w.min} / ${w.max} °C` : ''}${w.rain != null ? ` · ${w.rain} mm` : ''}${w.place ? ` · ${esc(w.place)}` : ''}</div>${homeWx.err ? `<div class="muted">${esc(TL('home.wx.offline'))} · ${esc(TL('home.wx.last'))} ${esc(new Date(w.at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }))}</div>` : ''}`;
+                    }
                 }
                 else
                     body = homeWx.err ? `<div class="muted">${esc(TL('home.wx.err.' + homeWx.err) || TL('home.wx.offline'))}</div>${wxSrc === 'CITY' || homeWx.err === 'DENIED' ? `<input data-wx-city placeholder="${esc(TL('home.wx.cityPh'))}" value="${esc(wxCity)}"> <button class="btn compact" data-wx-city-save>${esc(TL('home.wx.useCity'))}</button>` : ''}` : `<div class="muted" data-wx-loading>${esc(TL('home.wx.loading'))}</div>`;
@@ -13358,7 +13361,15 @@ var KXAPP;
         /* weather: only when enabled; cached 30 min; device position needs the system's permission */
         if (wxOn && !homeWx.loading && (Date.now() - homeWx.at > 30 * 60000)) {
             homeWx.loading = true;
-            const done = () => { homeWx.loading = false; const h = document.querySelector('[data-home-strip]') || (document.body.contains(host) ? host : null); if (h)
+            const done = () => { homeWx.loading = false; try {
+                const ld = document.querySelector('[data-wx-loading]');
+                if (ld && homeWx.data) {
+                    const box = document.createElement('div');
+                    box.innerHTML = kxWxTileHtml();
+                    ld.replaceWith(...Array.from(box.childNodes));
+                }
+            }
+            catch { } const h = document.querySelector('[data-home-strip]') || (document.body.contains(host) ? host : null); if (h)
                 void mountHomeStrip(h, editing); }; /* N2.6b+: repaint My day once the weather arrives (max. once per 30 min) */ /* N2.6b+: the strip may have been re-rendered meanwhile – paint the current one */
             const go = async (src) => { homeWx.src = src; try {
                 homeWx.data = await HT.fetchWeather(src, globalThis.fetch?.bind(globalThis), lang);
@@ -13379,6 +13390,9 @@ var KXAPP;
         }
     }
     /* N2.6b+ Weather v2 (phase A): 48 h sparkline on the tile, forecast window – 48 h chart (temperature + rain probability) and 7 / 16 days */
+    /* N2.6b+ the weather tile content in one place – used by the tile and painted directly into the “loading” line when data arrives (the full strip repaint could stall on settings reads) */
+    function kxWxTileHtml() { const w = homeWx.data; if (!w)
+        return ''; return `<div class="kx-wx"><span class="kx-wx-icon">${w.icon}</span><b>${w.temp} °C</b> <span>${esc(TL('wx.' + w.group))}</span></div>${kxWxSpark(w.hours)}<button type="button" class="btn ghost compact kx-wx-more" data-wx-open>${esc(TL('wx2.forecast'))} ›</button><div class="muted">${w.min != null ? `${w.min} / ${w.max} °C` : ''}${w.rain != null ? ` · ${w.rain} mm` : ''}${w.place ? ` · ${esc(w.place)}` : ''}</div>${homeWx.err ? `<div class="muted">${esc(TL('home.wx.offline'))} · ${esc(TL('home.wx.last'))} ${esc(new Date(w.at).toLocaleTimeString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ', { hour: '2-digit', minute: '2-digit' }))}</div>` : ''}`; }
     function kxWxSpark(hours) {
         const H = (hours || []).filter((h) => h.temp != null);
         if (H.length < 4)

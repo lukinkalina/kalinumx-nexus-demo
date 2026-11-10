@@ -1747,3 +1747,8 @@ html.kx-bright .app-shell{filter:brightness(var(--brightness))}
 
 .kx-att-desk{margin-left:auto}
 @keyframes kxflash{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent,#f2c869) 70%,transparent)}100%{box-shadow:0 0 0 14px transparent}}.kx-flash{animation:kxflash 1.4s ease-out 1}
+
+/* Desk: board pages as tabs (instead of “NEXUS · 1/3”) */
+.kx-board-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+.kx-board-tabs button{padding:5px 14px;border-radius:10px 10px 4px 4px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 30%,transparent);background:color-mix(in srgb,var(--surface2,#0a0f18) 55%,transparent);color:var(--text,#f3e3bd);font-size:15px;font-weight:600;cursor:pointer}
+.kx-board-tabs button.active{border-color:var(--accent,#f2c869);color:var(--accent,#f2c869);background:color-mix(in srgb,var(--accent,#f2c869) 12%,transparent)}
