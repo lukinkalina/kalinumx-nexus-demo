@@ -1836,3 +1836,4 @@ html.kx-bright .app-shell{filter:brightness(var(--brightness))}
 .content.kx-md2[data-md-mode="GRID"] > .kx-work,.content.kx-md2[data-md-mode="GRID"] > .kx-kaira{grid-column:2 !important}
 [data-md-mode="PAGES"] .kx-md-tabs [data-md-go]{width:14px;height:14px;padding:0;border-radius:50%;font-size:0;line-height:0}
 [data-md-mode="PAGES"] .kx-md-tabs [data-md-go].active{background:var(--accent,#f2c869)}
+.kx-speak-stop{z-index:2147483000 !important}

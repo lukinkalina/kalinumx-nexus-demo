@@ -4788,6 +4788,7 @@ var KXAPP;
         c = document.createElement('button');
         c.id = 'kxSpeakStop';
         c.setAttribute('type', 'button');
+        c.setAttribute('data-keep-open', ''); /* the outside-click rule must not close the window under it */
         c.className = 'kx-speak-stop';
         c.innerHTML = `⏹ ${esc(TL('tts.stop'))}`;
         const hold = (e) => e.stopPropagation();
