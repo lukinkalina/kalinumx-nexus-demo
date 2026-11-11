@@ -4709,6 +4709,54 @@ var KXAPP;
     }
     /* N2.5e: Kaira – card in My day (briefing, suggestions with WHY, ✓ do / ✕ not for me), voice (speak / hold to talk), window (personality, voice, insights, reset) */
     const KC = () => ({ actorId: CURRENT_USER_ID, appCode: 'APP.KX.NEXUS', deviceId: activeDevice?.id, permissions: [], confirmed: true });
+    /* N2.6b+ (user: Kaira voices – young / adult woman, child, man, a velvet / seductive one, own ones; only woman / man / child) – presets set voice, pitch and speed; own presets are kept on this device (voices differ per device) */
+    const VOICE_F = /(female|žena|zena|vlasta|zuzana|iveta|hana|anna|eva|zira|aria|jenny|samantha|susan|hazel|libby|sonia|natasha|catherine|helena|laura|elsa|sabina|katja|amala|seraphina|michelle|sara|google .*female)/i, VOICE_M = /(male|muž|muz|jakub|antonin|antonín|david|guy|ryan|mark|george|james|thomas|daniel|conrad|stefan|killian|christopher|eric|roger|brian|pavel|google .*male)/i;
+    function kxVoiceGender(v) { const n = String(v?.name || ''); return VOICE_F.test(n) ? 'F' : VOICE_M.test(n) && !/female/i.test(n) ? 'M' : ''; }
+    const VPRESETS = [['young', 'F', 1.25, 1.06], ['adult', 'F', 1.0, 1.0], ['velvet', 'F', 0.82, 0.86], ['energy', 'F', 1.15, 1.16], ['man', 'M', 0.95, 1.0], ['deep', 'M', 0.7, 0.92], ['child', 'C', 1.65, 1.08]];
+    function kxOwnVoices() { try {
+        const v = JSON.parse(localStorage.getItem('kx.ka.ownVoices') || '[]');
+        return Array.isArray(v) ? v.slice(0, 12) : [];
+    }
+    catch {
+        return [];
+    } }
+    function kxVoicePresetsHtml() {
+        const own = kxOwnVoices();
+        return `<div class="kx-vpre" data-vpre><div class="kx-vpre-row"><span>${esc(TL('vp2.only'))}</span>${['ALL', 'F', 'M', 'C'].map(g => `<button type="button" class="chip" data-vg="${g}">${esc(TL('vp2.g.' + g))}</button>`).join('')}</div>
+      <div class="kx-vpre-row">${VPRESETS.map(([k, g]) => `<button type="button" class="chip" data-vpreset="${k}" data-vpg="${g}">${esc(TL('vp2.p.' + k))}</button>`).join('')}${own.map((o, i) => `<button type="button" class="chip" data-vown="${i}" data-vpg="${esc(o.g || '')}">★ ${esc(o.label)}</button>`).join('')}<button type="button" class="chip" data-vown-save>＋ ${esc(TL('vp2.saveOwn'))}</button></div></div>`;
+    }
+    function kxVoicePresetsBind(m, cur) {
+        const box = m.querySelector('[data-vpre]');
+        if (!box)
+            return;
+        const sel = m.querySelector('[data-ka-voice]');
+        const rate = m.querySelector('[data-ka-rate]'), pitch = m.querySelector('[data-ka-pitch]');
+        const ss = globalThis.speechSynthesis;
+        const voices = ss ? ss.getVoices() : [];
+        const pick = (g) => { const cz = (v) => /^cs/i.test(v.lang) ? 0 : /^(sk|pl)/i.test(v.lang) ? 1 : 2; const pool = voices.filter((v) => g === 'C' ? kxVoiceGender(v) !== 'M' : g ? kxVoiceGender(v) === g : true).sort((a, b) => cz(a) - cz(b)); return pool[0] || voices.find((v) => /^cs/i.test(v.lang)) || null; };
+        const apply = (g, p, r, name) => { const v = name ? voices.find((x) => x.name === name) : pick(g); if (sel) {
+            sel.value = v ? v.name : '';
+        } if (pitch)
+            pitch.value = String(p); if (rate)
+            rate.value = String(r); kairaSpeak(TL('ka.ui.sample'), cur()); };
+        box.querySelectorAll('[data-vpreset]').forEach((b) => b.onclick = () => { const p = VPRESETS.find(x => x[0] === b.dataset.vpreset); if (p)
+            apply(p[1], p[2], p[3]); });
+        box.querySelectorAll('[data-vown]').forEach((b) => b.onclick = () => { const o = kxOwnVoices()[Number(b.dataset.vown)]; if (o)
+            apply(o.g, o.pitch, o.rate, o.name); });
+        box.querySelector('[data-vown-save]').onclick = () => { const label = (prompt(TL('vp2.ownName'), '') || '').trim().slice(0, 24); if (!label)
+            return; const c = cur(); const v = voices.find((x) => x.name === c.name); const own = [...kxOwnVoices().filter((o) => o.label !== label), { label, name: c.name || '', pitch: Number(c.pitch) || 1, rate: Number(c.rate) || 1, g: kxVoiceGender(v) || '' }]; try {
+            localStorage.setItem('kx.ka.ownVoices', JSON.stringify(own.slice(-12)));
+        }
+        catch { } toast(`${TL('vp2.saved')}: ${label}`); const nw = document.createElement('div'); nw.innerHTML = kxVoicePresetsHtml(); box.replaceWith(nw.firstElementChild); kxVoicePresetsBind(m, cur); };
+        box.querySelectorAll('[data-vg]').forEach((b) => b.onclick = () => {
+            const g = String(b.dataset.vg);
+            box.querySelectorAll('[data-vg]').forEach((x) => x.classList.toggle('active', x === b));
+            box.querySelectorAll('[data-vpg]').forEach((x) => { x.style.display = g === 'ALL' || x.dataset.vpg === g || (!x.dataset.vpg && x.matches('[data-vown]')) ? '' : 'none'; });
+            if (sel)
+                Array.from(sel.options).forEach((o) => { if (!o.value)
+                    return; const vv = voices.find((x) => x.name === o.value); const vg = kxVoiceGender(vv); o.hidden = !(g === 'ALL' || (g === 'C' ? vg !== 'M' : vg === g)); });
+        });
+    }
     let kairaLast = null, kairaSttOk = false;
     function kairaSpeak(text, v) { try {
         const ss = globalThis.speechSynthesis;
@@ -4724,12 +4772,32 @@ var KXAPP;
         u.rate = Number(v?.rate) || 1;
         u.pitch = v?.pitch != null ? Number(v.pitch) : 1;
         u.volume = v?.volume != null ? Number(v.volume) : 1;
+        u.onend = u.onerror = () => kxSpeakChip(false);
+        kxSpeakChip(true);
         ss.speak(u);
         return true;
     }
     catch {
         return false;
     } }
+    function kxSpeakChip(on) { let c = document.getElementById('kxSpeakStop'); if (!on) {
+        c?.remove();
+        document.querySelectorAll('[data-ka-speak]').forEach((b) => b.classList.remove('on'));
+        return;
+    } if (!c) {
+        c = document.createElement('button');
+        c.id = 'kxSpeakStop';
+        c.setAttribute('type', 'button');
+        c.className = 'kx-speak-stop';
+        c.innerHTML = `⏹ ${esc(TL('tts.stop'))}`;
+        const hold = (e) => e.stopPropagation();
+        ['pointerdown', 'mousedown', 'touchstart'].forEach(ev => c.addEventListener(ev, hold));
+        c.onclick = (e) => { e.stopPropagation(); e.preventDefault(); try {
+            globalThis.speechSynthesis?.cancel();
+        }
+        catch { } kxSpeakChip(false); }; /* never closes the window underneath */
+        document.body.appendChild(c);
+    } document.querySelectorAll('[data-ka-speak]').forEach((b) => b.classList.add('on')); }
     const kairaText = (b) => [b.greeting, ...b.today.map((x) => `${x.kind === 'TASK' ? TL('ka.ui.task') : TL('ka.ui.event')}: ${x.title}`), ...b.suggestions.map((x) => `${x.title} – ${x.why}`), b.joke?.text].filter(Boolean).join('. ');
     /* N2.5n: open an answer of „ask Kaira“ – hubs / guides / settings via the poke place opener, windows via their functions */
     async function kairaAskOpen(r) {
@@ -4848,7 +4916,11 @@ var KXAPP;
             ask.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
         }
         host.querySelectorAll('[data-ka-no]').forEach(x => x.onclick = async () => { const it = b.suggestions[Number(x.dataset.kaNo)]; await runtime.actions.invoke('ACTION.CORE.KAIRA.FEEDBACK', { id: it.id, type: it.type, accepted: false }, KC()); toast(TL('ka.ui.noted')); void kairaCard(); });
-        host.querySelector('[data-ka-speak]').onclick = async () => { const per = await runtime.actions.invoke('ACTION.CORE.KAIRA.PERSONA.GET', {}, KC()); if (!kairaSpeak(kairaText(b), per.voice))
+        host.querySelector('[data-ka-speak]').onclick = async () => { const ss = globalThis.speechSynthesis; if (ss?.speaking) {
+            ss.cancel();
+            kxSpeakChip(false);
+            return;
+        } /* second click stops */ /* second click stops */ const per = await runtime.actions.invoke('ACTION.CORE.KAIRA.PERSONA.GET', {}, KC()); if (!kairaSpeak(kairaText(b), per.voice))
             toast(TL('ka.ui.noVoice')); };
         host.querySelector('[data-ka-open]').onclick = () => void kairaModal();
         const mic = host.querySelector('[data-ka-mic]');
@@ -4933,7 +5005,7 @@ var KXAPP;
         m.innerHTML = `<div class="modal" data-kaira-modal><div class="drawer-head"><div><b>${KXTags.iconSvg('bolt', 16)} Kaira</b><small>${esc(TL('ka.ui.help'))}</small></div><button class="icon-btn" data-close>×</button></div>
         <h4>${esc(TL('ka.ui.personality'))}</h4>${['tone', 'honesty', 'length', 'humor', 'address'].map(grp).join('')}
         <label class="kx-lf"><span>${esc(TL('ka.ui.nickname'))}</span><input data-ka-nick value="${esc(per.nickname || '')}" maxlength="30"></label>
-        <h4>${esc(TL('ka.ui.voice'))}</h4><label class="kx-lf"><span>${esc(TL('ka.ui.voiceName'))}</span><select data-ka-voice><option value="">${esc(TL('ka.ui.voiceAuto'))}</option>${voices.map((v) => `<option value="${esc(v.name)}" ${per.voice.name === v.name ? 'selected' : ''}>${esc(v.name)} · ${esc(v.lang)} · ${esc(TL(v.localService ? 'ka.ui.offline' : 'ka.ui.online'))}</option>`).join('')}</select></label>
+        <h4>${esc(TL('ka.ui.voice'))}</h4>${kxVoicePresetsHtml()}<label class="kx-lf"><span>${esc(TL('ka.ui.voiceName'))}</span><select data-ka-voice><option value="">${esc(TL('ka.ui.voiceAuto'))}</option>${voices.map((v) => `<option value="${esc(v.name)}" ${per.voice.name === v.name ? 'selected' : ''}>${esc(v.name)} · ${esc(v.lang)} · ${esc(TL(v.localService ? 'ka.ui.offline' : 'ka.ui.online'))}</option>`).join('')}</select></label>
         <div class="kx-calc-grid"><label class="kx-lf"><span>${esc(TL('ka.ui.rate'))}</span><input type="range" min="0.5" max="2" step="0.1" value="${per.voice.rate}" data-ka-rate></label><label class="kx-lf"><span>${esc(TL('ka.ui.pitch'))}</span><input type="range" min="0" max="2" step="0.1" value="${per.voice.pitch}" data-ka-pitch></label><label class="kx-lf"><span>${esc(TL('ka.ui.volume'))}</span><input type="range" min="0" max="1" step="0.1" value="${per.voice.volume}" data-ka-vol></label></div>
         ${voices.length ? '' : `<p class="muted">${esc(TL('ka.ui.noVoices'))}</p>`}<button class="btn ghost compact" data-ka-try>🔊 ${esc(TL('ka.ui.try'))}</button> <button class="btn compact" data-ka-save>${esc(TL('laser.save'))}</button> <span class="kx-lf-help" data-ka-msg></span>
         <h4>${esc(TL('ka.ui.learned'))}</h4><p>${esc(TL('ka.ui.learnedFrom').replace('{n}', String(ins.learnedFrom)))}</p><ul>${ins.topHubs.map(([h, n]) => `<li>${esc(hubName(h === 'APP.NEXUS' ? 'APP.KX.NEXUS' : h))} – ${n}× ${ins.busyHours[h] != null ? `· ${esc(TL('ka.ui.usually'))} ${ins.busyHours[h]}:00` : ''}</li>`).join('') || `<li class="muted">${esc(TL('ka.ui.nothingYet'))}</li>`}</ul>
@@ -4941,8 +5013,13 @@ var KXAPP;
         m.className = 'modal-wrap open';
         m.querySelector('[data-close]').onclick = () => { m.className = 'modal-wrap'; m.innerHTML = ''; };
         const v = () => ({ name: m.querySelector('[data-ka-voice]').value, rate: Number(m.querySelector('[data-ka-rate]').value), pitch: Number(m.querySelector('[data-ka-pitch]').value), volume: Number(m.querySelector('[data-ka-vol]').value) });
-        m.querySelector('[data-ka-try]').onclick = () => { if (!kairaSpeak(TL('ka.ui.sample'), v()))
+        m.querySelector('[data-ka-try]').onclick = () => { const ss = globalThis.speechSynthesis; if (ss?.speaking) {
+            ss.cancel();
+            kxSpeakChip(false);
+            return;
+        } if (!kairaSpeak(TL('ka.ui.sample'), v()))
             toast(TL('ka.ui.noVoice')); };
+        kxVoicePresetsBind(m, v);
         m.querySelector('[data-ka-save]').onclick = async () => {
             const pick = (k) => m.querySelector(`input[name="ka-${k}"]:checked`)?.value;
             const msg = m.querySelector('[data-ka-msg]');
@@ -6045,14 +6122,19 @@ var KXAPP;
         parent.querySelectorAll('[data-md-group]').forEach(x => x.classList.toggle('md-active', x.dataset.mdGroup === mdGroup));
         document.querySelectorAll('button[data-md-layout]').forEach(b => b.classList.toggle('active', b.dataset.mdLayout === lay));
         if (lay === 'TABS' || lay === 'PAGES') {
+            const G = MD_GROUPS.filter(g => parent.querySelector(`[data-md-group="${g}"]`)); /* only groups that are on this page (Moje karty lives on the Desk) */
+            if (G.length && !G.includes(mdGroup)) {
+                mdGroup = G[0];
+                parent.querySelectorAll('[data-md-group]').forEach(x => x.classList.toggle('md-active', x.dataset.mdGroup === mdGroup));
+            }
             const bar = document.createElement('div');
             bar.className = 'kx-md-tabs';
             bar.dataset.mdTabs = '1';
-            const i = MD_GROUPS.indexOf(mdGroup);
-            bar.innerHTML = `${lay === 'PAGES' ? `<button type="button" class="icon-btn" data-md-step="-1" aria-label="‹">‹</button>` : ''}${MD_GROUPS.map(g => `<button type="button" class="${g === mdGroup ? 'active' : ''}" data-md-go="${g}">${lay === 'PAGES' ? '●' : esc(TL('mdg.' + g))}</button>`).join('')}${lay === 'PAGES' ? `<span class="kx-md-pg">${esc(TL('mdg.' + mdGroup))} · ${i + 1}/${MD_GROUPS.length}</span><button type="button" class="icon-btn" data-md-step="1" aria-label="›">›</button>` : ''}`;
+            const i = G.indexOf(mdGroup);
+            bar.innerHTML = `${lay === 'PAGES' ? `<button type="button" class="icon-btn" data-md-step="-1" aria-label="‹">‹</button>` : ''}${G.map(g => `<button type="button" class="${g === mdGroup ? 'active' : ''}" data-md-go="${g}">${lay === 'PAGES' ? '●' : esc(TL('mdg.' + g))}</button>`).join('')}${lay === 'PAGES' ? `<span class="kx-md-pg">${esc(TL('mdg.' + mdGroup))} · ${i + 1}/${G.length}</span><button type="button" class="icon-btn" data-md-step="1" aria-label="›">›</button>` : ''}`;
             parent.insertBefore(bar, parent.querySelector('[data-md-group]'));
             bar.querySelectorAll('[data-md-go]').forEach(b => b.onclick = () => { mdGroup = String(b.dataset.mdGo); applyMdLayout(); });
-            bar.querySelectorAll('[data-md-step]').forEach(b => b.onclick = () => { const n = MD_GROUPS.length; mdGroup = MD_GROUPS[(MD_GROUPS.indexOf(mdGroup) + Number(b.dataset.mdStep) + n) % n]; applyMdLayout(); });
+            bar.querySelectorAll('[data-md-step]').forEach(b => b.onclick = () => { const n = G.length || 1; mdGroup = G[(G.indexOf(mdGroup) + Number(b.dataset.mdStep) + n) % n] || mdGroup; applyMdLayout(); });
         }
     }
     /* swipe and arrow keys for Pages */
@@ -8325,8 +8407,19 @@ var KXAPP;
             btn.disabled = false;
         } });
         root.querySelector('[data-ai-voice]')?.addEventListener('click', () => { const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (!Recognition)
-            return toast('Diktování není v tomto prohlížeči dostupné'); try {
+            return toast('Diktování není v tomto prohlížeči dostupné'); const vb = root.querySelector('[data-ai-voice]'); if (window.__kxDict) {
+            try {
+                window.__kxDict.stop();
+            }
+            catch { }
+            window.__kxDict = null;
+            vb?.classList.remove('on');
+            return;
+        } /* second click stops dictation */ /* second click stops dictation */ try {
             const recognition = new Recognition();
+            window.__kxDict = recognition;
+            vb?.classList.add('on');
+            recognition.addEventListener?.('end', () => { window.__kxDict = null; vb?.classList.remove('on'); });
             recognition.lang = 'cs-CZ';
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;

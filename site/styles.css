@@ -1824,3 +1824,15 @@ html.kx-bright .app-shell{filter:brightness(var(--brightness))}
 .kx-rec-target{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0;padding:6px 10px;border-radius:10px;background:color-mix(in srgb,var(--surface2,#0a0f18) 55%,transparent);font-size:13px}.kx-rec-target small{color:var(--muted,#a39e8e)}
 
 .kx-rec-playic{border:0;cursor:pointer;z-index:1}
+
+/* N2.6b+ read aloud: stop chip, active buttons, voice presets */
+.kx-speak-stop{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);z-index:9998;padding:8px 18px;border-radius:999px;border:1px solid var(--accent,#f2c869);background:rgba(10,12,18,.94);color:var(--accent,#f2c869);font-weight:700;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+[data-ka-speak].on,[data-ai-voice].on{background:color-mix(in srgb,#ff5050 25%,transparent);border-color:#ff6b6b}
+.kx-vpre{display:grid;gap:6px;margin:4px 0 8px}.kx-vpre-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.kx-vpre-row > span{font-size:12px;color:var(--muted,#a39e8e)}.kx-vpre .chip.active{border-color:var(--accent,#f2c869);color:var(--accent,#f2c869)}
+
+/* N2.6b+ (user: My day layout did nothing): “All stacked” really stacks; “Two columns” keeps two; Pages = dots + arrows */
+.content.kx-md2[data-md-mode="STANDARD"] > .personal-home{grid-column:1/-1 !important}
+.content.kx-md2[data-md-mode="GRID"] > .kx-notify:not(.kx-wip),.content.kx-md2[data-md-mode="GRID"] > .kx-wip{grid-column:1 !important}
+.content.kx-md2[data-md-mode="GRID"] > .kx-work,.content.kx-md2[data-md-mode="GRID"] > .kx-kaira{grid-column:2 !important}
+[data-md-mode="PAGES"] .kx-md-tabs [data-md-go]{width:14px;height:14px;padding:0;border-radius:50%;font-size:0;line-height:0}
+[data-md-mode="PAGES"] .kx-md-tabs [data-md-go].active{background:var(--accent,#f2c869)}
