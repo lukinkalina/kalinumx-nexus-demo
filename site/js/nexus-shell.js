@@ -626,7 +626,34 @@ var KXAPP;
             status.textContent = steps[i][0];
             bar.style.width = `${Math.round(i / steps.length * 100)}%`;
             KXSplash.update(overlay, i, steps.length, steps[i][0], Date.now() - splashT0);
-            await steps[i][1]();
+            { /* N2.6b+ startup watchdog (user: demo stuck at 0 %) – if a step hangs, say where, show the last error and what to do */
+                const lastErr = { m: '' };
+                const onErr = (e) => { lastErr.m = String(e?.reason?.message || e?.reason || e?.message || e || '').slice(0, 240); };
+                addEventListener('error', onErr);
+                addEventListener('unhandledrejection', onErr);
+                const wd = setTimeout(() => {
+                    try {
+                        let box = document.getElementById('kxStall');
+                        if (!box) {
+                            box = document.createElement('div');
+                            box.id = 'kxStall';
+                            box.className = 'kx-stall';
+                            overlay.appendChild(box);
+                        }
+                        box.innerHTML = `<b>${esc(TL('stall.title'))}</b><p>${esc(TL('stall.step'))}: <i>${esc(steps[i][0])}</i></p>${lastErr.m ? `<p class="kx-stall-err">${esc(lastErr.m)}</p>` : ''}<ol><li>${esc(TL('stall.tabs'))}</li><li>${esc(TL('stall.reload'))}</li><li>${esc(TL('stall.safe'))}</li></ol><div class="kx-stall-btns"><button type="button" onclick="location.reload()">↻ ${esc(TL('stall.reloadBtn'))}</button></div>`;
+                    }
+                    catch { }
+                }, 8000);
+                try {
+                    await steps[i][1]();
+                }
+                finally {
+                    clearTimeout(wd);
+                    removeEventListener('error', onErr);
+                    removeEventListener('unhandledrejection', onErr);
+                    document.getElementById('kxStall')?.remove();
+                }
+            }
             bar.style.width = `${Math.round((i + 1) / steps.length * 100)}%`;
             KXSplash.update(overlay, i + 1, steps.length, steps[i][0], Date.now() - splashT0);
         }
