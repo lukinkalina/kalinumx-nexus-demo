@@ -631,19 +631,31 @@ var KXAPP;
                 const onErr = (e) => { lastErr.m = String(e?.reason?.message || e?.reason || e?.message || e || '').slice(0, 240); };
                 addEventListener('error', onErr);
                 addEventListener('unhandledrejection', onErr);
-                const wd = setTimeout(() => {
-                    try {
-                        let box = document.getElementById('kxStall');
-                        if (!box) {
-                            box = document.createElement('div');
-                            box.id = 'kxStall';
-                            box.className = 'kx-stall';
-                            overlay.appendChild(box);
+                let wd = 0;
+                const arm = () => {
+                    wd = setTimeout(() => {
+                        {
+                            const pk = document.querySelector('[data-first-workspace]');
+                            const r = pk?.getBoundingClientRect();
+                            if (pk && r && r.width > 0 && r.height > 0 && getComputedStyle(pk).display !== 'none' && getComputedStyle(pk).visibility !== 'hidden') {
+                                arm();
+                                return;
+                            }
+                        } /* waiting for the user's choice is not a stall */
+                        try {
+                            let box = document.getElementById('kxStall');
+                            if (!box) {
+                                box = document.createElement('div');
+                                box.id = 'kxStall';
+                                box.className = 'kx-stall';
+                                overlay.appendChild(box);
+                            }
+                            box.innerHTML = `<b>${esc(TL('stall.title'))}</b><p>${esc(TL('stall.step'))}: <i>${esc(steps[i][0])}</i></p>${lastErr.m ? `<p class="kx-stall-err">${esc(lastErr.m)}</p>` : ''}<ol><li>${esc(TL('stall.tabs'))}</li><li>${esc(TL('stall.reload'))}</li><li>${esc(TL('stall.safe'))}</li></ol><div class="kx-stall-btns"><button type="button" onclick="location.reload()">↻ ${esc(TL('stall.reloadBtn'))}</button></div>`;
                         }
-                        box.innerHTML = `<b>${esc(TL('stall.title'))}</b><p>${esc(TL('stall.step'))}: <i>${esc(steps[i][0])}</i></p>${lastErr.m ? `<p class="kx-stall-err">${esc(lastErr.m)}</p>` : ''}<ol><li>${esc(TL('stall.tabs'))}</li><li>${esc(TL('stall.reload'))}</li><li>${esc(TL('stall.safe'))}</li></ol><div class="kx-stall-btns"><button type="button" onclick="location.reload()">↻ ${esc(TL('stall.reloadBtn'))}</button></div>`;
-                    }
-                    catch { }
-                }, 8000);
+                        catch { }
+                    }, 8000);
+                };
+                arm();
                 try {
                     await steps[i][1]();
                 }
