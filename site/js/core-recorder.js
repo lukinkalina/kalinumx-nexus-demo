@@ -35,6 +35,22 @@ var KXRecorder;
             const blob = input?.blob;
             if (!blob || typeof blob.size !== 'number' || typeof blob.arrayBuffer !== 'function')
                 throw new Error('RECORDER_BLOB_REQUIRED');
+            const mime0 = String(input?.mime || blob.type || '').split(';')[0].trim().toLowerCase();
+            /* N2.6b+ screen recording: video only when explicitly marked SCREEN (everything else keeps the audio-only rule below) */
+            if (input?.kind === 'SCREEN') {
+                if (!/^video\/(webm|mp4)$/.test(mime0))
+                    throw new Error('RECORDER_SCREEN_MIME');
+                if (blob.size <= 0)
+                    throw new Error('RECORDER_EMPTY');
+                if (blob.size > MAX_BYTES)
+                    throw new Error('RECORDER_TOO_LARGE');
+                const ms0 = Number(input?.durationMs);
+                if (!Number.isInteger(ms0) || ms0 < 0 || ms0 > MAX_MS)
+                    throw new Error('RECORDER_DURATION_INVALID');
+                const title0 = (typeof input?.title === 'string' && input.title.trim() ? input.title.trim() : this.defaultTitle()).slice(0, 160); /* the UI passes a translated title */
+                const space0 = input?.spaceId || await this.personalSpace(ctx.actorId);
+                return this.core.files.importBlob(blob, `${title0}.${mime0 === 'video/mp4' ? 'mp4' : 'webm'}`, mime0, OWNER, [space0], ctx, { tags: [TAG, DUR + ms0, 'kx:screen'], description: '' });
+            }
             const mime = String(input?.mime || blob.type || '').split(';')[0].trim().toLowerCase();
             if (!mime.startsWith('audio/'))
                 throw new Error('RECORDER_MIME_NOT_AUDIO');

@@ -4267,7 +4267,7 @@ var KXAPP;
                 <div class="ai-status-line"><span id="aiProviderBadge">MOCK.LOCAL</span><span id="aiContextBadge">Načítám kontext…</span><span>Secrets: mimo běžnou DB/UI</span></div>
                 <div class="ai-messages" id="aiMessages"><p class="empty">Načítám AI session…</p></div>
                 <div class="ai-attachments" id="aiAttachments"><span class="muted">Přílohy: načítám dostupné soubory…</span></div>
-                <div class="ai-composer"><textarea id="aiPrompt" rows="3" placeholder="Napište zprávu pro Kairu…"></textarea><div class="ai-composer-actions"><button class="icon-btn" data-ai-voice title="Diktování">🎙</button><button class="btn" data-ai-send>Odeslat</button></div></div>
+                <div class="ai-composer"><textarea id="aiPrompt" rows="3" placeholder="Napište zprávu pro Kairu…"></textarea><div class="ai-composer-actions"><button class="icon-btn" data-ai-vmsg title="${esc(TL('vmsg.btn'))}">🎤</button><button class="icon-btn" data-ai-voice title="Diktování">🎙</button><button class="btn" data-ai-send>Odeslat</button></div></div>
               </div>
               <aside class="ai-side-card">
                 <div class="ai-side-section"><h3>Rychlá bezpečná akce</h3><p>Zatím umí navrhnout úkol; nic nezapíše, dokud to nepotvrdíte v náhledu.</p><input id="aiTaskTitle" value="Zkontrolovat AI návrh" placeholder="Název úkolu"><button class="row-btn" data-ai-propose-task><span>Navrhnout TASK.SAVE</span><b>Preview →</b></button></div>
@@ -5510,6 +5510,16 @@ var KXAPP;
                     inp.focus();
                 }
                 return;
+            }
+            /* N2.6b+: every tool Kaira knows can be opened (it used to open only 8 of them) */
+            if (place?.kind === 'WINDOW') {
+                const sec = (id) => document.querySelector(`[data-top-section="${id}"]`)?.click();
+                const W = { CALC: () => calcTool(), NOTES: () => notesTool(), TIMER: () => timerCenterModal(), DICTAPHONE: () => recorderModal(), GUIDES: () => manualTool(), RESTORE: () => restoreModal(), BUGS: () => bugsTool(), SETTINGS: () => settingsCenter(), CALENDAR: () => sec('calendar'), FILES: () => sec('files') };
+                const f = W[String(place.window || '')];
+                if (f) {
+                    await f();
+                    return;
+                }
             }
             if (place.kind === 'RECORD' && place.ref) {
                 await openRecordInspector(String(place.ref));
@@ -8239,7 +8249,8 @@ var KXAPP;
                 return;
             const messageRoot = root.querySelector('#aiMessages');
             if (messageRoot)
-                messageRoot.innerHTML = messages.length ? messages.map(m => { const d = aiData(m), role = String(d.role || 'SYSTEM'); return `<article class="ai-message ai-role-${esc(role.toLowerCase())}"><header><b>${esc(role === 'USER' ? 'Vy' : role === 'ASSISTANT' ? 'Kaira' : role)}</b><small>${esc(String(d.providerCode || ''))}</small></header><p>${esc(d.content || '')}</p>${d.attachmentFileIds?.length ? `<small>Přílohy: ${d.attachmentFileIds.length}</small>` : ''}</article>`; }).join('') : '<p class="empty">Nový chat je připraven.</p>';
+                messageRoot.innerHTML = messages.length ? messages.map(m => { const d = aiData(m), role = String(d.role || 'SYSTEM'); return `<article class="ai-message ai-role-${esc(role.toLowerCase())}"><header><b>${esc(role === 'USER' ? 'Vy' : role === 'ASSISTANT' ? 'Kaira' : role)}</b><small>${esc(String(d.providerCode || ''))}</small></header><p>${esc(d.content || '')}</p>${(d.attachmentFileIds || []).map((fid) => `<div class="kx-vp-slot" data-vp-file="${esc(fid)}"></div>`).join('')}${d.attachmentFileIds?.length ? `<small class="kx-att-count">Přílohy: ${d.attachmentFileIds.length}</small>` : ''}</article>`; }).join('') : '<p class="empty">Nový chat je připraven.</p>';
+            void kxVoiceHydrate(root);
             const fileRoot = root.querySelector('#aiAttachments');
             if (fileRoot)
                 fileRoot.innerHTML = recentFiles.length ? `<span>Povolené přílohy</span>${recentFiles.map(r => `<label class="ai-file-chip"><input type="checkbox" data-ai-attachment="${esc(r.file.id)}" ${aiUi.attachmentFileIds.includes(r.file.id) ? 'checked' : ''}><span>${esc(r.file.name)}</span></label>`).join('')}` : '<span class="muted">Žádné dostupné soubory.</span>';
@@ -8299,6 +8310,7 @@ var KXAPP;
         } });
         root.querySelectorAll('[data-ai-attachment]').forEach(x => x.onchange = () => { const id = x.dataset.aiAttachment; if (!id)
             return; aiUi.attachmentFileIds = x.checked ? [...new Set([...aiUi.attachmentFileIds, id])] : aiUi.attachmentFileIds.filter(y => y !== id); });
+        kxVoiceMsgBind(root, sessionId);
         root.querySelector('[data-ai-send]')?.addEventListener('click', async () => { const input = root.querySelector('#aiPrompt'), text = input?.value.trim(); if (!text)
             return toast('Napište zprávu'); const btn = root.querySelector('[data-ai-send]'); btn.disabled = true; try {
             await runtime.actions.invoke('ACTION.CORE.AI.CHAT.SEND', { sessionId, text, attachmentFileIds: [...aiUi.attachmentFileIds] }, aiActionContext(['CORE.AI.CHAT']));
@@ -14256,6 +14268,514 @@ var KXAPP;
     // N2.1o (R48): Diktafon + přehrávač (recordings are Core files).
     const recUi = { rec: null, stream: null, chunks: [], startedAt: 0, timer: 0, playingId: '', url: '' };
     function recCtx() { return { actorId: CURRENT_USER_ID, appCode: 'APP.KX.NEXUS', deviceId: activeDevice?.id, permissions: ['CORE.FILE.IMPORT'], confirmed: true }; }
+    /* N2.6b+ screen recording (user): getDisplayMedia + MediaRecorder; stopping the share in the browser also stops and saves */
+    /* N2.6b+ (user: voice messages like WhatsApp) – a reusable mini player: play / pause, waveform progress (click to seek), time, speed 1× / 1.5× / 2×, volume; speed and volume are remembered */
+    const VP = { audio: null, id: '', urls: {}, peaks: {}, rows: null, rowsAt: 0 };
+    const vpRate = () => { try {
+        return Number(localStorage.getItem('kx.vp.rate') || '1') || 1;
+    }
+    catch {
+        return 1;
+    } };
+    const vpVol = () => { try {
+        const v = localStorage.getItem('kx.vp.vol');
+        return v == null ? 1 : Math.max(0, Math.min(1, Number(v)));
+    }
+    catch {
+        return 1;
+    } };
+    async function kxPeaks(blob, n = 48) { try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC)
+            return [];
+        const ac = new AC();
+        const buf = await ac.decodeAudioData(await blob.arrayBuffer());
+        try {
+            ac.close();
+        }
+        catch { }
+        const d = buf.getChannelData(0);
+        const step = Math.max(1, Math.floor(d.length / n));
+        const p = Array.from({ length: n }, (_, i) => { let mx = 0; for (let k = i * step; k < Math.min(d.length, (i + 1) * step); k += 32)
+            mx = Math.max(mx, Math.abs(d[k])); return mx; });
+        const top = Math.max(0.01, ...p);
+        return p.map(x => x / top);
+    }
+    catch {
+        return [];
+    } }
+    function kxVpHtml(id, durMs) {
+        const pk = VP.peaks[id] || Array.from({ length: 48 }, (_, i) => 0.25 + 0.2 * Math.abs(Math.sin(i * 1.7)));
+        const dur = KXRecorder.formatDuration(durMs || 0);
+        return `<div class="kx-vp" data-vp="${esc(id)}"><button type="button" class="kx-vp-play" data-vp-play title="${esc(TL('vmsg.play'))}">▶</button><div class="kx-vp-bar" data-vp-seek title="${esc(TL('vmsg.seek'))}"><svg viewBox="0 0 144 28" preserveAspectRatio="none">${pk.map((p, i) => { const h = Math.max(3, Math.round(p * 26)); return `<rect x="${i * 3}" y="${14 - h / 2}" width="2" height="${h}" rx="1"/>`; }).join('')}</svg><i class="kx-vp-prog" data-vp-prog></i></div><span class="kx-vp-time" data-vp-time>${esc(dur)}</span><button type="button" class="kx-vp-rate" data-vp-rate title="${esc(TL('vmsg.rate'))}">${vpRate()}×</button><label class="kx-vp-vol" title="${esc(TL('vmsg.vol'))}">🔊<input type="range" min="0" max="1" step="0.05" value="${vpVol()}" data-vp-vol></label></div>`;
+    }
+    async function kxVpRows() { if (VP.rows && Date.now() - VP.rowsAt < 5000)
+        return VP.rows; try {
+        VP.rows = await runtime.actions.invoke('ACTION.CORE.RECORDER.LIST', {}, recCtx());
+        VP.rowsAt = Date.now();
+    }
+    catch {
+        VP.rows = [];
+    } return VP.rows || []; }
+    async function kxVoiceHydrate(root) {
+        const slots = Array.from(root.querySelectorAll('[data-vp-file]:not([data-vp-done])'));
+        if (!slots.length)
+            return;
+        const rows = await kxVpRows();
+        for (const s of slots) {
+            s.dataset.vpDone = '1';
+            const r = rows.find((x) => x.id === s.dataset.vpFile);
+            if (!r || !String(r.mime || '').startsWith('audio/'))
+                continue;
+            s.innerHTML = kxVpHtml(r.id, r.durationMs);
+            s.closest('article')?.querySelector('.kx-att-count')?.remove();
+            kxVpBind(s.firstElementChild, r);
+            if (!VP.peaks[r.id])
+                void (async () => { try {
+                    const b = await runtime.recorder.blob(r.id, CURRENT_USER_ID);
+                    VP.peaks[r.id] = await kxPeaks(b);
+                    const el = root.querySelector(`[data-vp="${CSS.escape(r.id)}"]`);
+                    if (el && VP.peaks[r.id].length) {
+                        const nw = document.createElement('div');
+                        nw.innerHTML = kxVpHtml(r.id, r.durationMs);
+                        const n2 = nw.firstElementChild;
+                        el.replaceWith(n2);
+                        kxVpBind(n2, r);
+                    }
+                }
+                catch { } })();
+        }
+    }
+    function kxVpBind(el, r) {
+        if (!el)
+            return;
+        const id = r.id;
+        const play = el.querySelector('[data-vp-play]');
+        const prog = el.querySelector('[data-vp-prog]');
+        const time = el.querySelector('[data-vp-time]');
+        const ui = () => { const a = VP.audio; const on = !!a && VP.id === id && !a.paused; play.textContent = on ? '⏸' : '▶'; el.classList.toggle('on', on); const D = a && Number.isFinite(a.duration) && a.duration > 0 ? a.duration : (Number(r.durationMs) || 0) / 1000; /* MediaRecorder webm has no duration – use the stored one */ /* MediaRecorder webm has no duration – use the stored one */ if (a && VP.id === id && D > 0) {
+            prog.style.width = `${Math.min(100, a.currentTime / D * 100)}%`;
+            time.textContent = `${KXRecorder.formatDuration(a.currentTime * 1000)} / ${KXRecorder.formatDuration(D * 1000)}`;
+        } };
+        const ensure = async () => {
+            if (VP.id !== id || !VP.audio) {
+                VP.audio?.pause();
+                if (!VP.urls[id]) {
+                    const b = await runtime.recorder.blob(id, CURRENT_USER_ID);
+                    VP.urls[id] = URL.createObjectURL(b);
+                }
+                const a = new Audio(VP.urls[id]);
+                a.playbackRate = vpRate();
+                a.volume = vpVol();
+                VP.audio = a;
+                VP.id = id;
+                a.ontimeupdate = () => document.querySelectorAll(`[data-vp="${CSS.escape(id)}"]`).forEach(x => x.__vpUi?.());
+                a.onended = a.onpause = a.onplay = () => document.querySelectorAll('[data-vp]').forEach(x => x.__vpUi?.());
+            }
+            return VP.audio;
+        };
+        el.__vpUi = ui;
+        play.onclick = async (e) => { e.stopPropagation(); const a = await ensure(); if (a.paused) {
+            document.querySelectorAll('audio').forEach((x) => { if (x !== a)
+                try {
+                    x.pause();
+                }
+                catch { } });
+            try {
+                await a.play();
+            }
+            catch { }
+        }
+        else
+            a.pause(); ui(); };
+        el.querySelector('[data-vp-seek]').onclick = async (e) => { const a = await ensure(); const bx = e.currentTarget.getBoundingClientRect(); const f = Math.max(0, Math.min(1, (e.clientX - bx.left) / bx.width)); const go = () => { const D = Number.isFinite(a.duration) && a.duration > 0 ? a.duration : (Number(r.durationMs) || 0) / 1000; if (D > 0)
+            a.currentTime = f * D; ui(); }; if (a.readyState >= 1)
+            go();
+        else
+            a.onloadedmetadata = go; };
+        el.querySelector('[data-vp-rate]').onclick = (e) => { e.stopPropagation(); const steps = [1, 1.5, 2]; const nx = steps[(steps.indexOf(vpRate()) + 1) % steps.length]; try {
+            localStorage.setItem('kx.vp.rate', String(nx));
+        }
+        catch { } if (VP.audio)
+            VP.audio.playbackRate = nx; document.querySelectorAll('[data-vp-rate]').forEach((b) => b.textContent = nx + '×'); };
+        el.querySelector('[data-vp-vol]').oninput = (e) => { const v = Number(e.target.value); try {
+            localStorage.setItem('kx.vp.vol', String(v));
+        }
+        catch { } if (VP.audio)
+            VP.audio.volume = v; };
+    }
+    /* voice message in the Kaira chat: record → save as a recording → send it as an attachment; the transcript (if the browser can) goes as text */
+    function kxVoiceMsgBind(root, sessionId) {
+        const b = root.querySelector('[data-ai-vmsg]');
+        if (!b)
+            return;
+        b.onclick = async () => {
+            if (!navigator.mediaDevices?.getUserMedia || typeof window.MediaRecorder !== 'function')
+                return toast(TL('vmsg.noMic'));
+            const comp = root.querySelector('.ai-composer');
+            if (!comp || comp.querySelector('.kx-vmsg-rec'))
+                return;
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            }
+            catch (e) {
+                return toast(`${TL('vmsg.noMic')}: ${String(e?.message || e)}`);
+            }
+            const MR = window.MediaRecorder;
+            const rec = new MR(stream);
+            const chunks = [];
+            rec.ondataavailable = (e) => { if (e.data?.size)
+                chunks.push(e.data); };
+            rec.start(250);
+            const t0 = Date.now();
+            let transcript = '';
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            let sr = null;
+            if (SR) {
+                try {
+                    sr = new SR();
+                    sr.lang = UI_LOCALE === 'en' ? 'en-US' : 'cs-CZ';
+                    sr.continuous = true;
+                    sr.interimResults = false;
+                    sr.onresult = (ev) => { for (let i = ev.resultIndex; i < ev.results.length; i++)
+                        if (ev.results[i].isFinal)
+                            transcript += (transcript ? ' ' : '') + ev.results[i][0].transcript; };
+                    sr.start();
+                }
+                catch {
+                    sr = null;
+                }
+            }
+            const bar = document.createElement('div');
+            bar.className = 'kx-vmsg-rec';
+            bar.innerHTML = `<span class="kx-vmsg-dot"></span><b data-vmsg-time>0:00</b><span class="muted">${esc(TL('vmsg.recording'))}</span><button type="button" class="icon-btn" data-vmsg-cancel title="${esc(TL('vmsg.cancel'))}">✕</button><button type="button" class="btn primary" data-vmsg-send>➤ ${esc(TL('vmsg.send'))}</button>`;
+            comp.appendChild(bar);
+            comp.classList.add('kx-vmsg-on');
+            const tick = setInterval(() => { const x = bar.querySelector('[data-vmsg-time]'); if (x)
+                x.textContent = KXRecorder.formatDuration(Date.now() - t0); }, 300);
+            const finish = async (send) => {
+                clearInterval(tick);
+                const done = new Promise(res => rec.addEventListener('stop', () => res(), { once: true }));
+                try {
+                    rec.stop();
+                }
+                catch { }
+                try {
+                    sr?.stop();
+                }
+                catch { }
+                await done;
+                stream.getTracks().forEach(x => x.stop());
+                bar.remove();
+                comp.classList.remove('kx-vmsg-on');
+                if (!send)
+                    return;
+                const ms = Math.max(0, Math.round(Date.now() - t0));
+                const type = (rec.mimeType || 'audio/webm').split(';')[0];
+                const blob = new Blob(chunks, { type });
+                if (!blob.size)
+                    return toast(TL('vmsg.empty'));
+                try {
+                    const f = await runtime.actions.invoke('ACTION.CORE.RECORDER.SAVE', { blob, mime: type, durationMs: ms, title: `${TL('vmsg.title')} ${new Date().toLocaleString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}` }, recCtx());
+                    VP.rows = null;
+                    await runtime.actions.invoke('ACTION.CORE.AI.CHAT.SEND', { sessionId, text: transcript.trim() ? `🎤 ${transcript.trim()}` : `🎤 ${TL('vmsg.noText')}`, attachmentFileIds: [f?.id || f?.file?.id].filter(Boolean) }, aiActionContext(['CORE.AI.CHAT']));
+                    await hydrateAI();
+                }
+                catch (e) {
+                    toast(`${TL('vmsg.fail')}: ${String(e?.message || e)}`);
+                }
+            };
+            bar.querySelector('[data-vmsg-cancel]').onclick = () => void finish(false);
+            bar.querySelector('[data-vmsg-send]').onclick = () => void finish(true);
+        };
+    }
+    /* N2.6b+ (user: recognise monitor 1 and 2) – Window Management API (Chrome / Edge, asks for permission): names, resolution, position, primary; numbers shown on each monitor */
+    /* N2.6b+ (user: save recordings to the PC / phone instead of the app) – per device: NEXUS and/or a PC folder (File System Access), download, or share (phone) */
+    let kxFolderMem = null;
+    const RT_KEY = 'kx.rec.target';
+    function kxRecTarget() { try {
+        const v = JSON.parse(localStorage.getItem(RT_KEY) || '{}');
+        return { nexus: v.nexus !== false, dev: String(v.dev || ''), folder: String(v.folder || '') };
+    }
+    catch {
+        return { nexus: true, dev: '', folder: '' };
+    } }
+    function kxRecTargetSet(p) { try {
+        localStorage.setItem(RT_KEY, JSON.stringify({ ...kxRecTarget(), ...p }));
+    }
+    catch { } }
+    function kxIdb() { return new Promise((res, rej) => { const r = indexedDB.open('kx-device-handles', 1); r.onupgradeneeded = () => r.result.createObjectStore('h'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+    async function kxHandle(key, val) { const db = await kxIdb(); return new Promise((res, rej) => { const tx = db.transaction('h', val === undefined ? 'readonly' : 'readwrite'); const st = tx.objectStore('h'); const r = val === undefined ? st.get(key) : st.put(val, key); r.onsuccess = () => res(val === undefined ? r.result : val); r.onerror = () => rej(r.error); }); }
+    function kxRecTargetHtml() {
+        const c = kxRecTarget();
+        const canFolder = typeof window.showDirectoryPicker === 'function';
+        const canShare = typeof navigator.canShare === 'function';
+        return `<div class="kx-rec-target" data-rec-target><span>${esc(TL('rt.label'))}</span><label><input type="checkbox" data-rt-nexus ${c.nexus ? 'checked' : ''}> 📦 NEXUS</label><select data-rt-dev><option value="">${esc(TL('rt.none'))}</option>${canFolder ? `<option value="FOLDER" ${c.dev === 'FOLDER' ? 'selected' : ''}>💻 ${esc(TL('rt.folder'))}</option>` : ''}<option value="DOWNLOAD" ${c.dev === 'DOWNLOAD' ? 'selected' : ''}>⬇ ${esc(TL('rt.download'))}</option>${canShare ? `<option value="SHARE" ${c.dev === 'SHARE' ? 'selected' : ''}>📲 ${esc(TL('rt.share'))}</option>` : ''}</select>${c.dev === 'FOLDER' ? `<button type="button" class="btn ghost compact" data-rt-pick>📁 ${esc(c.folder ? TL('rt.change') : TL('rt.pick'))}</button><small>${esc(c.folder || TL('rt.noFolder'))}</small>` : ''}</div>`;
+    }
+    function kxRecTargetBind(m) {
+        const box = m.querySelector('[data-rec-target]');
+        if (!box)
+            return;
+        box.querySelector('[data-rt-nexus]').onchange = (e) => { kxRecTargetSet({ nexus: !!e.target.checked }); };
+        box.querySelector('[data-rt-dev]').onchange = (e) => { kxRecTargetSet({ dev: String(e.target.value) }); void recorderModal(); };
+        const pk = box.querySelector('[data-rt-pick]');
+        if (pk)
+            pk.onclick = async () => { try {
+                const h = await window.showDirectoryPicker({ id: 'kx-recordings', mode: 'readwrite', startIn: 'videos' });
+                kxFolderMem = h;
+                try {
+                    await kxHandle('rec-folder', h);
+                }
+                catch { /* kept in memory for this session */ }
+                kxRecTargetSet({ folder: h.name });
+                toast(`${TL('rt.folderSet')}: ${h.name}`);
+                void recorderModal();
+            }
+            catch { } };
+    }
+    async function kxRecDevice(blob, name, dev) {
+        if (dev === 'FOLDER') {
+            try {
+                let h = kxFolderMem;
+                if (!h) {
+                    try {
+                        h = await kxHandle('rec-folder');
+                    }
+                    catch {
+                        h = null;
+                    }
+                }
+                if (h) {
+                    let p = await h.queryPermission?.({ mode: 'readwrite' });
+                    if (p !== 'granted')
+                        p = await h.requestPermission?.({ mode: 'readwrite' });
+                    if (p === 'granted') {
+                        const f = await h.getFileHandle(name, { create: true });
+                        const w = await f.createWritable();
+                        await w.write(blob);
+                        await w.close();
+                        toast(`${TL('rt.savedFolder')}: ${h.name}/${name}`);
+                        return true;
+                    }
+                }
+            }
+            catch { }
+            dev = 'DOWNLOAD';
+        }
+        if (dev === 'SHARE') {
+            try {
+                const file = new File([blob], name, { type: blob.type });
+                if (navigator.canShare?.({ files: [file] })) {
+                    await navigator.share({ files: [file], title: name });
+                    return true;
+                }
+            }
+            catch { }
+            dev = 'DOWNLOAD';
+        }
+        if (dev === 'DOWNLOAD') {
+            const u = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = u;
+            a.download = name;
+            a.addEventListener('click', (e) => e.stopPropagation());
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(u), 3000);
+            toast(`${TL('rt.downloaded')}: ${name}`);
+            return true;
+        }
+        return false;
+    }
+    async function kxRecStore(blob, type, ms, kind, title) {
+        const c = kxRecTarget();
+        const ext = type.includes('mp4') ? (kind === 'SCREEN' ? 'mp4' : 'm4a') : type.includes('ogg') ? 'ogg' : 'webm';
+        const base = (title || `${kind === 'SCREEN' ? TL('rec2.screenName') : TL('rt.audioName')} ${new Date().toLocaleString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}`).replace(/[\\/:*?"<>|]+/g, '-').trim();
+        let ok = false;
+        if (c.dev)
+            ok = await kxRecDevice(blob, `${base}.${ext}`, c.dev);
+        if (c.nexus || !ok) {
+            try {
+                await runtime.actions.invoke('ACTION.CORE.RECORDER.SAVE', kind === 'SCREEN' ? { blob, mime: type, durationMs: ms, kind: 'SCREEN', title: base } : { blob, mime: type, durationMs: ms, ...(title ? { title: base } : {}) }, recCtx());
+                toast(kind === 'SCREEN' ? TL('rec2.saved') : 'Nahrávka uložena');
+            }
+            catch (e) {
+                toast(`${TL('rec2.saveFail')}: ${String(e?.message || e)}`);
+            }
+        }
+    }
+    let kxScreens = [];
+    async function kxMonitors() {
+        const W = window;
+        if (typeof W.getScreenDetails !== 'function') {
+            toast(TL('mon.noApi'));
+            return null;
+        }
+        try {
+            const d = await W.getScreenDetails();
+            const arr = [...d.screens].sort((a, b) => (a.left - b.left) || (a.top - b.top));
+            kxScreens = arr;
+            const minL = Math.min(...arr.map((s) => s.left)), maxL = Math.max(...arr.map((s) => s.left));
+            return arr.map((s, i) => ({ n: i + 1, label: String(s.label || '').trim() || `${TL('mon.n')} ${i + 1}`, w: s.width, h: s.height, primary: !!s.isPrimary, pos: arr.length < 2 ? TL('mon.only') : s.left === minL ? TL('mon.left') : s.left === maxL ? TL('mon.right') : TL('mon.middle') }));
+        }
+        catch (e) {
+            toast(`${TL('mon.denied')}: ${String(e?.message || e)}`);
+            return null;
+        }
+    }
+    async function kxIdentifyMonitors() {
+        if (!kxScreens.length) {
+            const l = await kxMonitors();
+            if (!l)
+                return;
+        }
+        for (let i = 0; i < kxScreens.length; i++) {
+            const s = kxScreens[i];
+            const w = window.open('', 'kxmon' + i, `left=${s.availLeft + 16},top=${s.availTop + s.availHeight - 136},width=120,height=100`); /* small, bottom-left corner of each monitor */
+            if (!w) {
+                toast(TL('mon.popups'));
+                break;
+            }
+            w.document.write(`<title>${TL('mon.n')} ${i + 1}</title><body style="margin:0;display:grid;place-items:center;background:#0b0f17;color:#f2c869;font:700 54px system-ui;border:3px solid #f2c869;box-sizing:border-box;height:100vh">${i + 1}</body>`);
+            setTimeout(() => { try {
+                w.close();
+            }
+            catch { } }, 3500);
+        }
+    }
+    /* which monitor the user picked in the browser's share dialog (by size; Chrome labels monitors “screen:N:0”) */
+    function kxWhichMonitor(stream) {
+        try {
+            const tr = stream.getVideoTracks()[0];
+            const st = tr?.getSettings?.() || {};
+            if (st.displaySurface && st.displaySurface !== 'monitor')
+                return st.displaySurface === 'window' ? TL('mon.window') : TL('mon.tab');
+            const m = /screen:(\d+)/.exec(String(tr?.label || ''));
+            const dpr = window.devicePixelRatio || 1;
+            if (kxScreens.length) {
+                const i = kxScreens.findIndex((s) => Math.abs(s.width * (s.devicePixelRatio || dpr) - Number(st.width)) < 4 && Math.abs(s.height * (s.devicePixelRatio || dpr) - Number(st.height)) < 4);
+                if (i >= 0 && kxScreens.filter((s) => s.width === kxScreens[i].width && s.height === kxScreens[i].height).length === 1)
+                    return `${TL('mon.n')} ${i + 1}`;
+            }
+            return m ? `${TL('mon.n')} ${Number(m[1]) + 1}` : TL('mon.screen');
+        }
+        catch {
+            return '';
+        }
+    }
+    async function kxScreenToggle(m) {
+        const R = recUi;
+        if (R.screen?.rec) {
+            const s = R.screen;
+            const done = new Promise(res => s.rec.addEventListener('stop', () => res(), { once: true }));
+            try {
+                s.rec.stop();
+            }
+            catch { }
+            await done;
+            return;
+        }
+        if (!navigator.mediaDevices?.getDisplayMedia || typeof window.MediaRecorder !== 'function') {
+            toast(TL('rec2.noScreen'));
+            return;
+        }
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true });
+            const which = kxWhichMonitor(stream);
+            const MR = window.MediaRecorder;
+            const mt = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'].find(x => MR.isTypeSupported?.(x)) || '';
+            const rec = new MR(stream, mt ? { mimeType: mt } : undefined);
+            const s = { rec, stream, chunks: [], startedAt: Date.now() };
+            R.screen = s;
+            rec.ondataavailable = (e) => { if (e.data && e.data.size)
+                s.chunks.push(e.data); };
+            rec.onstop = async () => {
+                clearInterval(s.timer);
+                stream.getTracks().forEach(t => t.stop());
+                const ms = Math.max(0, Math.round(Date.now() - s.startedAt));
+                const type = (rec.mimeType || 'video/webm').split(';')[0];
+                const blob = new Blob(s.chunks, { type });
+                R.screen = null;
+                await kxRecStore(blob, type, ms, 'SCREEN', `${TL('rec2.screenName')}${which ? ' · ' + which : ''} ${new Date().toLocaleString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}`);
+                R.filter = 'SCREEN';
+                if (m.classList.contains('open'))
+                    void recorderModal();
+            };
+            stream.getVideoTracks()[0]?.addEventListener('ended', () => { try {
+                if (rec.state !== 'inactive')
+                    rec.stop();
+            }
+            catch { } });
+            rec.start(1000);
+            s.timer = setInterval(() => { const x = document.querySelector('[data-recorder-elapsed]'); if (x)
+                x.textContent = KXRecorder.formatDuration(Date.now() - s.startedAt); }, 500);
+            void recorderModal();
+        }
+        catch (e) {
+            toast(`${TL('rec2.noScreen')}: ${String(e?.message || e)}`);
+        }
+    }
+    /* thumbnails: a frame of the video / a waveform of the audio – computed once, kept in memory */
+    async function kxRecThumbs(m, rows) {
+        const R = recUi;
+        R.thumbs = R.thumbs || {};
+        for (const r of rows) {
+            if (R.thumbs[r.id] || !m.classList.contains('open'))
+                continue;
+            try {
+                const blob = await runtime.recorder.blob(r.id, CURRENT_USER_ID);
+                let html = '';
+                if (String(r.mime || '').startsWith('video/')) {
+                    const u = URL.createObjectURL(blob);
+                    const v = document.createElement('video');
+                    v.muted = true;
+                    v.preload = 'auto';
+                    v.src = u;
+                    await new Promise((res) => { v.onloadeddata = () => res(); v.onerror = () => res(); setTimeout(res, 4000); });
+                    try {
+                        v.currentTime = Math.min(1, (v.duration || 2) / 3);
+                    }
+                    catch { }
+                    await new Promise(res => { v.onseeked = () => res(); setTimeout(res, 1500); });
+                    const c = document.createElement('canvas');
+                    c.width = 240;
+                    c.height = 135;
+                    c.getContext('2d')?.drawImage(v, 0, 0, 240, 135);
+                    URL.revokeObjectURL(u);
+                    html = `<img src="${c.toDataURL('image/jpeg', 0.7)}" alt="">`;
+                }
+                else {
+                    const AC = window.AudioContext || window.webkitAudioContext;
+                    if (AC) {
+                        const ac = new AC();
+                        const buf = await ac.decodeAudioData(await blob.arrayBuffer());
+                        const d = buf.getChannelData(0);
+                        const n = 40, step = Math.max(1, Math.floor(d.length / n));
+                        const peaks = Array.from({ length: n }, (_, i) => { let mx = 0; for (let k = i * step; k < Math.min(d.length, (i + 1) * step); k += 64)
+                            mx = Math.max(mx, Math.abs(d[k])); return mx; });
+                        const top = Math.max(0.01, ...peaks);
+                        try {
+                            ac.close();
+                        }
+                        catch { }
+                        html = `<svg viewBox="0 0 120 60" preserveAspectRatio="none" class="kx-rec-wave">${peaks.map((p, i) => { const h = Math.max(2, Math.round(p / top * 52)); return `<rect x="${i * 3}" y="${30 - h / 2}" width="2" height="${h}" rx="1"/>`; }).join('')}</svg>`;
+                    }
+                }
+                if (html) {
+                    R.thumbs[r.id] = html;
+                    const card = m.querySelector(`[data-recording="${CSS.escape(r.id)}"] .kx-rec-thumb`);
+                    if (card) {
+                        const ph = card.querySelector('.kx-rec-ph,img,svg');
+                        if (ph)
+                            ph.outerHTML = html;
+                    }
+                }
+            }
+            catch { }
+        }
+    }
     async function recorderModal() {
         const m = toolHost('recorder');
         const __g = kxGen('recorder');
@@ -14268,12 +14788,17 @@ var KXAPP;
         }
         const supported = !!(navigator.mediaDevices?.getUserMedia) && typeof window.MediaRecorder === 'function';
         const recording = !!recUi.rec;
+        const screenOn = !!recUi.screen?.rec;
+        const filt = String(recUi.filter || 'ALL');
+        const isVid = (r) => String(r.mime || '').startsWith('video/');
+        const shown = rows.filter((r) => filt === 'ALL' || (filt === 'SCREEN' ? isVid(r) : !isVid(r)));
         if (!kxLatest('recorder', __g))
             return;
-        m.innerHTML = `<div class="modal" data-recorder-panel><div class="drawer-head"><div><b>Diktafon</b><small>Nahrávky se ukládají jako soubory · ⋮ další akce</small></div><button class="icon-btn" data-close>×</button></div>
-          <div class="studio-toolbar">${supported ? `<button class="btn ${recording ? '' : 'primary'}" data-recorder-toggle aria-pressed="${recording ? 'true' : 'false'}">${recording ? '■ Zastavit a uložit' : '● Nahrávat'}</button><b data-recorder-elapsed>${recording ? KXRecorder.formatDuration(Date.now() - recUi.startedAt) : ''}</b>` : '<p class="empty" data-recorder-unsupported>Nahrávání tu není dostupné (prohlížeč nepovolil mikrofon nebo MediaRecorder).</p>'}</div>
-          <audio data-recorder-audio preload="none" style="width:100%;margin:6px 0"></audio>
-          <table class="kx-compact-table" data-recorder-list style="width:100%;font-size:12px;border-collapse:collapse"><tbody>${rows.map((r) => `<tr data-recording="${esc(r.id)}" data-rev="${esc(r.revision)}" style="border-bottom:1px solid var(--border);line-height:1.2"><td style="width:26px"><button class="icon-btn" data-recording-play="${esc(r.id)}" title="Přehrát" style="width:24px;height:24px">${recUi.playingId === r.id ? '⏸' : '▶'}</button></td><td data-recording-title style="cursor:pointer">${esc(r.title)}</td><td style="width:52px;text-align:right" data-recording-duration>${esc(r.duration)}</td><td style="width:110px;text-align:right;color:var(--muted,#888)">${esc(new Date(r.createdAt).toLocaleString())}</td><td style="width:26px"><button class="icon-btn" data-recording-more="${esc(r.id)}" title="Další akce" aria-haspopup="menu" style="width:24px;height:24px">⋮</button></td></tr>`).join('') || '<tr><td class="empty" data-recorder-empty>Zatím žádné nahrávky.</td></tr>'}</tbody></table></div>`;
+        m.innerHTML = `<div class="modal" data-recorder-panel><div class="drawer-head"><div><b>🎙 ${esc(TL('rec2.title'))}</b><small>${esc(TL('rec2.sub'))}</small></div><button class="icon-btn" data-close>×</button></div>
+          <div class="studio-toolbar">${supported ? `<button class="btn ${recording ? '' : 'primary'}" data-recorder-toggle aria-pressed="${recording ? 'true' : 'false'}">${recording ? '■ Zastavit a uložit' : '● Nahrávat'}</button><button class="btn ${screenOn ? '' : 'ghost'}" data-recorder-screen aria-pressed="${screenOn ? 'true' : 'false'}">${screenOn ? '■ ' + esc(TL('rec2.screenStop')) : '🖥 ' + esc(TL('rec2.screen'))}</button><button class="btn ghost" data-rec-monitors title="${esc(TL('mon.hint'))}">🖥🖥 ${esc(TL('mon.btn'))}</button><b data-recorder-elapsed>${recording ? KXRecorder.formatDuration(Date.now() - recUi.startedAt) : screenOn ? KXRecorder.formatDuration(Date.now() - recUi.screen.startedAt) : ''}</b>` : '<p class="empty" data-recorder-unsupported>Nahrávání tu není dostupné (prohlížeč nepovolil mikrofon nebo MediaRecorder).</p>'}</div>
+          ${recUi.monitors?.length ? `<div class="kx-mon-list" data-mon-list>${recUi.monitors.map((s) => `<div class="kx-mon"><b>${esc(TL('mon.n'))} ${s.n}</b><span>${esc(s.label)}</span><small>${s.w} × ${s.h}${s.primary ? ' · ' + esc(TL('mon.primary')) : ''} · ${esc(s.pos)}</small></div>`).join('')}<button class="btn ghost compact" data-mon-identify>🔢 ${esc(TL('mon.identify'))}</button></div>` : ''}${kxRecTargetHtml()}<audio data-recorder-audio preload="none" style="width:100%;margin:6px 0"></audio><video data-recorder-video controls playsinline hidden class="kx-rec-video"></video>
+           <div class="kx-rec-filters">${[['ALL', 'rec2.all'], ['AUDIO', 'rec2.audio'], ['SCREEN', 'rec2.screens']].map(([k, l]) => `<button type="button" class="${filt === k ? 'active' : ''}" data-rec-filter="${k}">${esc(TL(l))} <small>${k === 'ALL' ? rows.length : rows.filter((r) => k === 'SCREEN' ? isVid(r) : !isVid(r)).length}</small></button>`).join('')}</div>
+           <div class="kx-rec-grid" data-recorder-list>${shown.map((r) => `<div class="kx-rec-card ${recUi.playingId === r.id ? 'playing' : ''}" data-recording="${esc(r.id)}" data-rev="${esc(r.revision)}" data-rec-kind="${isVid(r) ? 'SCREEN' : 'AUDIO'}"><div class="kx-rec-thumb" data-rec-thumbplay="${esc(r.id)}" title="${esc(TL('rec2.play'))}">${recUi.thumbs?.[r.id] || `<span class="kx-rec-ph">${isVid(r) ? '🖥' : '🎙'}</span>`}<button type="button" class="kx-rec-playic" data-recording-play="${esc(r.id)}" title="${esc(TL('rec2.play'))}">${recUi.playingId === r.id ? '⏸' : '▶'}</button><span class="kx-rec-dur" data-recording-duration>${esc(r.duration)}</span></div><div class="kx-rec-meta"><b data-recording-title title="${esc(r.title)}">${esc(r.title)}</b><small>${isVid(r) ? '🖥' : '🎙'} ${esc(new Date(r.createdAt).toLocaleString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }))} · ${esc(formatBytes(Number(r.size) || 0))}</small></div><button class="icon-btn kx-rec-more" data-recording-more="${esc(r.id)}" title="Další akce" aria-haspopup="menu">⋮</button></div>`).join('') || `<p class="empty" data-recorder-empty>${esc(filt === 'ALL' ? 'Zatím žádné nahrávky.' : TL('rec2.noneHere'))}</p>`}</div></div>`;
         const close = () => { m.classList.remove('open'); };
         m.querySelector('[data-close]').onclick = close;
         m.querySelector('[data-recorder-panel]').addEventListener('click', e => e.stopPropagation());
@@ -14291,7 +14816,10 @@ var KXAPP;
             recUi.url = URL.createObjectURL(blob);
             recUi.playingId = id;
             await recorderModal();
-            const a = m.querySelector('[data-recorder-audio]');
+            const vrow = rows.find((x) => x.id === id);
+            const useVid = String(vrow?.mime || '').startsWith('video/');
+            const a = m.querySelector(useVid ? '[data-recorder-video]' : '[data-recorder-audio]');
+            a.hidden = false;
             a.src = recUi.url;
             a.dataset.playingId = id;
             a.onended = () => { recUi.playingId = ''; void recorderModal(); };
@@ -14301,8 +14829,22 @@ var KXAPP;
             catch { /* autoplay blocked: controls stay usable */ }
             a.controls = true;
         };
-        m.querySelectorAll('[data-recording-play]').forEach((b) => b.onclick = () => void play(String(b.dataset.recordingPlay)));
+        m.querySelectorAll('[data-recording-play]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); void play(String(b.dataset.recordingPlay)); });
+        m.querySelectorAll('[data-rec-thumbplay]').forEach((b) => b.onclick = () => void play(String(b.dataset.recThumbplay)));
         m.querySelectorAll('[data-recording-title]').forEach((t) => t.onclick = () => void play(String(t.closest('[data-recording]').dataset.recording)));
+        m.querySelectorAll('[data-rec-filter]').forEach((b) => b.onclick = () => { recUi.filter = String(b.dataset.recFilter); void recorderModal(); });
+        const scr = m.querySelector('[data-recorder-screen]');
+        if (scr)
+            scr.onclick = () => void kxScreenToggle(m);
+        kxRecTargetBind(m);
+        const mb = m.querySelector('[data-rec-monitors]');
+        if (mb)
+            mb.onclick = async () => { const l = await kxMonitors(); if (!l)
+                return; recUi.monitors = l; void recorderModal(); };
+        const mi = m.querySelector('[data-mon-identify]');
+        if (mi)
+            mi.onclick = () => void kxIdentifyMonitors();
+        void kxRecThumbs(m, shown);
         m.querySelectorAll('[data-recording-more]').forEach((b) => b.onclick = () => {
             const id = String(b.dataset.recordingMore);
             const row = rows.find((r) => r.id === id);
@@ -14345,13 +14887,7 @@ var KXAPP;
                     recUi.rec = null;
                     recUi.stream = null;
                     recUi.chunks = [];
-                    try {
-                        await runtime.actions.invoke('ACTION.CORE.RECORDER.SAVE', { blob, mime: type, durationMs: ms }, recCtx());
-                        toast('Nahrávka uložena');
-                    }
-                    catch (e) {
-                        toast(`Uložení selhalo: ${String(e?.message || e)}`);
-                    }
+                    await kxRecStore(blob, type, ms, 'AUDIO', '');
                     await ( /* N2.5v guard: re-render only if this window is still the open one */(kxWinKey(m) === __kxRoot && m.classList.contains('open')) && recorderModal());
                     return;
                 }
@@ -15079,7 +15615,14 @@ var KXAPP;
         { id: 'note', icon: '🗒', run: () => void notesTool() },
         { id: 'pay', icon: '💳', run: () => openHubAt('APP.KX.FINANCE', 'MOVEMENTS') },
         { id: 'km', icon: '🚗', run: () => openHubAt('APP.KX.VEHICLES') },
-        { id: 'hub', icon: '▦', run: () => treeToggleOpen() }
+        { id: 'hub', icon: '▦', run: () => treeToggleOpen() },
+        { id: 'contact', icon: '👤', run: () => void openPlace({ kind: 'WINDOW', window: 'CONTACTS' }) },
+        { id: 'list', icon: '📝', run: () => void openPlace({ kind: 'WINDOW', window: 'LISTS' }) },
+        { id: 'timer', icon: '⏱', run: () => void openPlace({ kind: 'WINDOW', window: 'TIMER' }) },
+        { id: 'calc', icon: '🧮', run: () => void openPlace({ kind: 'WINDOW', window: 'CALC' }) },
+        { id: 'photo', icon: '📷', run: () => void openPlace({ kind: 'WINDOW', window: 'CAMERA' }) },
+        { id: 'voice', icon: '🎙', run: () => void openPlace({ kind: 'WINDOW', window: 'DICTAPHONE' }) },
+        { id: 'screen', icon: '🖥', run: () => void openPlace({ kind: 'WINDOW', window: 'DICTAPHONE' }) }
     ];
     const ksNorm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     function ksActions(q) {
