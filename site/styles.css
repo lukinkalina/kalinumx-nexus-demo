@@ -1837,3 +1837,40 @@ html.kx-bright .app-shell{filter:brightness(var(--brightness))}
 [data-md-mode="PAGES"] .kx-md-tabs [data-md-go]{width:14px;height:14px;padding:0;border-radius:50%;font-size:0;line-height:0}
 [data-md-mode="PAGES"] .kx-md-tabs [data-md-go].active{background:var(--accent,#f2c869)}
 .kx-speak-stop{z-index:2147483000 !important}
+
+/* ===== N2.6b+ DESIGN SYSTEM (Gold Noir, follows the theme accent) – tokens + shared components ===== */
+:root{--kx-gold:var(--accent,#f2c869);--kx-gold-hi:color-mix(in srgb,var(--kx-gold) 55%,#fff);--kx-gold-lo:color-mix(in srgb,var(--kx-gold) 60%,#000);--kx-line:color-mix(in srgb,var(--kx-gold) 18%,transparent);--kx-line2:color-mix(in srgb,var(--kx-gold) 38%,transparent);
+  --kx-card1:var(--surface2,#121824);--kx-card2:var(--surface,#0d1119);--kx-r-lg:14px;--kx-r-md:10px;--kx-r-pill:999px;--kx-shadow:0 10px 26px rgba(0,0,0,.35);--kx-display:Georgia,'Times New Roman',serif;
+  --kx-st-ok:var(--kx-ok,#7fe0a5);--kx-st-warn:var(--kx-warn,#ffc77a);--kx-st-bad:var(--kx-bad,#ff8a8d);--kx-st-info:var(--kx-info,#8fb8ff)}
+.kx-ico{fill:none;stroke:var(--kx-gold);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+.kx-ico-tile{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;background:linear-gradient(160deg,color-mix(in srgb,var(--kx-card1) 80%,#fff 4%),var(--kx-card2));border:1px solid var(--kx-line);box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 6px 14px rgba(0,0,0,.35)}
+.kx-card{background:linear-gradient(180deg,var(--kx-card1),var(--kx-card2));border:1px solid var(--kx-line);border-radius:var(--kx-r-lg);padding:10px 12px;box-shadow:var(--kx-shadow)}
+.kx-card-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}.kx-card-h b{font-weight:600}.kx-card-h small{display:block;color:var(--muted);font-size:10.5px}.kx-card-h .kx-card-act{margin-left:auto;display:flex;gap:6px;align-items:center}
+.kx-handle{cursor:grab;color:var(--muted);letter-spacing:-1px;user-select:none}
+.kx-btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 13px;border-radius:var(--kx-r-pill);font-size:12px;font-weight:600;border:1px solid var(--kx-line2);color:var(--text);background:transparent;cursor:pointer}
+.kx-btn.primary{background:linear-gradient(180deg,var(--kx-gold-hi),var(--kx-gold-lo));color:#14100a;border-color:transparent;box-shadow:0 4px 14px color-mix(in srgb,var(--kx-gold) 25%,transparent)}
+.kx-btn.link{border-color:transparent;color:var(--kx-gold)}.kx-btn.danger{border-color:color-mix(in srgb,var(--kx-st-bad) 50%,transparent);color:var(--kx-st-bad)}.kx-btn.icon{width:30px;padding:0;justify-content:center}
+.kx-chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px;border-radius:var(--kx-r-pill);font-size:11px;border:1px solid var(--kx-line);color:var(--text);background:none;cursor:pointer}.kx-chip.on{border-color:var(--kx-gold);color:var(--kx-gold);background:color-mix(in srgb,var(--kx-gold) 10%,transparent)}
+.kx-status{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:1px 8px;border-radius:var(--kx-r-pill)}.kx-status::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor}
+.kx-status.ok{color:var(--kx-st-ok);background:color-mix(in srgb,var(--kx-st-ok) 12%,transparent)}.kx-status.warn{color:var(--kx-st-warn);background:color-mix(in srgb,var(--kx-st-warn) 12%,transparent)}.kx-status.bad{color:var(--kx-st-bad);background:color-mix(in srgb,var(--kx-st-bad) 12%,transparent)}.kx-status.info{color:var(--kx-st-info);background:color-mix(in srgb,var(--kx-st-info) 12%,transparent)}
+.kx-row{display:grid;grid-template-columns:22px minmax(0,1fr) 96px 96px 30px auto;align-items:center;gap:8px;padding:6px 8px;border-radius:9px;background:rgba(255,255,255,.02);border:1px solid color-mix(in srgb,var(--kx-gold) 8%,transparent)}
+.kx-row .kx-t b{font-weight:600}.kx-row .kx-t small{display:block;color:var(--muted);font-size:10.5px}.kx-row .kx-amt{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+@media (max-width:680px){.kx-row{grid-template-columns:22px minmax(0,1fr) auto}.kx-row > :nth-child(3),.kx-row > :nth-child(5){display:none}}
+.kx-display{font-family:var(--kx-display);color:var(--kx-gold);letter-spacing:.02em}
+/* menu ⋯: icon · label + what it does · shortcut; danger in red; disabled shows the reason */
+.kx-more-menu .kx-mi{display:grid !important;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;text-align:left}
+.kx-more-menu .kx-mi:not(:has(.kx-mi-ic)){grid-template-columns:minmax(0,1fr) auto}
+.kx-mi-ic{display:grid;place-items:center;width:22px;height:22px;border-radius:7px;background:color-mix(in srgb,var(--kx-gold) 8%,transparent)}
+.kx-more-menu kbd{font:10px/1.4 inherit;color:var(--muted);border:1px solid var(--kx-line);border-radius:5px;padding:0 4px}
+.kx-mi-danger,.kx-mi-danger b{color:var(--kx-st-bad) !important}.kx-mi-danger .kx-ico{stroke:var(--kx-st-bad)}
+.kx-mi-off{opacity:.45;cursor:not-allowed}
+
+/* plan: recently done below a line */
+.ag-recent-done{margin-top:10px}
+.ag-done-sep{display:flex;align-items:center;gap:10px;margin:6px 0;color:var(--muted);font-size:11.5px}.ag-done-sep::before,.ag-done-sep::after{content:'';flex:1;height:1px;background:color-mix(in srgb,var(--accent,#f2c869) 25%,transparent)}
+.ag-prow-done{opacity:.55}.ag-prow-done b{text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--text) 50%,transparent)}
+.ag-done-when{grid-column:5 / span 2 !important;justify-self:end;color:var(--muted);font-size:10.5px;white-space:nowrap}
+
+.kx-rec-rules{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0;font-size:12px}.kx-rec-warn{color:var(--kx-st-warn,#ffc77a)}.kx-rec-auto summary{cursor:pointer;color:var(--muted)}.kx-rec-auto{font-size:12px}.kx-rec-auto small{display:block;color:var(--muted)}.kx-rec-pin{font-size:11px}
+/* N2.6b+ (strict: hub on a phone kept its desktop position) – on a phone the hub window is full width in EVERY mode (floating, docked left / right, centre), immediately */
+@media (max-width:680px){#inspector.open,.inspector.open{left:0 !important;right:0 !important;width:100% !important;max-width:100vw !important;transform:none !important;margin-left:0 !important}}

@@ -724,6 +724,11 @@ var KXAPP;
       <div class="ag-row2"><div class="ag-card ag-plan"><div class="ag-card-h"><b>📋 ${esc(TL('agd.plan'))}</b><small>${esc(TL('agd.planEn'))}</small></div><div class="ag-filters">${[['all', 'agd.f.all'], ['pay', 'agd.f.pay'], ['task', 'agd.f.task'], ['event', 'agd.f.event']].map(([k, l]) => `<button type="button" class="${agUi.filter === k ? 'on' : ''}" data-ag-filter="${k}">${esc(TL(l))} <span data-ag-fcnt="${k}"></span></button>`).join('')}</div><div data-ag-plan><small>…</small></div></div>
       <div class="ag-card ag-quick"><div class="ag-card-h"><b>⚡ ${esc(TL('agd.quick'))}</b><small>Quick actions</small></div><div class="ag-qgrid">${[['💳', 'agd.q.pay', 'APP.KX.FINANCE', 'green'], ['☑', 'agd.q.task', 'APP.KX.TASKS', 'blue'], ['📅', 'agd.q.event', 'APP.KX.CALENDAR', 'violet'], ['⇄', 'agd.q.transfer', 'APP.KX.FINANCE', 'orange'], ['⌗', 'agd.q.scan', 'APP.KX.DOCUMENTS', 'teal'], ['👤', 'agd.q.contact', 'APP.KX.CONTACTS', 'indigo']].map(([ic, l, hub, c]) => `<button type="button" class="ag-q ag-q-${c}" data-ag-open="${hub}"><span>${ic}</span><b>${esc(TL(l))}</b></button>`).join('')}</div></div></div></section>`;
     }
+    /* N2.6b+ (user: clicking in the plan reloaded the windows) – plan actions refresh only the overview data, not the whole app */
+    function kxAgRefresh() { if (document.querySelector('[data-ag-dash]'))
+        void hydrateAgDash();
+    else
+        render(); }
     async function hydrateAgDash() {
         const host = document.querySelector('[data-ag-dash]');
         if (!host || !runtime)
@@ -830,6 +835,8 @@ var KXAPP;
             if (c)
                 c.textContent = `(${f === 'all' ? up.length : up.filter(x => kindOf(x) === f).length})`;
         }
+        const doneAt = (x) => Date.parse(x.completedAt || x.doneAt || x.updatedAt || '') || 0;
+        const recentDone = items.filter(x => x.kind === 'TASK' && !open(x) && doneAt(x) >= Date.now() - 7 * D && (agUi.filter === 'all' || kindOf(x) === agUi.filter)).sort((a, b) => doneAt(b) - doneAt(a)).slice(0, 5);
         const pl = host.querySelector('[data-ag-plan]');
         if (pl) {
             const rows = up.filter(x => agUi.filter === 'all' || kindOf(x) === agUi.filter);
@@ -843,11 +850,17 @@ var KXAPP;
             }
             const lbl = (k) => k === day0 ? TL('agd.t.today') : k === day0 + D ? TL('agd.tomorrow') : new Date(k).toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'numeric' });
             pl.innerHTML = rows.length ? [...by.entries()].slice(0, 6).map(([k, arr]) => `<div class="ag-pday"><div class="ag-pdate"><b>${esc(lbl(k))}</b><small>${new Date(k).toLocaleDateString('cs-CZ')}</small><em>● ${arr.length} ${esc(TL('agd.items'))}</em></div><div class="ag-prows">${arr.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow"><span>${kd === 'pay' ? '💳' : kd === 'task' ? '☑' : '📅'}</span><b>${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : kd === 'task' ? 'blue' : 'teal'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em>${x.kind === 'CALENDAR_EVENT' ? `<button type="button" class="ag-done ag-tmenu" data-ag-emenu data-ag-eid="${esc(String(x.id || ''))}" data-ag-eat="${esc(String(x.at || ''))}" title="${esc(TL('eq.more'))}">⋯</button>` : x.kind === 'PLANNED_PAY' ? `${x.movedFrom ? `<small class="ag-moved">↪ ${esc(TL('pq.movedFrom'))} ${esc(new Date(x.movedFrom + 'T12:00:00').toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}</small>` : ''}<button type="button" class="ag-done ag-pmenu" data-ag-pmenu data-ag-pid="${esc(x.plannedId)}" data-ag-date="${esc(x.date)}" data-ag-amt="${esc(String(x.amount))}" data-ag-name="${esc(String(x.title || ''))}" data-ag-sp="${esc(x.spaceId)}">${esc(TL('pq.btn'))} ▾</button>` : x.kind === 'TASK' ? `<button type="button" class="ag-done ag-tmenu" data-ag-tmenu data-ag-tid="${esc(String(x.id || x.entityId || ''))}" title="${esc(TL('tq.more'))}">⋯</button><button type="button" class="ag-done" data-ag-done="${esc(String(x.id || x.entityId || ''))}">✓ ${esc(TL(kd === 'pay' ? 'agd.paid' : 'agd.done'))}</button>` : '<span></span>'}</div>`; }).join('')}</div></div>`).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
+            if (recentDone.length) {
+                const box = document.createElement('div');
+                box.className = 'ag-recent-done';
+                box.innerHTML = `<div class="ag-done-sep"><span>✓ ${esc(TL('agd.recentDone'))}</span></div>${recentDone.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow ag-prow-done"><span>${kd === 'pay' ? '💳' : '☑'}</span><b>${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : 'blue'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em><small class="ag-done-when">${esc(new Date(doneAt(x)).toLocaleString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }))}</small></div>`; }).join('')}`;
+                pl.appendChild(box);
+            }
             pl.querySelectorAll('[data-ag-done]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); const id = String(b.dataset.agDone || ''); if (!id)
                 return; try {
                 await runtime.actions.invoke('ACTION.CORE.TASK.COMPLETE', { id }, { actorId: CURRENT_USER_ID, appCode: 'APP.KX.NEXUS', permissions: ['CORE.TASK.EDIT'], confirmed: true });
                 toast(TL('agd.doneToast'));
-                render();
+                kxAgRefresh();
             }
             catch (err) {
                 toast(String(err?.message || err).slice(0, 120));
@@ -2921,7 +2934,7 @@ var KXAPP;
         const save = async (patch, msg) => { try {
             await runtime.actions.invoke('ACTION.CORE.TASK.SAVE', { id, title: t.title, ownerApp: t.ownerApp, spaceIds: t.spaceIds, expectedRevision: t.revision, ...patch }, TC);
             toast(msg);
-            render();
+            kxAgRefresh();
         }
         catch (e) {
             toast(String(e?.message || e));
@@ -2959,7 +2972,7 @@ var KXAPP;
         const go = async (f, msg) => { try {
             await f();
             toast(msg);
-            render();
+            kxAgRefresh();
         }
         catch (e) {
             toast(String(e?.message || e));
@@ -14321,6 +14334,22 @@ var KXAPP;
         } };
     }
     // N2.1o (R49): one shared "⋮" menu for files, fields, columns, rows and options.
+    /* N2.6b+ design system – one icon family: gold line (1.6), 24 grid, round caps; colour from the theme accent */
+    const KX_ICONS = { home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>', calendar: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>', apps: '<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M17.5 14v7M14 17.5h7"/>',
+        files: '<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>', kaira: '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>', search: '<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/>', bell: '<path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 004 0"/>',
+        moderate: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>', plus: '<path d="M12 5v14M5 12h14"/>', more: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+        settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>', mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>', speak: '<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/>',
+        screen: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><circle cx="12" cy="10" r="2.2"/>', download: '<path d="M12 5v10M8 11l4 4 4-4"/><path d="M5 19h14"/>', upload: '<path d="M12 19V9M8 13l4-4 4 4"/><path d="M5 5h14"/>', trash: '<path d="M5 7h14l-1 12a2 2 0 01-2 2H8a2 2 0 01-2-2z"/><path d="M9 7V4h6v3M3 7h18"/>',
+        archive: '<rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 002 2h10a2 2 0 002-2V9M10 13h4"/>', open: '<path d="M14 4h6v6M20 4l-8 8"/><path d="M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/>', edit: '<path d="M4 20h4l11-11-4-4L4 16z"/><path d="M13 7l4 4"/>', copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/>',
+        link: '<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>', attach: '<path d="M20 12l-8 8a5 5 0 01-7-7l9-9a3.5 3.5 0 015 5l-9 9a2 2 0 01-3-3l8-8"/>', share: '<circle cx="6" cy="12" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><path d="M8.2 11l7.6-4M8.2 13l7.6 4"/>',
+        check: '<path d="M5 12.5l4.5 4.5L19 7"/>', clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>', star: '<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.8z"/>', refresh: '<path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 5v6h-6"/>', size: '<path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/>',
+        finance: '<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18"/><circle cx="16.5" cy="14.5" r="1.3"/>', vehicle: '<path d="M5 16l1.5-5A2 2 0 018.4 9.5h7.2a2 2 0 011.9 1.5L19 16"/><rect x="3" y="16" width="18" height="3" rx="1.5"/>', health: '<path d="M12 20s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.6-7 10-7 10z"/><path d="M8.5 11h2l1-2 1.5 4 1-2h1.5"/>',
+        house: '<path d="M4 11l8-6 8 6v9H4z"/><path d="M9 20v-5h6v5"/>', pets: '<circle cx="7" cy="9" r="1.8"/><circle cx="11" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="18" cy="10" r="1.8"/><path d="M8 17c0-3 2-5 4-5s4 2 4 5c0 2-2 2-4 2s-4 0-4-2z"/>', school: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/>',
+        food: '<path d="M4 7h16l-1.5 10a2 2 0 01-2 1.7H7.5a2 2 0 01-2-1.7z"/><path d="M8 7a4 4 0 018 0"/>', contract: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>', shield: '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>', lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/>',
+        energy: '<path d="M13 3L5 14h6l-1 7 8-11h-6z"/>', stock: '<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>', sales: '<path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/>', people: '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 19c0-3.3 2.7-5 6-5s6 1.7 6 5M15 15c3 0 6 1.3 6 4"/>', laser: '<path d="M3 12h4l3-8 4 16 3-8h4"/>', print3d: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>' };
+    function kxIcon(name, size = 18) { const p = KX_ICONS[name]; if (!p)
+        return ''; return `<svg class="kx-ico" viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">${p}</svg>`; }
+    globalThis.kxIcon = kxIcon;
     function kxMoreMenu(anchor, items, point) {
         document.querySelectorAll('.kx-more-menu').forEach(x => x.remove());
         const menu = document.createElement('div');
@@ -14329,7 +14358,7 @@ var KXAPP;
         menu.dataset.moreMenu = '1';
         /* look from app/styles.css (.kx-more-menu, theme variables) — review fix: the inline fallback made it white with light text */
         /* N2.6b: optional group headings and a one-line description under the label */ let lastG = '';
-        menu.innerHTML = items.map(i => { const g = i.group && i.group !== lastG ? `<div class="kx-more-g">${esc(i.group)}</div>` : (!i.group && lastG ? '<div class="kx-more-sep" role="separator"></div>' : ''); lastG = i.group || ''; return g + `<button type="button" role="menuitem" class="row-btn compact${i.hint ? ' kx-more-rich' : ''}" data-more-item="${esc(i.key)}" style="width:100%;${i.danger ? 'color:#c0392b' : ''}"><span>${i.hint ? `<b>${esc(i.label)}</b><small>${esc(i.hint)}</small>` : esc(i.label)}</span></button>`; }).join('');
+        menu.innerHTML = items.map(i => { const g = i.group && i.group !== lastG ? `<div class="kx-more-g">${esc(i.group)}</div>` : (!i.group && lastG ? '<div class="kx-more-sep" role="separator"></div>' : ''); lastG = i.group || ''; return g + `<button type="button" role="menuitem" class="row-btn compact kx-mi${i.hint || i.disabled ? ' kx-more-rich' : ''}${i.danger ? ' kx-mi-danger' : ''}${i.disabled ? ' kx-mi-off' : ''}" data-more-item="${esc(i.key)}" ${i.disabled ? 'aria-disabled="true"' : ''} style="width:100%">${i.icon ? `<i class="kx-mi-ic">${kxIcon(i.icon, 14)}</i>` : ''}<span>${i.hint || i.disabled ? `<b>${esc(i.label)}</b><small>${esc(i.disabled || i.hint || '')}</small>` : esc(i.label)}</span>${i.kbd ? `<kbd>${esc(i.kbd)}</kbd>` : ''}</button>`; /* N2.6b+ design system: icon · label + what it does · shortcut; a disabled item stays visible with the reason */ }).join('');
         if (items.some(i => i.hint))
             menu.classList.add('kx-more-wide');
         document.body.appendChild(menu);
@@ -14350,7 +14379,10 @@ var KXAPP;
         document.addEventListener('mousedown', outside, true);
         document.addEventListener('keydown', key, true);
         menu.addEventListener('click', e => e.stopPropagation());
-        menu.querySelectorAll('[data-more-item]').forEach(b => b.onclick = async () => { const it = items.find(x => x.key === b.dataset.moreItem); close(); try {
+        menu.querySelectorAll('[data-more-item]').forEach(b => b.onclick = async () => { const it = items.find(x => x.key === b.dataset.moreItem); if (it?.disabled) {
+            toast(it.disabled);
+            return;
+        } close(); try {
             await it?.run();
         }
         catch (err) {
@@ -14586,6 +14618,94 @@ var KXAPP;
     }
     /* N2.6b+ (user: recognise monitor 1 and 2) – Window Management API (Chrome / Edge, asks for permission): names, resolution, position, primary; numbers shown on each monitor */
     /* N2.6b+ (user: save recordings to the PC / phone instead of the app) – per device: NEXUS and/or a PC folder (File System Access), download, or share (phone) */
+    /* N2.6b+ recordings retention (user rules): nothing is deleted automatically by default; storage watch with a warning; “delete older than…”; 📌 keep; optional auto-delete (off) – deletions go to the Trash */
+    function kxRecKept() { try {
+        return new Set(JSON.parse(localStorage.getItem('kx.rec.keep') || '[]'));
+    }
+    catch {
+        return new Set();
+    } }
+    function kxRecKeep(id, on) { const s = kxRecKept(); on ? s.add(id) : s.delete(id); try {
+        localStorage.setItem('kx.rec.keep', JSON.stringify([...s]));
+    }
+    catch { } toast(on ? TL('rk.keptToast') : TL('rk.unkeptToast')); }
+    function kxRecAuto() { try {
+        return Number(localStorage.getItem('kx.rec.autodel') || '0') || 0;
+    }
+    catch {
+        return 0;
+    } }
+    const mb = (b) => b < 1048576 ? `${Math.max(1, Math.round(b / 1024))} kB` : `${(b / 1048576).toFixed(b > 104857600 ? 0 : 1).replace('.', UI_LOCALE === 'en' ? '.' : ',')} MB`;
+    function kxRecRulesHtml(rows) {
+        const total = rows.reduce((s, r) => s + (Number(r.size) || 0), 0);
+        const ad = kxRecAuto();
+        return `<div class="kx-rec-rules" data-rec-rules><span data-rec-space>💾 ${esc(TL('rk.space'))} (${rows.length}): <b>${esc(mb(total))}</b></span><span class="kx-rec-warn" data-rec-warn hidden></span>
+        <select data-rec-older title="${esc(TL('rk.olderHint'))}"><option value="">🧹 ${esc(TL('rk.older'))}</option>${[30, 90, 180, 365].map(d => `<option value="${d}">${d} ${esc(TL('rk.days'))}</option>`).join('')}</select>
+        <details class="kx-rec-auto"><summary>⚙ ${esc(TL('rk.rules'))}</summary><label>${esc(TL('rk.auto'))} <select data-rec-autodel><option value="0" ${ad ? '' : 'selected'}>${esc(TL('rk.off'))}</option>${[30, 90, 180, 365].map(d => `<option value="${d}" ${ad === d ? 'selected' : ''}>${d} ${esc(TL('rk.days'))}</option>`).join('')}</select></label><small>${esc(TL('rk.autoHint'))}</small></details></div>`;
+    }
+    async function kxRecDeleteOlder(rows, days, auto = false) {
+        const lim = Date.now() - days * 86400000;
+        const kept = kxRecKept();
+        const del = rows.filter((r) => Date.parse(r.createdAt) < lim && !kept.has(r.id));
+        if (!del.length) {
+            if (!auto)
+                toast(TL('rk.none'));
+            return 0;
+        }
+        const size = del.reduce((s, r) => s + (Number(r.size) || 0), 0);
+        if (!auto && !confirm(TL('rk.confirm').replace('{n}', String(del.length)).replace('{s}', mb(size)).replace('{d}', String(days))))
+            return 0;
+        let n = 0;
+        for (const r of del) {
+            try {
+                await runtime.actions.invoke('ACTION.CORE.RECORDER.DELETE', { id: r.id, expectedRevision: r.revision }, recCtx());
+                n++;
+            }
+            catch { }
+        }
+        toast(TL('rk.deleted').replace('{n}', String(n)));
+        return n;
+    }
+    async function kxRecRulesBind(m, rows) {
+        const box = m.querySelector('[data-rec-rules]');
+        if (!box)
+            return;
+        box.querySelector('[data-rec-older]').onchange = async (e) => { const d = Number(e.target.value); e.target.value = ''; if (d && await kxRecDeleteOlder(rows, d))
+            void recorderModal(); };
+        box.querySelector('[data-rec-autodel]').onchange = (e) => { try {
+            localStorage.setItem('kx.rec.autodel', String(Number(e.target.value) || 0));
+        }
+        catch { } toast(Number(e.target.value) ? TL('rk.autoOn').replace('{d}', e.target.value) : TL('rk.autoOffT')); };
+        /* storage watch – warn above 80 % of the device quota, offer the oldest for deletion (only after confirmation) */
+        try {
+            const est = await navigator.storage?.estimate?.();
+            if (est?.quota) {
+                const pct = est.usage / est.quota;
+                const w = box.querySelector('[data-rec-warn]');
+                if (pct > 0.8 && w) {
+                    w.hidden = false;
+                    w.innerHTML = `⚠ ${esc(TL('rk.full').replace('{p}', String(Math.round(pct * 100))))} <button type="button" class="btn ghost compact" data-rec-oldest>${esc(TL('rk.oldest'))}</button>`;
+                    w.querySelector('[data-rec-oldest]').onclick = async () => { const old = [...rows].filter((r) => !kxRecKept().has(r.id)).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)).slice(0, 5); if (!old.length)
+                        return toast(TL('rk.none')); if (!confirm(TL('rk.confirmOld').replace('{n}', String(old.length)).replace('{s}', mb(old.reduce((s, r) => s + (Number(r.size) || 0), 0)))))
+                        return; for (const r of old) {
+                        try {
+                            await runtime.actions.invoke('ACTION.CORE.RECORDER.DELETE', { id: r.id, expectedRevision: r.revision }, recCtx());
+                        }
+                        catch { }
+                    } void recorderModal(); };
+                }
+            }
+        }
+        catch { }
+        /* optional auto-delete (off by default) – once per opening */
+        const ad = kxRecAuto();
+        if (ad && !m.__kxAutoDone) {
+            m.__kxAutoDone = true;
+            const n = await kxRecDeleteOlder(rows, ad, true);
+            if (n)
+                void recorderModal();
+        }
+    }
     let kxFolderMem = null;
     const RT_KEY = 'kx.rec.target';
     function kxRecTarget() { try {
@@ -14891,8 +15011,8 @@ var KXAPP;
         m.innerHTML = `<div class="modal" data-recorder-panel><div class="drawer-head"><div><b>🎙 ${esc(TL('rec2.title'))}</b><small>${esc(TL('rec2.sub'))}</small></div><button class="icon-btn" data-close>×</button></div>
           <div class="studio-toolbar">${supported ? `<button class="btn ${recording ? '' : 'primary'}" data-recorder-toggle aria-pressed="${recording ? 'true' : 'false'}">${recording ? '■ Zastavit a uložit' : '● Nahrávat'}</button><button class="btn ${screenOn ? '' : 'ghost'}" data-recorder-screen aria-pressed="${screenOn ? 'true' : 'false'}">${screenOn ? '■ ' + esc(TL('rec2.screenStop')) : '🖥 ' + esc(TL('rec2.screen'))}</button><button class="btn ghost" data-rec-monitors title="${esc(TL('mon.hint'))}">🖥🖥 ${esc(TL('mon.btn'))}</button><b data-recorder-elapsed>${recording ? KXRecorder.formatDuration(Date.now() - recUi.startedAt) : screenOn ? KXRecorder.formatDuration(Date.now() - recUi.screen.startedAt) : ''}</b>` : '<p class="empty" data-recorder-unsupported>Nahrávání tu není dostupné (prohlížeč nepovolil mikrofon nebo MediaRecorder).</p>'}</div>
           ${recUi.monitors?.length ? `<div class="kx-mon-list" data-mon-list>${recUi.monitors.map((s) => `<div class="kx-mon"><b>${esc(TL('mon.n'))} ${s.n}</b><span>${esc(s.label)}</span><small>${s.w} × ${s.h}${s.primary ? ' · ' + esc(TL('mon.primary')) : ''} · ${esc(s.pos)}</small></div>`).join('')}<button class="btn ghost compact" data-mon-identify>🔢 ${esc(TL('mon.identify'))}</button></div>` : ''}${kxRecTargetHtml()}<audio data-recorder-audio preload="none" style="width:100%;margin:6px 0"></audio><video data-recorder-video controls playsinline hidden class="kx-rec-video"></video>
-           <div class="kx-rec-filters">${[['ALL', 'rec2.all'], ['AUDIO', 'rec2.audio'], ['SCREEN', 'rec2.screens']].map(([k, l]) => `<button type="button" class="${filt === k ? 'active' : ''}" data-rec-filter="${k}">${esc(TL(l))} <small>${k === 'ALL' ? rows.length : rows.filter((r) => k === 'SCREEN' ? isVid(r) : !isVid(r)).length}</small></button>`).join('')}</div>
-           <div class="kx-rec-grid" data-recorder-list>${shown.map((r) => `<div class="kx-rec-card ${recUi.playingId === r.id ? 'playing' : ''}" data-recording="${esc(r.id)}" data-rev="${esc(r.revision)}" data-rec-kind="${isVid(r) ? 'SCREEN' : 'AUDIO'}"><div class="kx-rec-thumb" data-rec-thumbplay="${esc(r.id)}" title="${esc(TL('rec2.play'))}">${recUi.thumbs?.[r.id] || `<span class="kx-rec-ph">${isVid(r) ? '🖥' : '🎙'}</span>`}<button type="button" class="kx-rec-playic" data-recording-play="${esc(r.id)}" title="${esc(TL('rec2.play'))}">${recUi.playingId === r.id ? '⏸' : '▶'}</button><span class="kx-rec-dur" data-recording-duration>${esc(r.duration)}</span></div><div class="kx-rec-meta"><b data-recording-title title="${esc(r.title)}">${esc(r.title)}</b><small>${isVid(r) ? '🖥' : '🎙'} ${esc(new Date(r.createdAt).toLocaleString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }))} · ${esc(formatBytes(Number(r.size) || 0))}</small></div><button class="icon-btn kx-rec-more" data-recording-more="${esc(r.id)}" title="Další akce" aria-haspopup="menu">⋮</button></div>`).join('') || `<p class="empty" data-recorder-empty>${esc(filt === 'ALL' ? 'Zatím žádné nahrávky.' : TL('rec2.noneHere'))}</p>`}</div></div>`;
+           ${kxRecRulesHtml(rows)}<div class="kx-rec-filters">${[['ALL', 'rec2.all'], ['AUDIO', 'rec2.audio'], ['SCREEN', 'rec2.screens']].map(([k, l]) => `<button type="button" class="${filt === k ? 'active' : ''}" data-rec-filter="${k}">${esc(TL(l))} <small>${k === 'ALL' ? rows.length : rows.filter((r) => k === 'SCREEN' ? isVid(r) : !isVid(r)).length}</small></button>`).join('')}</div>
+           <div class="kx-rec-grid" data-recorder-list>${shown.map((r) => `<div class="kx-rec-card ${recUi.playingId === r.id ? 'playing' : ''}" data-recording="${esc(r.id)}" data-rev="${esc(r.revision)}" data-rec-kind="${isVid(r) ? 'SCREEN' : 'AUDIO'}"><div class="kx-rec-thumb" data-rec-thumbplay="${esc(r.id)}" title="${esc(TL('rec2.play'))}">${recUi.thumbs?.[r.id] || `<span class="kx-rec-ph">${isVid(r) ? '🖥' : '🎙'}</span>`}<button type="button" class="kx-rec-playic" data-recording-play="${esc(r.id)}" title="${esc(TL('rec2.play'))}">${recUi.playingId === r.id ? '⏸' : '▶'}</button><span class="kx-rec-dur" data-recording-duration>${esc(r.duration)}</span></div><div class="kx-rec-meta"><b data-recording-title title="${esc(r.title)}">${kxRecKept().has(r.id) ? '<span class="kx-rec-pin" title="' + esc(TL('rk.kept')) + '">📌</span> ' : ''}${esc(r.title)}</b><small>${isVid(r) ? '🖥' : '🎙'} ${esc(new Date(r.createdAt).toLocaleString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }))} · ${esc(formatBytes(Number(r.size) || 0))}</small></div><button class="icon-btn kx-rec-more" data-recording-more="${esc(r.id)}" title="Další akce" aria-haspopup="menu">⋮</button></div>`).join('') || `<p class="empty" data-recorder-empty>${esc(filt === 'ALL' ? 'Zatím žádné nahrávky.' : TL('rec2.noneHere'))}</p>`}</div></div>`;
         const close = () => { m.classList.remove('open'); };
         m.querySelector('[data-close]').onclick = close;
         m.querySelector('[data-recorder-panel]').addEventListener('click', e => e.stopPropagation());
@@ -14931,6 +15051,7 @@ var KXAPP;
         if (scr)
             scr.onclick = () => void kxScreenToggle(m);
         kxRecTargetBind(m);
+        void kxRecRulesBind(m, rows);
         const mb = m.querySelector('[data-rec-monitors]');
         if (mb)
             mb.onclick = async () => { const l = await kxMonitors(); if (!l)
@@ -14958,7 +15079,7 @@ var KXAPP;
                     catch {
                         toast('Kopírování není dostupné');
                     } } },
-                { key: 'timer', label: '▶ Spustit stopky k nahrávce', run: async () => { await runtime.actions.invoke('ACTION.CORE.TIMER.START', { target: { kind: 'FILE', id }, label: row.title }, tmCtx()); void refreshTimerBadge(); toast('Stopky běží'); } }, { key: 'settings', label: '⚙ Nastavení diktafonu…', run: () => void settingsCenter('link:recorder') },
+                { key: 'timer', label: '▶ Spustit stopky k nahrávce', run: async () => { await runtime.actions.invoke('ACTION.CORE.TIMER.START', { target: { kind: 'FILE', id }, label: row.title }, tmCtx()); void refreshTimerBadge(); toast('Stopky běží'); } }, { key: 'keep', label: kxRecKept().has(id) ? '📌 ' + TL('rk.unkeep') : '📌 ' + TL('rk.keep'), hint: TL('rk.keepHint'), run: () => { kxRecKeep(id, !kxRecKept().has(id)); void recorderModal(); } }, { key: 'settings', label: '⚙ Nastavení diktafonu…', run: () => void settingsCenter('link:recorder') },
                 { key: 'delete', label: '🗑 Smazat (do koše)', danger: true, run: async () => { if (!confirm(`Přesunout „${row.title}“ do koše? Půjde obnovit.`))
                         return; await runtime.actions.invoke('ACTION.CORE.RECORDER.DELETE', { id, expectedRevision: row.revision }, recCtx()); if (recUi.playingId === id)
                         recUi.playingId = ''; toast('Přesunuto do koše'); await recorderModal(); } }
