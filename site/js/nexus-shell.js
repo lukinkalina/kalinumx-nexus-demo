@@ -15088,6 +15088,8 @@ var KXAPP;
             return [];
         return KS_ACTIONS.map(a => { const keys = ksNorm(TL('ksa.' + a.id + '.keys')).split(/[ ,]+/).filter(Boolean); const hit = ws.reduce((n, w) => n + (keys.some(k => k.startsWith(w) || (w.length >= 4 && w.startsWith(k))) ? 1 : 0), 0); return { a, hit }; }).filter(x => x.hit).sort((x, y) => y.hit - x.hit).slice(0, 3).map(x => x.a);
     }
+    /* readable record breadcrumbs: hub names instead of APP.KX.* codes, no internal type codes */
+    function ksCrumb(s) { return String(s || '').replace(/APP\.KX\.[A-Z0-9_]+/g, (c) => hubLabel(c) || c).replace(/\s*›\s*[A-Z][A-Z0-9_]*(\.[A-Z0-9_]+)+/g, '').replace(/\s*·\s*$/, '').trim(); }
     function ksActionsHtml(q) { const acts = ksActions(q); return acts.length ? `<div class="ks-acts"><small>⚡ ${esc(TL('ksa.title'))}</small>${acts.map(a => `<button type="button" data-ks-act="${a.id}"><b>${a.icon} ${esc(TL('ksa.' + a.id))}</b><em>${esc(TL('ksa.do'))}</em></button>`).join('')}</div>` : ''; }
     const KS_TOOLS = ['NOTES', 'CALC', 'CONTACTS', 'LISTS', 'TIMER', 'CALENDAR', 'FILES', 'IMPORT', 'CAMERA', 'DICTAPHONE', 'INBOX', 'GUIDES', 'RESTORE', 'BUGS', 'SETTINGS'];
     function ksRecent() { try {
@@ -15231,6 +15233,18 @@ var KXAPP;
                     placeHits = (await runtime.actions.invoke('ACTION.CORE.KAIRA.ASK', { q, lang: UI_LOCALE }, { actorId: CURRENT_USER_ID, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true }) || []).filter((x) => x.kind !== 'SETTING').sort((a, b) => (a.kind === 'ANT' ? 1 : 0) - (b.kind === 'ANT' ? 1 : 0)).slice(0, 7);
             }
             catch { }
+            /* N2.6b+ (user: Kaira must find it) – the hub Kaira found (e.g. “auto” → Vehicles) brings up to 4 of its records; same rights / visibility checks as the search */
+            try {
+                const hub = placeHits.find((x) => x.kind === 'HUB' && x.place?.hub)?.place?.hub;
+                if (hub && rows.length < 3) {
+                    const more = (await runtime.search.search({ text: '', apps: [String(hub)], actorId: CURRENT_USER_ID, limit: 4, includeMarkedSensitive: !!el('#searchIncludeMarked')?.checked }) || []).filter((r) => !rows.some((x) => x.id === r.id));
+                    for (const r of more) {
+                        r.breadcrumb = `🔗 ${hubLabel(String(hub))}`;
+                        rows.push(r);
+                    }
+                }
+            }
+            catch { }
             /* N2.4m: holidays in the global search – this and next year, countries from the user's settings */
             let holHits = [];
             try {
@@ -15246,7 +15260,7 @@ var KXAPP;
                 }
             }
             catch { }
-            target.innerHTML = ksActionsHtml(q) + ((rows.length || setHits.length || holHits.length || placeHits.length) ? placeHits.map((x, k) => `<button data-search-place="${k}"><span><b>${x.kind === 'ANT' ? '↔' : '📍'} ${esc(x.kind === 'HUB' && x.place?.hub ? (hubLabel(String(x.place.hub)) || x.title) : x.title)}</b><small>${esc(TL('ka2.kind.' + x.kind))}${x.detail && x.kind !== 'HUB' ? ' · ' + esc(x.detail) : ''}</small></span><em>${esc(x.kind === 'ANT' ? TL('ks.try') : TL('gs.place'))}</em></button>`).join('') + holHits.map((h) => `<button data-search-holiday="${esc(h.date)}"><span><b>🎉 ${esc(h.name)}</b><small>${esc(new Date(h.date + 'T12:00:00').toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))} · ${esc(h.country)} · ${esc(TL('hol.kind.' + h.kind))}</small></span><em>${esc(TL('hol.searchKind'))}</em></button>`).join('') + setHits.map((x) => `<button data-search-settings="${esc(x.id)}"><span><b>⚙ ${esc(x.title)}</b><small>${esc(x.path.join(' › '))}</small></span><em>${esc(TL('gs.settings'))}</em></button>`).join('') + rows.map(r => `<button data-search-link="${esc(r.deepLink)}"><span><b>${esc(r.title)}</b><small>${esc(r.breadcrumb)}</small></span><em>${esc(r.kind)}</em></button>`).join('') : (ksActions(q).length ? '' : '<p class="empty">Nic nenalezeno.</p>'));
+            target.innerHTML = ksActionsHtml(q) + ((rows.length || setHits.length || holHits.length || placeHits.length) ? placeHits.map((x, k) => `<button data-search-place="${k}"><span><b>${x.kind === 'ANT' ? '↔' : '📍'} ${esc(x.kind === 'HUB' && x.place?.hub ? (hubLabel(String(x.place.hub)) || x.title) : x.title)}</b><small>${esc(TL('ka2.kind.' + x.kind))}${x.detail && x.kind !== 'HUB' ? ' · ' + esc(x.detail) : ''}</small></span><em>${esc(x.kind === 'ANT' ? TL('ks.try') : TL('gs.place'))}</em></button>`).join('') + holHits.map((h) => `<button data-search-holiday="${esc(h.date)}"><span><b>🎉 ${esc(h.name)}</b><small>${esc(new Date(h.date + 'T12:00:00').toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))} · ${esc(h.country)} · ${esc(TL('hol.kind.' + h.kind))}</small></span><em>${esc(TL('hol.searchKind'))}</em></button>`).join('') + setHits.map((x) => `<button data-search-settings="${esc(x.id)}"><span><b>⚙ ${esc(x.title)}</b><small>${esc(x.path.join(' › '))}</small></span><em>${esc(TL('gs.settings'))}</em></button>`).join('') + rows.map(r => `<button data-search-link="${esc(r.deepLink)}"><span><b>${esc(r.title)}</b><small>${esc(ksCrumb(r.breadcrumb))}</small></span><em>${esc(TL('ks.kind.' + r.kind) !== 'ks.kind.' + r.kind ? TL('ks.kind.' + r.kind) : r.kind)}</em></button>`).join('') : (ksActions(q).length ? '' : '<p class="empty">Nic nenalezeno.</p>'));
             target.querySelectorAll('[data-search-settings]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); close(); void settingsCenter(b.dataset.searchSettings); });
             target.querySelectorAll('[data-search-place]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); close(); void kairaAskOpen(placeHits[Number(b.dataset.searchPlace)]); });
             target.querySelectorAll('[data-search-holiday]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); close(); const d = String(b.dataset.searchHoliday); const from = new Date(d + 'T12:00:00'); from.setDate(from.getDate() - 3); const to = new Date(d + 'T12:00:00'); to.setDate(to.getDate() + 3); calendarUi.customRange = true; calendarUi.from = from.toISOString().slice(0, 10); calendarUi.to = to.toISOString().slice(0, 10); state.activeSection = 'calendar'; render(); });

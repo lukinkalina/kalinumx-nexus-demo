@@ -4536,9 +4536,10 @@ var KX;
         async visible(ownerApp, spaces, kind, id, actorId) { return this.access.can({ kind, id, ownerApp, spaceIds: spaces }, actorId, 'READ'); }
         async search(ctx) {
             const q = normalizeSearch(ctx.text);
-            if (!q)
+            const apps = Array.isArray(ctx.apps) && ctx.apps.length ? new Set(ctx.apps) : null;
+            if (!q && !apps)
                 return [];
-            const allowed = new Set(ctx.kinds || ['ENTITY', 'FILE', 'DOCUMENT', 'TASK', 'CALENDAR_EVENT', 'ALARM', 'APP', 'ACTION', 'DATA_MAP']);
+            const allowed = new Set(!q ? ['ENTITY'] : (ctx.kinds || ['ENTITY', 'FILE', 'DOCUMENT', 'TASK', 'CALENDAR_EVENT', 'ALARM', 'APP', 'ACTION', 'DATA_MAP']));
             const results = [];
             if (allowed.has('ENTITY'))
                 for (const row of await this.repo.all('entities')) {
@@ -4554,7 +4555,9 @@ var KX;
                         continue;
                     if (!ctx.includeMarkedSensitive && row.data?.kxControls?.sensitive === true)
                         continue;
-                    if (!normalizeSearch(this.entitySearchText(row)).includes(q))
+                    if (apps && !apps.has(row.ownerApp))
+                        continue;
+                    if (q && !normalizeSearch(this.entitySearchText(row)).includes(q))
                         continue;
                     if (!await this.visible(row.ownerApp, row.spaceIds, 'ENTITY', row.id, ctx.actorId))
                         continue;
