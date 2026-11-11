@@ -1766,3 +1766,21 @@ html.kx-bright .app-shell{filter:brightness(var(--brightness))}
 .kx-wx3-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
 .kx-wx3-grid > div{display:grid;gap:2px;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--surface2,#0a0f18) 55%,transparent)}
 .kx-wx3-aqi b{font-size:22px}.kx-wx3-aqi.lv-ok b,.kx-wx3-aqi.lv-ok span{color:#7fe0a5}.kx-wx3-aqi.lv-warn b,.kx-wx3-aqi.lv-warn span{color:#ffc77a}.kx-wx3-aqi.lv-bad b,.kx-wx3-aqi.lv-bad span{color:#ff8a8d}
+
+/* Weather: places */
+.kx-wx-places{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.kx-wx-places > button,.kx-wx-pl > button:first-child{padding:4px 12px;border-radius:999px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 30%,transparent);background:none;color:var(--text,#f3e3bd);cursor:pointer}
+.kx-wx-places button.active{border-color:var(--accent,#f2c869);color:var(--accent,#f2c869)}
+.kx-wx-pl{display:inline-flex;align-items:center}.kx-wx-pl .kx-x{background:none;border:0;color:var(--muted,#a39e8e);cursor:pointer;padding:2px 6px}
+.kx-wx-add{display:inline-flex;gap:4px;margin-left:auto}.kx-wx-add input{min-width:160px}
+
+/* Kaira search: browse without typing */
+.ks-browse{display:grid;gap:12px}.ks-sec h4{margin:0 0 6px;font-size:13px;color:var(--muted,#a39e8e);letter-spacing:.03em}
+.ks-chips{display:flex;flex-wrap:wrap;gap:6px}.ks-chips button,.ks-tabs button{padding:3px 10px;border-radius:999px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 28%,transparent);background:none;color:var(--text,#f3e3bd);font-size:12.5px;cursor:pointer}
+.ks-cat{border-radius:10px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 18%,transparent);margin:0 0 6px;background:color-mix(in srgb,var(--surface2,#0a0f18) 45%,transparent)}
+.ks-cat > summary{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-weight:700}.ks-cat > summary small{margin-left:auto;padding:0 8px;border-radius:999px;background:color-mix(in srgb,var(--accent,#f2c869) 15%,transparent);font-weight:400}
+.ks-hubs{display:grid;gap:4px;padding:0 10px 10px}
+.ks-hub{display:grid;gap:4px;padding:6px 8px;border-radius:8px}.ks-hub:hover{background:color-mix(in srgb,var(--accent,#f2c869) 8%,transparent)}
+.ks-hub > button{display:grid;text-align:left;background:none;border:0;color:var(--text,#f3e3bd);cursor:pointer;padding:0}.ks-hub > button small{color:var(--muted,#a39e8e);font-size:12px}
+.ks-tabs{display:flex;flex-wrap:wrap;gap:4px}.ks-tabs button{font-size:11.5px;padding:2px 8px}
+.ks-hint{font-size:12px}

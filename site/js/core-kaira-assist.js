@@ -28,6 +28,8 @@ var KXKairaAssist;
         const domains = () => (globalThis.KXHubKit?.domains || []);
         const label = (d, f) => String(d?.subjectFields?.[f]?.label || f);
         async function learned(u) { const r = await core.entities.get(`${LEARN}.${String(u).replace(/[^A-Z0-9_.]/gi, '_')}`).catch(() => null); return { row: r, data: r?.data || { corrections: {} } }; }
+        /* N2.6b+ Kaira lexicon (synonyms / opposites per language) lives with the catalogue in core-i18n (KXLexicon) – translations add en / de there */
+        const KAIRA_LEX = new Proxy({}, { get: (_t, k) => (globalThis.KXLexicon || {})[k] });
         async function rows(u, type) { const out = []; for (const r of await core.entities.list()) {
             if (r.archivedAt)
                 continue;
@@ -159,10 +161,37 @@ var KXKairaAssist;
                 if (q.length < 2)
                     return []; /* filler words (where, is, how, what …) would match anything */
                 const STOP = new Set(['kde', 'je', 'jak', 'co', 'mi', 'to', 'na', 'v', 've', 'se', 'a', 'i', 'k', 'ke', 'do', 'z', 'ze', 'pro', 'najdu', 'najit', 'mam', 'muzu', 'chci', 'prosim', 'where', 'is', 'how', 'what', 'the']);
-                const words = q.split(/\s+/).filter((w) => w.length > 1 && !STOP.has(w));
-                if (!words.length)
+                const words0 = q.split(/\s+/).filter((w) => w.length > 1 && !STOP.has(w));
+                if (!words0.length)
                     return [];
                 const out = [];
+                /* N2.6b+ (user: Kaira must always find it) – synonyms / related words and opposites per language; more languages are added with the translations */
+                const lx = KAIRA_LEX[String(p?.lang || 'cs').slice(0, 2)] || KAIRA_LEX.cs || { syn: {}, ant: {} };
+                const lv0 = (a, b) => { const d = Array.from({ length: b.length + 1 }, (_, j) => j); for (let i = 1; i <= a.length; i++) {
+                    let prev = d[0];
+                    d[0] = i;
+                    for (let j = 1; j <= b.length; j++) {
+                        const tmp = d[j];
+                        d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+                        prev = tmp;
+                    }
+                } return d[b.length]; };
+                const words = [...words0];
+                let typoSyn = false;
+                for (const w of words0) {
+                    for (const [k, v] of Object.entries(lx.syn)) {
+                        const lim = w.length >= 7 ? 2 : w.length >= 4 ? 1 : 0;
+                        if (w === k || (w.length >= 4 && k.startsWith(w)) || (lim && Math.abs(k.length - w.length) <= lim && lv0(w, k) <= lim && (typoSyn = true))) { /* typo in the word still finds its synonyms – but the answer stays “unsure” (options) */
+                            for (const x of v)
+                                for (const y of norm(x).split(/\s+/))
+                                    if (y.length > 1 && !words.includes(y))
+                                        words.push(y);
+                        }
+                    }
+                    const ant = lx.ant[w];
+                    if (ant)
+                        out.push({ kind: 'ANT', title: ant, detail: '', place: { kind: 'QUERY', q: ant }, score: 0.5 });
+                }
                 /* N2.5y (user): tolerant search – exact part (2 / 1), start of a word (1.5), small typo (1.2; Levenshtein ≤1 for 4–6 letters, ≤2 for 7+); fuzzy-only hits are marked UNSURE → Kaira offers options */
                 const lev = (a, b) => { if (Math.abs(a.length - b.length) > 2)
                     return 9; const d = Array.from({ length: b.length + 1 }, (_, j) => j); for (let i = 1; i <= a.length; i++) {
@@ -239,7 +268,7 @@ var KXKairaAssist;
                         out.push({ kind: 'SETTING', title: String(st.label || st.key), detail: String(st.description || '').slice(0, 120), place: { kind: 'SETTING', setting: st.key }, score: s - 0.5 });
                 }
                 /* unsure (only approximate hits) → mark and offer up to 5 options */ const sorted = out.sort((a, b) => b.score - a.score);
-                if (fuzzyOnly && sorted.length)
+                if ((fuzzyOnly || typoSyn) && sorted.length)
                     return sorted.slice(0, 5).map(x => ({ ...x, uncertain: true }));
                 return sorted.slice(0, 8);
             } };

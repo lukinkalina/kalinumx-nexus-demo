@@ -3363,6 +3363,16 @@ var KXAPP;
     }
     else if (++n < 20)
         setTimeout(go, 200); }; setTimeout(go, 300); }, true); /* N2.6b+: from “Needs attention” to the decisions (Action Center) on the Desk */
+    /* N2.6b+ (audit „rozepsaný text přežije“): keep unsaved field values across a hub repaint */
+    function kxInpKey(e, idx) { const ds = Object.keys(e.dataset || {}).filter(k => !/^kx/.test(k) && !/(Mounted|Done|Bound|Ready|Init|Id|Ref)$/.test(k) && k !== 'ref').sort().map(k => k + '=' + String(e.dataset[k]).slice(0, 40)).join(','); /* values identify the field (ff=counterparty), state flags do not */ /* values identify the field (ff=counterparty), state flags do not */ const base = [e.tagName, (e.type || '').toLowerCase(), e.name || '', e.getAttribute('placeholder') || '', ds].join('|'); const n = (idx.get(base) || 0); idx.set(base, n + 1); return base + '#' + n; }
+    function kxSnapInputs(root) { const out = new Map(); if (!root)
+        return out; const idx = new Map(); root.querySelectorAll('input,textarea,select').forEach(e => { const ty = (e.type || '').toLowerCase(); const k = kxInpKey(e, idx); if (e.matches('[data-hub-search]') || ['checkbox', 'radio', 'file', 'hidden', 'button', 'submit'].includes(ty))
+        return; const def = e.tagName === 'SELECT' ? '' : e.defaultValue; if (e.value !== def && e.value !== '')
+        out.set(k, e.value); }); return out; }
+    function kxRestoreInputs(root, snap) { if (!root || !snap.size)
+        return; const idx = new Map(); root.querySelectorAll('input,textarea,select').forEach(e => { const k = kxInpKey(e, idx); const v = snap.get(k); if (v == null)
+        return; const def = e.tagName === 'SELECT' ? '' : e.defaultValue; if (e.value === def || e.value === '')
+        e.value = v; }); }
     async function hydrateFiles() {
         const root = el('#fileExplorerLive');
         if (!root || !runtime)
@@ -5452,6 +5462,15 @@ var KXAPP;
     }, true);
     async function openPlace(place, draft) {
         try {
+            if (place?.kind === 'QUERY') {
+                const inp = document.querySelector('#globalSearch');
+                if (inp) {
+                    inp.value = String(place.q || '');
+                    inp.dispatchEvent(new Event('input'));
+                    inp.focus();
+                }
+                return;
+            }
             if (place.kind === 'RECORD' && place.ref) {
                 await openRecordInspector(String(place.ref));
                 if (place.field)
@@ -10598,6 +10617,7 @@ var KXAPP;
         return (r) => { const sp = r?.spaceIds || r?.data?.spaceIds || []; if (st.ctx !== 'ALL' && !sp.some((x) => ids.includes(x)))
             return false; return !q || MF(JSON.stringify(r)).includes(q); };
     }
+    const HUB_OWN_SEARCH = new Set(['APP.KX.QR_SOS', 'APP.KX.VAULT', 'APP.KX.GAMES']);
     async function mountHubBar(bar, key, withData, remount) {
         const st = hubBarState[key] || (hubBarState[key] = { q: '', ctx: 'ALL' });
         let open = 0;
@@ -10606,8 +10626,8 @@ var KXAPP;
         }
         catch { }
         const ctxs = [['ALL', TL('hubbar.all')], ['PERSONAL', TL('hubbar.personal')], ['FAMILY', TL('hubbar.family')], ['COMPANY', TL('hubbar.company')]];
-        bar.className = 'kx-hub-bar';
-        bar.dataset.hubBar = key;
+        bar.className = 'kx-hub-bar' + (HUB_OWN_SEARCH.has(key) ? ' ag-hide' : '');
+        bar.dataset.hubBar = key; /* N2.6b+: hubs with their own search never show the generic one (it used to vanish while typing) */
         bar.innerHTML = `${withData ? `<input data-hub-search placeholder="🔍 ${esc(TL('hubbar.search'))}" value="${esc(st.q)}"><span class="kx-hub-ctx">${ctxs.map(([k, l]) => `<button class="chip ${st.ctx === k ? 'active' : ''}" data-hub-ctx="${k}">${esc(l)}</button>`).join('')}</span><button class="btn compact" data-hub-new>＋ ${esc(TL('hubbar.new'))}</button>` : ''}
         <span class="kx-hub-bar-tools"><button class="icon-btn" data-kx-manual="HUB:${esc(key)}" title="${esc(TL('tools.manual'))}">📖</button><button class="icon-btn" data-hub-settings title="${esc(TL('quick.hubSettings'))}">⚙</button><button class="icon-btn" data-hub-issues title="${esc(TL('quick.hubIssues'))}">🔔${open ? `<span class="kx-hub-bar-count" data-hub-issues-count>${open}</span>` : ''}</button></span>`;
         bar.querySelector('[data-hub-settings]').addEventListener('click', () => { settingsUi.appCode = key; settingsUi.category = 'ALL'; settingsUi.query = ''; void settingsInheritanceModal(); });
@@ -10616,7 +10636,7 @@ var KXAPP;
             return;
         let t = 0;
         const si = bar.querySelector('[data-hub-search]');
-        si.oninput = () => { st.q = si.value; clearTimeout(t); t = setTimeout(() => void remount(), 250); };
+        si.oninput = () => { st.q = si.value; clearTimeout(t); t = setTimeout(() => { const ins = document.querySelector('#inspector'); const snap = kxSnapInputs(ins); void Promise.resolve(remount()).then(() => { kxRestoreInputs(ins, snap); setTimeout(() => kxRestoreInputs(ins, snap), 350); setTimeout(() => kxRestoreInputs(ins, snap), 1200); }); /* smart fields mount a moment later and would reset the value */ }, 250); }; /* N2.6b+: searching the hub keeps what you typed elsewhere */
         bar.querySelectorAll('[data-hub-ctx]').forEach((b) => b.onclick = () => { st.ctx = b.dataset.hubCtx; bar.querySelectorAll('[data-hub-ctx]').forEach((x) => x.classList.toggle('active', x === b)); void remount(); });
         bar.querySelector('[data-hub-new]').addEventListener('click', () => { const host = bar.parentElement; /* every hub marks its add button data-<prefix>-add (kit, vehicles); 3D tisk offers its printer templates */ /* every hub marks its add button data-<prefix>-add (kit, vehicles); 3D tisk offers its printer templates */ const btns = host ? Array.from(host.querySelectorAll('[data-hub-root] button')) : []; const add = btns.find(b => Array.from(b.attributes).some((x) => /^data-[a-z0-9]+-add$/.test(x.name))) || host?.querySelector('[data-hub-root] [data-print3d-template]'); if (add) {
             add.click();
@@ -10928,6 +10948,7 @@ var KXAPP;
         };
         const match = (x) => !q || MF(x.label || HUB_TITLES[String(x.target)] || hubLabel(String(x.target))).includes(q) || (tabs[String(x.target)] || []).some(([, l]) => MF(l).includes(q));
         const rec = recent.filter(isHub).filter(match).slice(0, 4);
+        kxNavGroups = groups;
         host.innerHTML = (rec.length ? `<div class="kx-tree-cat">${esc(TL('tree.recent'))}</div>${rec.map((x) => hubRow(x)).join('')}` : '') + groups.map((g) => {
             const items = g.items.filter(isHub).filter(match).filter((x) => treePlacement === 'ALL' || !!treeOverrides[x.itemCode] || x.primaryCategory === g.category.code);
             if (!items.length)
@@ -13412,15 +13433,114 @@ var KXAPP;
         const labs = H.map((h, i) => i % 6 === 0 ? `<text x="${x(i).toFixed(1)}" y="${Hh - 10}" text-anchor="middle" font-size="12" fill="currentColor" opacity=".75">${new Date(h.t).toLocaleString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ', { weekday: 'short', hour: '2-digit' })}</text><text x="${x(i).toFixed(1)}" y="${(y(h.temp) - 8).toFixed(1)}" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">${h.temp}°</text><text x="${x(i).toFixed(1)}" y="${(y(h.temp) + 22).toFixed(1)}" text-anchor="middle" font-size="15">${h.icon}</text>` : '').join('');
         return `<svg class="kx-wx-chart" viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${esc(TL('wx2.next48'))}">${bars}<polyline points="${line}" fill="none" stroke="var(--accent,#f2c869)" stroke-width="2.5"/>${labs}</svg><small class="muted">${esc(TL('wx2.chartHint'))}</small>`;
     }
-    async function kxWxModal(days = 7) {
+    let wxSeq = 0;
+    let wxPlacesMem = null;
+    const wxCur = { days: 7, place: '' };
+    let wxBusy = null;
+    /* immediate feedback while a place's forecast loads: its tab active and a loading note */
+    function kxWxPending(m, place) { const box = m.querySelector('[data-wx-modal]'); if (!box)
+        return; const bar = box.querySelector('.kx-wx-places'); if (bar && !bar.querySelector(`[data-wx-place="${CSS.escape(place)}"]`)) {
+        const s = document.createElement('span');
+        s.className = 'kx-wx-pl';
+        s.innerHTML = `<button type="button" data-wx-place="${esc(place)}">${esc(place)}</button>`;
+        bar.insertBefore(s, bar.querySelector('.kx-wx-add'));
+    } box.querySelectorAll('[data-wx-place]').forEach(b => b.classList.toggle('active', String(b.dataset.wxPlace || '') === place)); let n = box.querySelector('[data-wx-pending]'); if (!n) {
+        n = document.createElement('div');
+        n.dataset.wxPending = '1';
+        n.className = 'muted kx-wx-pending';
+        bar?.after(n);
+    } n.textContent = TL('wx3.pending').replace('{p}', place); }
+    /* N2.6b+: one click handler on the window (not on each button) – works even if the window was repainted between typing and clicking */
+    function kxWxDelegate(m) {
+        if (m.__wxDeleg)
+            return;
+        m.__wxDeleg = true;
+        const addNow = () => { if (!m.querySelector('[data-wx-modal]'))
+            return; const inp = m.querySelector('[data-wx-place-new]'); const v = String(inp?.value || '').trim().slice(0, 60); if (!v)
+            return; const cur = (wxPlacesMem || []).slice(); if (!cur.includes(v)) {
+            wxPlacesMem = [...cur, v].slice(0, 8);
+            void uPut('home.weather.places', wxPlacesMem).catch(() => { });
+        } if (inp)
+            inp.value = ''; kxWxEnsure(wxCur.days, v); };
+        m.addEventListener('click', (e) => {
+            if (!m.querySelector('[data-wx-modal]'))
+                return;
+            const t2 = e.target;
+            const add = t2.closest?.('[data-wx-place-add]');
+            if (add) {
+                e.preventDefault();
+                addNow();
+                return;
+            }
+            const del = t2.closest?.('[data-wx-place-del]');
+            if (del) {
+                e.preventDefault();
+                const pl = String(del.dataset.wxPlaceDel);
+                wxPlacesMem = (wxPlacesMem || []).filter(x => x !== pl);
+                void uPut('home.weather.places', wxPlacesMem).catch(() => { });
+                kxWxEnsure(wxCur.days, wxCur.place === pl ? '' : wxCur.place);
+                return;
+            }
+            const pb = t2.closest?.('[data-wx-place]');
+            if (pb) {
+                e.preventDefault();
+                void kxWxModal(wxCur.days, String(pb.dataset.wxPlace || ''));
+                return;
+            }
+        });
+        m.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target?.matches?.('[data-wx-place-new]')) {
+            e.preventDefault();
+            addNow();
+        } });
+    }
+    /* N2.6b+: saving the places setting lets the app restore an older copy of the window a moment later – keep re-checking for 3 s and repaint the chosen place if needed */
+    function kxWxEnsure(days, want) { void kxWxModal(days, want); let n = 0; const chk = () => { const box = document.querySelector('[data-wx-modal]'); if (!box)
+        return; if (wxBusy === want) {
+        if (++n < 12)
+            setTimeout(chk, 500);
+        return;
+    } /* still loading this place – just wait */ /* still loading this place – just wait */ const a = box.querySelector('[data-wx-place].active'); const listed = !want || !!box.querySelector(`[data-wx-place="${CSS.escape(want)}"]`); const okPlaces = (wxPlacesMem || []).every(p => !!box.querySelector(`[data-wx-place="${CSS.escape(p)}"]`)); if (!a || String(a.dataset.wxPlace || '') !== want || !listed || !okPlaces)
+        void kxWxModal(days, want); if (++n < 12)
+        setTimeout(chk, 500); }; setTimeout(chk, 500); }
+    async function kxWxModal(days = 7, place = '') {
+        const seq = ++wxSeq;
+        wxBusy = place || '';
         const HT = globalThis.KXHomeTiles;
         const m = toolHost('weather');
         let w = homeWx.data;
+        let places = [];
+        if (wxPlacesMem)
+            places = wxPlacesMem.slice();
+        else {
+            try {
+                const v = await uSet('home.weather.places', []);
+                places = Array.isArray(v) ? v.map(String).slice(0, 8) : [];
+                wxPlacesMem = places.slice();
+            }
+            catch { }
+        }
+        if (place && HT?.fetchWeather) {
+            kxWxPending(m, place);
+            try {
+                w = await HT.fetchWeather({ city: place, days }, globalThis.fetch?.bind(globalThis), UI_LOCALE);
+            }
+            catch {
+                w = null;
+            }
+        }
+        if (seq !== wxSeq)
+            return;
+        wxBusy = null; /* a newer call (other place / days) won – drop this stale one */
         const paint = (note = '') => {
+            if (seq !== wxSeq)
+                return;
+            const oldInp = m.querySelector('[data-wx-place-new]');
+            const keep = oldInp ? oldInp.value : '';
+            const hadFocus = !!oldInp && document.activeElement === oldInp;
             const loc = UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ';
             const tm = (s) => s ? new Date(s).toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' }) : '—';
             const d0 = w?.days?.[0];
-            m.innerHTML = `<div class="modal" data-wx-modal><div class="drawer-head"><div><b>🌤 ${esc(TL('wx2.title'))}${w?.place ? ` · ${esc(w.place)}` : ''}</b><small>${esc(TL('wx2.sub'))}</small></div><button class="icon-btn" data-close>×</button></div><div class="ins-section kx-wx2">
+            m.innerHTML = `<div class="modal" data-wx-modal><div class="drawer-head"><div><b>🌤 ${esc(TL('wx2.title'))}${w?.place ? ` · ${esc(w.place)}` : ''}</b><small>${esc(TL('wx2.sub'))}</small></div><button class="icon-btn" data-close>×</button></div><div class="ins-section kx-wx2"><div class="kx-wx-places"><button type="button" class="${!place ? 'active' : ''}" data-wx-place="">📍 ${esc(homeWx.data?.place || TL('wx3.here'))}</button>${places.map((pl) => `<span class="kx-wx-pl"><button type="button" class="${place === pl ? 'active' : ''}" data-wx-place="${esc(pl)}">${esc(pl)}</button><button type="button" class="kx-x" data-wx-place-del="${esc(pl)}" title="${esc(TL('wx3.placeDel'))}">✕</button></span>`).join('')}<span class="kx-wx-add"><input data-wx-place-new placeholder="${esc(TL('wx3.placeNew'))}"><button type="button" class="btn ghost compact" data-wx-place-add>＋ ${esc(TL('wx3.placeAdd'))}</button></span></div>
           ${w ? `<div class="kx-wx2-now"><span class="kx-wx2-big">${w.icon} ${w.temp} °C</span><span>${esc(TL('wx.' + w.group))}</span><span class="muted">${w.feels != null ? `${esc(TL('wx2.feels'))} ${w.feels} °C · ` : ''}${w.humidity != null ? `💧 ${w.humidity} % · ` : ''}${w.wind != null ? `💨 ${w.wind} km/h · ` : ''}🌅 ${tm(d0?.sunrise)} · 🌇 ${tm(d0?.sunset)}</span></div>
           <h4>${esc(TL('wx2.next48'))}</h4>${kxWxChart(w.hours)}
           <div class="kx-wx2-air" data-wx-air><small class="muted">${esc(TL('wx3.airLoading'))}</small></div>
@@ -13428,7 +13548,20 @@ var KXAPP;
           <div class="kx-wx2-days">${(w.days || []).slice(0, days).map((d) => `<div class="kx-wx2-day"><b>${esc(new Date(d.date).toLocaleDateString(loc, { weekday: 'short', day: 'numeric', month: 'numeric' }))}</b><span class="kx-wx2-ic">${d.icon}</span><span class="kx-wx2-t"><b>${d.max ?? '—'}°</b> / ${d.min ?? '—'}°</span><span class="muted">${d.pop != null ? `☔ ${d.pop} %` : ''}${d.rain ? ` · ${d.rain} mm` : ''}</span></div>`).join('')}</div>` : `<p class="muted">${esc(TL('home.wx.off'))}</p>`}
           ${note ? `<p class="muted">${esc(note)}</p>` : ''}</div></div>`;
             m.querySelector('[data-close]').onclick = () => { m.className = 'modal-wrap'; m.innerHTML = ''; };
-            m.querySelectorAll('[data-wx-days]').forEach(b => b.onclick = () => void kxWxModal(Number(b.dataset.wxDays)));
+            {
+                const ni = m.querySelector('[data-wx-place-new]');
+                if (ni && keep) {
+                    ni.value = keep;
+                    if (hadFocus) {
+                        ni.focus();
+                        ni.setSelectionRange(keep.length, keep.length);
+                    }
+                }
+            } /* N2.6b+: a repaint never loses what the user is typing */
+            m.querySelectorAll('[data-wx-days]').forEach(b => b.onclick = () => void kxWxModal(Number(b.dataset.wxDays), place));
+            wxCur.days = days;
+            wxCur.place = place;
+            kxWxDelegate(m);
         };
         const airPaint = async () => {
             const box = m.querySelector('[data-wx-air]');
@@ -13447,7 +13580,7 @@ var KXAPP;
         };
         paint();
         void airPaint();
-        if (days > ((w?.days || []).length) && homeWx.src && HT?.fetchWeather) {
+        if (!place && days > ((w?.days || []).length) && homeWx.src && HT?.fetchWeather) {
             paint(TL('wx2.loading'));
             try {
                 w = await HT.fetchWeather({ ...homeWx.src, days }, globalThis.fetch?.bind(globalThis), UI_LOCALE);
@@ -14899,12 +15032,110 @@ var KXAPP;
             toast(String(error.message || error));
         } };
     }
+    let kxNavGroups = [];
+    const KS_TOOLS = ['NOTES', 'CALC', 'CONTACTS', 'LISTS', 'TIMER', 'CALENDAR', 'FILES', 'IMPORT', 'CAMERA', 'DICTAPHONE', 'INBOX', 'GUIDES', 'RESTORE', 'BUGS', 'SETTINGS'];
+    function ksRecent() { try {
+        const v = JSON.parse(localStorage.getItem('kx.search.recent') || '[]');
+        return Array.isArray(v) ? v.slice(0, 8) : [];
+    }
+    catch {
+        return [];
+    } }
+    function ksRemember(q) { q = q.trim(); if (q.length < 2)
+        return; try {
+        localStorage.setItem('kx.search.recent', JSON.stringify([q, ...ksRecent().filter(x => x !== q)].slice(0, 8)));
+    }
+    catch { } }
+    /* N2.6b+ (user: when I don't know the name, let me browse) – search without typing: recent, categories → hubs → tabs, tools */
+    function kxSearchBrowse() {
+        const tabs = HUB_TABS();
+        const rec = ksRecent();
+        const cats = (kxNavGroups || []).map((g) => {
+            const hubs = (g.items || []).filter((x) => String(x.target || '').startsWith('APP.') && x.primaryCategory === g.category.code && x.target !== 'APP.KX.NEXUS');
+            if (!hubs.length)
+                return '';
+            return `<details class="ks-cat"><summary>${esc(g.category.code === 'NAV.CAT.CORE' ? TL('tree2.quick') : (g.category.label || ''))}<small>${hubs.length}</small></summary><div class="ks-hubs">${hubs.map((x) => { const code = String(x.target); const tb = (tabs[code] || []).slice(0, 10); return `<div class="ks-hub"><button type="button" data-ks-hub="${esc(code)}"><b>${esc(x.label || hubLabel(code))}</b>${x.subtitle ? `<small>${esc(x.subtitle)}</small>` : ''}</button>${tb.length ? `<span class="ks-tabs">${tb.map(([id, l]) => `<button type="button" data-ks-tab="${esc(code)}|${esc(id)}">${esc(l)}</button>`).join('')}</span>` : ''}</div>`; }).join('')}</div></details>`;
+        }).join('');
+        const tools = KS_TOOLS.map(k => { const v = TL('ka2.tool.' + k); if (v === 'ka2.tool.' + k)
+            return ''; return `<button type="button" data-ks-tool="${k}">${esc(v.split('|')[0])}</button>`; }).join('');
+        return `<div class="ks-browse">${rec.length ? `<div class="ks-sec"><h4>🕘 ${esc(TL('ks.recent'))}</h4><div class="ks-chips">${rec.map(r => `<button type="button" data-ks-recent="${esc(r)}">${esc(r)}</button>`).join('')}</div></div>` : ''}<div class="ks-sec"><h4>🗂 ${esc(TL('ks.cats'))}</h4>${cats || `<p class="muted">${esc(TL('ks.noCats'))}</p>`}</div><div class="ks-sec"><h4>🧰 ${esc(TL('ks.tools'))}</h4><div class="ks-chips">${tools}</div></div><p class="muted ks-hint">${esc(TL('ks.hint'))}</p></div>`;
+    }
+    function ksWire(m) {
+        if (m.__ksWired)
+            return;
+        m.__ksWired = true;
+        m.addEventListener('click', (e) => {
+            if (!m.querySelector('#globalSearch'))
+                return;
+            const t2 = e.target;
+            const inp = m.querySelector('#globalSearch');
+            const h = t2.closest?.('[data-ks-hub]');
+            if (h) {
+                e.preventDefault();
+                e.stopPropagation();
+                m.classList.remove('open');
+                openHubAt(String(h.dataset.ksHub));
+                return;
+            }
+            const tb = t2.closest?.('[data-ks-tab]');
+            if (tb) {
+                e.preventDefault();
+                e.stopPropagation();
+                const [hub, tab] = String(tb.dataset.ksTab).split('|');
+                m.classList.remove('open');
+                openHubAt(hub, tab);
+                return;
+            }
+            const to = t2.closest?.('[data-ks-tool]');
+            if (to) {
+                e.preventDefault();
+                e.stopPropagation();
+                m.classList.remove('open');
+                void openPlace({ kind: 'WINDOW', window: String(to.dataset.ksTool) });
+                return;
+            }
+            const rc = t2.closest?.('[data-ks-recent]');
+            if (rc && inp) {
+                e.preventDefault();
+                inp.value = String(rc.dataset.ksRecent);
+                inp.dispatchEvent(new Event('input'));
+                inp.focus();
+                return;
+            }
+            if (t2.closest?.('#searchResults button') && inp)
+                ksRemember(inp.value);
+        }, true);
+        m.addEventListener('keydown', (e) => {
+            if (!m.querySelector('#globalSearch'))
+                return;
+            const list = Array.from(m.querySelectorAll('#searchResults button')).filter(b => b.offsetParent !== null);
+            if (!list.length)
+                return;
+            const i = list.indexOf(document.activeElement);
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                (list[Math.min(list.length - 1, i + 1)] || list[0]).focus();
+            }
+            else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (i <= 0)
+                    m.querySelector('#globalSearch')?.focus();
+                else
+                    list[i - 1].focus();
+            }
+            else if (e.key === 'Enter' && e.target?.id === 'globalSearch') {
+                e.preventDefault();
+                list[0].click();
+            }
+        });
+    }
     function searchModal() {
         const m = el('#modal');
         m.className = 'modal-wrap open';
-        m.innerHTML = `<div class="modal search-modal"><div class="drawer-head"><div><b>${esc(TL('gs.title'))}</b><small>${esc(TL('gs.sub'))}</small></div><button class="icon-btn" data-close>×</button></div><input autofocus class="search-input" id="globalSearch" placeholder="${esc(TL('gs.ph'))}"><label class="search-marked"><input type="checkbox" id="searchIncludeMarked" data-search-include-marked> Zahrnout záznamy označené jako citlivé</label><div id="searchResults" class="search-results"><p class="empty">Začni psát…</p></div></div>`;
+        m.innerHTML = `<div class="modal search-modal"><div class="drawer-head"><div><b>${esc(TL('gs.title'))}</b><small>${esc(TL('gs.sub'))}</small></div><button class="icon-btn" data-close>×</button></div><input autofocus class="search-input" id="globalSearch" placeholder="${esc(TL('gs.ph'))}"><label class="search-marked"><input type="checkbox" id="searchIncludeMarked" data-search-include-marked> Zahrnout záznamy označené jako citlivé</label><div id="searchResults" class="search-results">${kxSearchBrowse()}</div></div>`;
         const close = () => m.classList.remove('open');
         m.querySelector('[data-close]').addEventListener('click', close);
+        ksWire(m);
         const input = el('#globalSearch');
         const marked = el('#searchIncludeMarked');
         if (marked)
@@ -14912,7 +15143,7 @@ var KXAPP;
         input.oninput = async () => {
             const q = input.value.trim();
             if (!q) {
-                el('#searchResults').innerHTML = '<p class="empty">Začni psát…</p>';
+                el('#searchResults').innerHTML = kxSearchBrowse();
                 return;
             }
             const rows = await runtime.search.search({ text: q, actorId: CURRENT_USER_ID, limit: 20, includeMarkedSensitive: !!el('#searchIncludeMarked')?.checked });
@@ -14927,7 +15158,7 @@ var KXAPP;
             /* N2.5r (user): Kaira's „where is it in NEXUS“ inside the global search – one search for the whole NEXUS */ let placeHits = [];
             try {
                 if (q.length >= 2)
-                    placeHits = (await runtime.actions.invoke('ACTION.CORE.KAIRA.ASK', { q }, { actorId: CURRENT_USER_ID, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true }) || []).filter((x) => x.kind !== 'SETTING').slice(0, 5);
+                    placeHits = (await runtime.actions.invoke('ACTION.CORE.KAIRA.ASK', { q, lang: UI_LOCALE }, { actorId: CURRENT_USER_ID, appCode: 'APP.KX.NEXUS', permissions: [], confirmed: true }) || []).filter((x) => x.kind !== 'SETTING').sort((a, b) => (a.kind === 'ANT' ? 1 : 0) - (b.kind === 'ANT' ? 1 : 0)).slice(0, 7);
             }
             catch { }
             /* N2.4m: holidays in the global search – this and next year, countries from the user's settings */
@@ -14945,7 +15176,7 @@ var KXAPP;
                 }
             }
             catch { }
-            target.innerHTML = (rows.length || setHits.length || holHits.length || placeHits.length) ? placeHits.map((x, k) => `<button data-search-place="${k}"><span><b>📍 ${esc(x.title)}</b><small>${esc(TL('ka2.kind.' + x.kind))}${x.detail ? ' · ' + esc(x.detail) : ''}</small></span><em>${esc(TL('gs.place'))}</em></button>`).join('') + holHits.map((h) => `<button data-search-holiday="${esc(h.date)}"><span><b>🎉 ${esc(h.name)}</b><small>${esc(new Date(h.date + 'T12:00:00').toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))} · ${esc(h.country)} · ${esc(TL('hol.kind.' + h.kind))}</small></span><em>${esc(TL('hol.searchKind'))}</em></button>`).join('') + setHits.map((x) => `<button data-search-settings="${esc(x.id)}"><span><b>⚙ ${esc(x.title)}</b><small>${esc(x.path.join(' › '))}</small></span><em>${esc(TL('gs.settings'))}</em></button>`).join('') + rows.map(r => `<button data-search-link="${esc(r.deepLink)}"><span><b>${esc(r.title)}</b><small>${esc(r.breadcrumb)}</small></span><em>${esc(r.kind)}</em></button>`).join('') : '<p class="empty">Nic nenalezeno.</p>';
+            target.innerHTML = (rows.length || setHits.length || holHits.length || placeHits.length) ? placeHits.map((x, k) => `<button data-search-place="${k}"><span><b>${x.kind === 'ANT' ? '↔' : '📍'} ${esc(x.kind === 'HUB' && x.place?.hub ? (hubLabel(String(x.place.hub)) || x.title) : x.title)}</b><small>${esc(TL('ka2.kind.' + x.kind))}${x.detail && x.kind !== 'HUB' ? ' · ' + esc(x.detail) : ''}</small></span><em>${esc(x.kind === 'ANT' ? TL('ks.try') : TL('gs.place'))}</em></button>`).join('') + holHits.map((h) => `<button data-search-holiday="${esc(h.date)}"><span><b>🎉 ${esc(h.name)}</b><small>${esc(new Date(h.date + 'T12:00:00').toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))} · ${esc(h.country)} · ${esc(TL('hol.kind.' + h.kind))}</small></span><em>${esc(TL('hol.searchKind'))}</em></button>`).join('') + setHits.map((x) => `<button data-search-settings="${esc(x.id)}"><span><b>⚙ ${esc(x.title)}</b><small>${esc(x.path.join(' › '))}</small></span><em>${esc(TL('gs.settings'))}</em></button>`).join('') + rows.map(r => `<button data-search-link="${esc(r.deepLink)}"><span><b>${esc(r.title)}</b><small>${esc(r.breadcrumb)}</small></span><em>${esc(r.kind)}</em></button>`).join('') : '<p class="empty">Nic nenalezeno.</p>';
             target.querySelectorAll('[data-search-settings]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); close(); void settingsCenter(b.dataset.searchSettings); });
             target.querySelectorAll('[data-search-place]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); close(); void kairaAskOpen(placeHits[Number(b.dataset.searchPlace)]); });
             target.querySelectorAll('[data-search-holiday]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); close(); const d = String(b.dataset.searchHoliday); const from = new Date(d + 'T12:00:00'); from.setDate(from.getDate() - 3); const to = new Date(d + 'T12:00:00'); to.setDate(to.getDate() + 3); calendarUi.customRange = true; calendarUi.from = from.toISOString().slice(0, 10); calendarUi.to = to.toISOString().slice(0, 10); state.activeSection = 'calendar'; render(); });
