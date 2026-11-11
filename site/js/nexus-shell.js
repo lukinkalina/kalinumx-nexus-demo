@@ -650,7 +650,8 @@ var KXAPP;
                                 box.className = 'kx-stall';
                                 overlay.appendChild(box);
                             }
-                            box.innerHTML = `<b>${esc(TL('stall.title'))}</b><p>${esc(TL('stall.step'))}: <i>${esc(steps[i][0])}</i></p>${lastErr.m ? `<p class="kx-stall-err">${esc(lastErr.m)}</p>` : ''}<ol><li>${esc(TL('stall.tabs'))}</li><li>${esc(TL('stall.reload'))}</li><li>${esc(TL('stall.safe'))}</li></ol><div class="kx-stall-btns"><button type="button" onclick="location.reload()">↻ ${esc(TL('stall.reloadBtn'))}</button></div>`;
+                            box.innerHTML = `<b>${esc(TL('stall.title'))}</b><p>${esc(TL('stall.step'))}: <i>${esc(steps[i][0])}</i></p>${lastErr.m ? `<p class="kx-stall-err">${esc(lastErr.m)}</p>` : ''}<ol><li>${esc(TL('stall.tabs'))}</li><li>${esc(TL('stall.reload'))}</li><li>${esc(TL('stall.safe'))}</li></ol><div class="kx-stall-btns"><button type="button" data-stall-reload>↻ ${esc(TL('stall.reloadBtn'))}</button></div>`;
+                            box.querySelector('[data-stall-reload]')?.addEventListener('click', () => location.reload());
                         }
                         catch { }
                     }, 8000);
@@ -15072,6 +15073,22 @@ var KXAPP;
         } };
     }
     let kxNavGroups = [];
+    /* N2.6b+ ⚡ quick actions from the search – keywords live in the catalogue (ksa.<id>.keys, translated later) */
+    const KS_ACTIONS = [
+        { id: 'task', icon: '✓', run: () => { document.querySelector('.sidebar [data-section="calendar"]')?.click(); setTimeout(() => document.querySelector('[data-calendar-create]')?.click(), 350); } },
+        { id: 'note', icon: '🗒', run: () => void notesTool() },
+        { id: 'pay', icon: '💳', run: () => openHubAt('APP.KX.FINANCE', 'MOVEMENTS') },
+        { id: 'km', icon: '🚗', run: () => openHubAt('APP.KX.VEHICLES') },
+        { id: 'hub', icon: '▦', run: () => treeToggleOpen() }
+    ];
+    const ksNorm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    function ksActions(q) {
+        const ws = ksNorm(q).split(/[^a-z0-9]+/).filter(w => w.length >= 2);
+        if (!ws.length)
+            return [];
+        return KS_ACTIONS.map(a => { const keys = ksNorm(TL('ksa.' + a.id + '.keys')).split(/[ ,]+/).filter(Boolean); const hit = ws.reduce((n, w) => n + (keys.some(k => k.startsWith(w) || (w.length >= 4 && w.startsWith(k))) ? 1 : 0), 0); return { a, hit }; }).filter(x => x.hit).sort((x, y) => y.hit - x.hit).slice(0, 3).map(x => x.a);
+    }
+    function ksActionsHtml(q) { const acts = ksActions(q); return acts.length ? `<div class="ks-acts"><small>⚡ ${esc(TL('ksa.title'))}</small>${acts.map(a => `<button type="button" data-ks-act="${a.id}"><b>${a.icon} ${esc(TL('ksa.' + a.id))}</b><em>${esc(TL('ksa.do'))}</em></button>`).join('')}</div>` : ''; }
     const KS_TOOLS = ['NOTES', 'CALC', 'CONTACTS', 'LISTS', 'TIMER', 'CALENDAR', 'FILES', 'IMPORT', 'CAMERA', 'DICTAPHONE', 'INBOX', 'GUIDES', 'RESTORE', 'BUGS', 'SETTINGS'];
     function ksRecent() { try {
         const v = JSON.parse(localStorage.getItem('kx.search.recent') || '[]');
@@ -15131,6 +15148,20 @@ var KXAPP;
                 e.stopPropagation();
                 m.classList.remove('open');
                 void openPlace({ kind: 'WINDOW', window: String(to.dataset.ksTool) });
+                return;
+            }
+            const ac = t2.closest?.('[data-ks-act]');
+            if (ac) {
+                e.preventDefault();
+                e.stopPropagation();
+                const a = KS_ACTIONS.find(x => x.id === ac.dataset.ksAct);
+                if (inp)
+                    ksRemember(inp.value);
+                m.classList.remove('open');
+                try {
+                    a?.run();
+                }
+                catch { }
                 return;
             }
             const rc = t2.closest?.('[data-ks-recent]');
@@ -15215,7 +15246,7 @@ var KXAPP;
                 }
             }
             catch { }
-            target.innerHTML = (rows.length || setHits.length || holHits.length || placeHits.length) ? placeHits.map((x, k) => `<button data-search-place="${k}"><span><b>${x.kind === 'ANT' ? '↔' : '📍'} ${esc(x.kind === 'HUB' && x.place?.hub ? (hubLabel(String(x.place.hub)) || x.title) : x.title)}</b><small>${esc(TL('ka2.kind.' + x.kind))}${x.detail && x.kind !== 'HUB' ? ' · ' + esc(x.detail) : ''}</small></span><em>${esc(x.kind === 'ANT' ? TL('ks.try') : TL('gs.place'))}</em></button>`).join('') + holHits.map((h) => `<button data-search-holiday="${esc(h.date)}"><span><b>🎉 ${esc(h.name)}</b><small>${esc(new Date(h.date + 'T12:00:00').toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))} · ${esc(h.country)} · ${esc(TL('hol.kind.' + h.kind))}</small></span><em>${esc(TL('hol.searchKind'))}</em></button>`).join('') + setHits.map((x) => `<button data-search-settings="${esc(x.id)}"><span><b>⚙ ${esc(x.title)}</b><small>${esc(x.path.join(' › '))}</small></span><em>${esc(TL('gs.settings'))}</em></button>`).join('') + rows.map(r => `<button data-search-link="${esc(r.deepLink)}"><span><b>${esc(r.title)}</b><small>${esc(r.breadcrumb)}</small></span><em>${esc(r.kind)}</em></button>`).join('') : '<p class="empty">Nic nenalezeno.</p>';
+            target.innerHTML = ksActionsHtml(q) + ((rows.length || setHits.length || holHits.length || placeHits.length) ? placeHits.map((x, k) => `<button data-search-place="${k}"><span><b>${x.kind === 'ANT' ? '↔' : '📍'} ${esc(x.kind === 'HUB' && x.place?.hub ? (hubLabel(String(x.place.hub)) || x.title) : x.title)}</b><small>${esc(TL('ka2.kind.' + x.kind))}${x.detail && x.kind !== 'HUB' ? ' · ' + esc(x.detail) : ''}</small></span><em>${esc(x.kind === 'ANT' ? TL('ks.try') : TL('gs.place'))}</em></button>`).join('') + holHits.map((h) => `<button data-search-holiday="${esc(h.date)}"><span><b>🎉 ${esc(h.name)}</b><small>${esc(new Date(h.date + 'T12:00:00').toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))} · ${esc(h.country)} · ${esc(TL('hol.kind.' + h.kind))}</small></span><em>${esc(TL('hol.searchKind'))}</em></button>`).join('') + setHits.map((x) => `<button data-search-settings="${esc(x.id)}"><span><b>⚙ ${esc(x.title)}</b><small>${esc(x.path.join(' › '))}</small></span><em>${esc(TL('gs.settings'))}</em></button>`).join('') + rows.map(r => `<button data-search-link="${esc(r.deepLink)}"><span><b>${esc(r.title)}</b><small>${esc(r.breadcrumb)}</small></span><em>${esc(r.kind)}</em></button>`).join('') : (ksActions(q).length ? '' : '<p class="empty">Nic nenalezeno.</p>'));
             target.querySelectorAll('[data-search-settings]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); close(); void settingsCenter(b.dataset.searchSettings); });
             target.querySelectorAll('[data-search-place]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); close(); void kairaAskOpen(placeHits[Number(b.dataset.searchPlace)]); });
             target.querySelectorAll('[data-search-holiday]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); close(); const d = String(b.dataset.searchHoliday); const from = new Date(d + 'T12:00:00'); from.setDate(from.getDate() - 3); const to = new Date(d + 'T12:00:00'); to.setDate(to.getDate() + 3); calendarUi.customRange = true; calendarUi.from = from.toISOString().slice(0, 10); calendarUi.to = to.toISOString().slice(0, 10); state.activeSection = 'calendar'; render(); });
