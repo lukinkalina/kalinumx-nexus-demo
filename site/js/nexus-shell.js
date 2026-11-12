@@ -709,7 +709,7 @@ var KXAPP;
     /* N2.6b+ (user: no duplicates – three greetings, two weathers, identical lists): of the old My-day tiles only the Action Center (decisions: imports, conflicts, approvals) stays; greeting, Today, Weather, Finance, Across KalinumX, Recent activity, News and Crypto were duplicates or not connected */
     const DESK_WIDGETS = new Set(['W.LIST.ACTIONS']);
     globalThis.KXHubLabel = (h) => { const v = hubLabel(h === 'APP.NEXUS' ? 'APP.KX.NEXUS' : h); return v && v !== h ? v : ''; }; /* friendly hub names for the insight views */
-    function deskBoard() { const w = state.windows[state.activeWindow] || state.windows[0]; const l = layout(); return `<div class="page-head"><div><span class="eyebrow">${esc(TL('desk2.pages'))}</span><span class="kx-board-tabs" role="tablist">${state.windows.map((x, i) => `<button type="button" role="tab" class="${i === state.activeWindow ? 'active' : ''}" aria-selected="${i === state.activeWindow}" data-window="${i}">${esc(x.name)}</button>`).join('')}</span><h2 class="kx-board-title kx-sr">${esc(w.name)}</h2><p>${esc(TL('desk2.boardSub'))}</p></div><div class="head-actions"><button class="btn" data-action="add-widget">＋ ${esc(TL('dash.addCard'))}</button><button class="btn ghost" data-action="window-menu">⋯</button></div></div><div class="kx-lbars" id="linkBars"></div><section data-md-group="CARDS" class="personal-home" id="personalHomeCards" aria-label="Personal Home"><div class="desk-card-loading">${esc(TL('ws.loadingHome'))}</div></section><div class="dashboard cols-${Math.min(4, l.columns)} density-${l.density.toLowerCase()}">${w.widgets.filter((x) => DESK_WIDGETS.has(x.id)).map(widget).join('')}</div>`; }
+    function deskBoard() { const w = state.windows[state.activeWindow] || state.windows[0]; const l = layout(); return `<div class="page-head"><div><span class="eyebrow">${esc(TL('desk2.pages'))}</span><span class="kx-board-tabs" role="tablist">${state.windows.map((x, i) => `<button type="button" role="tab" class="${i === state.activeWindow ? 'active' : ''}" aria-selected="${i === state.activeWindow}" data-window="${i}">${esc(x.name)}</button>`).join('')}</span><h2 class="kx-board-title kx-sr">${esc(w.name)}</h2><p>${esc(TL('desk2.boardSub'))}</p></div><div class="head-actions"><button class="btn" data-action="add-widget">＋ ${esc(TL('dash.addCard'))}</button><button class="btn ghost" data-action="window-menu">⋯</button></div></div><div class="kx-lbars" id="linkBars"></div><section data-md-group="CARDS" class="personal-home" id="personalHomeCards" aria-label="${esc(TL('ph.title'))}"><div class="desk-card-loading">${esc(TL('ws.loadingHome'))}</div></section><div class="dashboard cols-${Math.min(4, l.columns)} density-${l.density.toLowerCase()}">${w.widgets.filter((x) => DESK_WIDGETS.has(x.id)).map(widget).join('')}</div>`; }
     /* ===== N2.6b · Alpine Gold v2 – Společný přehled (horní polovina podle NEXUS_NAVRH_DESIGN_ALPINE_V2) ===== */
     const agUi = { scope: 'ALL', horizon: 7, tab: 'today', filter: 'all' };
     function agDashHtml() {
@@ -728,6 +728,8 @@ var KXAPP;
       <div class="ag-card ag-quick"><div class="ag-card-h"><b>⚡ ${esc(TL('agd.quick'))}</b><small>Quick actions</small></div><div class="ag-qgrid">${[['💳', 'agd.q.pay', 'APP.KX.FINANCE', 'green'], ['☑', 'agd.q.task', 'APP.KX.TASKS', 'blue'], ['📅', 'agd.q.event', 'APP.KX.CALENDAR', 'violet'], ['⇄', 'agd.q.transfer', 'APP.KX.FINANCE', 'orange'], ['⌗', 'agd.q.scan', 'APP.KX.DOCUMENTS', 'teal'], ['👤', 'agd.q.contact', 'APP.KX.CONTACTS', 'indigo']].map(([ic, l, hub, c]) => `<button type="button" class="ag-q ag-q-${c}" data-ag-open="${hub}"><span>${ic}</span><b>${esc(TL(l))}</b></button>`).join('')}</div></div></div></section>`;
     }
     /* N2.6b+ (user: clicking in the plan reloaded the windows) – plan actions refresh only the overview data, not the whole app */
+    /* My day switches (area, horizon, tabs): mark the active button and refresh only the overview data – open windows stay as they are */
+    function kxAgSync() { const on = (sel, attr, val) => document.querySelectorAll(sel).forEach(x => { const a = String(x.getAttribute(attr)); x.classList.toggle('active', a === val); x.classList.toggle('on', a === val); x.setAttribute('aria-pressed', a === val ? 'true' : 'false'); }); on('[data-ag-scope]', 'data-ag-scope', String(agUi.scope)); on('[data-ag-hz]', 'data-ag-hz', String(agUi.horizon)); on('[data-ag-tab]', 'data-ag-tab', String(agUi.tab)); kxAgRefresh(); }
     function kxAgRefresh() { if (document.querySelector('[data-ag-dash]'))
         void hydrateAgDash();
     else
@@ -736,9 +738,9 @@ var KXAPP;
         const host = document.querySelector('[data-ag-dash]');
         if (!host || !runtime)
             return;
-        host.querySelectorAll('[data-ag-scope]').forEach(b => b.onclick = () => { agUi.scope = String(b.dataset.agScope); render(); });
-        host.querySelectorAll('[data-ag-hz]').forEach(b => b.onclick = () => { agUi.horizon = Number(b.dataset.agHz); render(); });
-        host.querySelectorAll('[data-ag-tab]').forEach(b => b.onclick = () => { agUi.tab = String(b.dataset.agTab); render(); });
+        host.querySelectorAll('[data-ag-scope]').forEach(b => b.onclick = () => { agUi.scope = String(b.dataset.agScope); kxAgSync(); });
+        host.querySelectorAll('[data-ag-hz]').forEach(b => b.onclick = () => { agUi.horizon = Number(b.dataset.agHz); kxAgSync(); });
+        host.querySelectorAll('[data-ag-tab]').forEach(b => b.onclick = () => { agUi.tab = String(b.dataset.agTab); kxAgSync(); });
         host.querySelectorAll('[data-section-jump]').forEach(b => b.onclick = () => { state.activeSection = String(b.dataset.sectionJump); render(); });
         const set = (k, v, sub = '') => { const a = host.querySelector(`[data-ag-val="${k}"]`); if (a)
             a.textContent = v; const b = host.querySelector(`[data-ag-sub="${k}"]`); if (b)
@@ -1323,6 +1325,30 @@ var KXAPP;
     }
     catch { } }
     function kxFrequent(max = 6) { const u = kxUsage(); const now = Date.now(); return Object.entries(u).map(([c, x]) => [c, x.n * Math.pow(0.5, (now - x.last) / (14 * 86400000))]).filter(([, s]) => s > 0.3).sort((a, b) => b[1] - a[1]).slice(0, max).map(([c]) => c); }
+    /* the core category reads “Quick access” on the Apps page too */
+    function kxCatRenameSweep() { const host = document.querySelector('.content'); if (!host || !/Jádro a každý den|Core and every day/.test(host.textContent || ''))
+        return; const tw = document.createTreeWalker(host, NodeFilter.SHOW_TEXT); let n; while ((n = tw.nextNode())) {
+        if (/^\s*(Jádro a každý den|Core and every day)\s*$/i.test(n.nodeValue || ''))
+            n.nodeValue = TL('tree2.quick');
+    } }
+    /* the Apps page never opens on an empty Favourites list – it switches once to All (or the first category) */
+    function kxAppsEmptyFavSweep() {
+        const page = document.querySelector('.content [data-apps-default]')?.closest('.content');
+        if (!page || page.dataset.kxFavChecked)
+            return;
+        const btns = Array.from(page.querySelectorAll('button,[role=tab]')).filter(b => b.offsetParent);
+        const fav = btns.find(b => /^\s*★\s*(Oblíbené|Favourites)/.test(b.textContent || ''));
+        if (!fav)
+            return;
+        page.dataset.kxFavChecked = '1';
+        const cnt = Number((fav.textContent || '').replace(/[^\d]/g, '') || '0');
+        const active = fav.classList.contains('active') || fav.getAttribute('aria-selected') === 'true' || fav.getAttribute('aria-pressed') === 'true';
+        if (cnt > 0 || !active)
+            return;
+        const sib = btns.filter(b => b !== fav && b.parentElement === fav.parentElement); /* only the category list (siblings of ★ Favourites) */
+        const all = sib.find(b => /^\s*(Vše|Všechny|All)/.test((b.textContent || '').trim()));
+        (all || sib[0])?.click();
+    }
     function kxFrequentSweep() {
         document.querySelectorAll('.kx-hub-head[data-hub-head]:not([data-kx-cnt])').forEach(h => { h.dataset.kxCnt = '1'; kxUsageHit(String(h.dataset.hubHead || '')); const box = document.querySelector('.sidebar [data-kx-frequent]'); if (box)
             box.remove(); });
@@ -1442,6 +1468,12 @@ var KXAPP;
     }
     catch { } try {
         kxFrequentSweep();
+    }
+    catch { } try {
+        kxCatRenameSweep();
+    }
+    catch { } try {
+        kxAppsEmptyFavSweep();
     }
     catch { } }).observe(document.documentElement, { childList: true, subtree: true });
     /* N2.6b: the open language list is moved to <body> (above every window), positioned under its button; it goes back when closed */
@@ -1594,7 +1626,7 @@ var KXAPP;
             if (token !== personalHomeHydration || !root.isConnected)
                 return;
             const connected = coverage.filter((c) => c.providerRegistered).length, live = cards.filter((c) => c.displayState === 'LIVE').length;
-            root.innerHTML = `<div class="ph-head"><div><b>Personal Home</b><small>${connected}/${coverage.length} zdrojů připojeno · ${live} živých karet · vlastníci zůstávají zdrojem pravdy</small></div><button class="btn ghost" data-ph-refresh-all ${connected ? '' : 'disabled'}>Obnovit vše</button></div>${personalHomeUi.errors['RESTORE'] ? `<small class="ph-error" role="alert">${esc(personalHomeUi.errors['RESTORE'])}</small>` : ''}<div class="ph-grid">${descriptors.map((d, i) => personalHomeCard(d, cards[i], coverage.find((c) => c.projectionCode === d.projectionCode))).join('')}</div>`;
+            root.innerHTML = `<div class="ph-head"><div><b>${esc(TL('ph.title'))}</b><small>${connected}/${coverage.length} zdrojů připojeno · ${live} živých karet · vlastníci zůstávají zdrojem pravdy</small></div><button class="btn ghost" data-ph-refresh-all ${connected ? '' : 'disabled'}>Obnovit vše</button></div>${personalHomeUi.errors['RESTORE'] ? `<small class="ph-error" role="alert">${esc(personalHomeUi.errors['RESTORE'])}</small>` : ''}<div class="ph-grid">${descriptors.map((d, i) => personalHomeCard(d, cards[i], coverage.find((c) => c.projectionCode === d.projectionCode))).join('')}</div>`;
             root.querySelectorAll('[data-ph-refresh]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); b.setAttribute('disabled', ''); await personalHomeUserRefresh(b.dataset.phRefresh || ''); void hydratePersonalHome(); });
             const all = root.querySelector('[data-ph-refresh-all]');
             if (all)
@@ -1605,7 +1637,7 @@ var KXAPP;
         }
         catch (error) {
             if (token === personalHomeHydration && root.isConnected)
-                root.innerHTML = `<div class="desk-empty" role="alert">Personal Home chyba: ${esc(error?.message || error)}</div>`;
+                root.innerHTML = `<div class="desk-empty" role="alert">${esc(TL('ph.title'))} – chyba: ${esc(error?.message || error)}</div>`;
         }
     }
     async function hydrateToday() {
@@ -3915,7 +3947,7 @@ var KXAPP;
     }
     function apps() {
         const modes = KXNavigation.contract().modes || [], items = KXNavigation.contract().items || [];
-        return pageSimple('Aplikace', 'Všechny huby a nástroje na jednom místě · Práce / Domov / Vše', `<div class="hub-nav-context-bar"><div class="hub-nav-context-switch" role="group" aria-label="Kontext navigace"><button data-hub-nav-context="WORK">${esc(CTX('WORK'))}</button><button data-hub-nav-context="HOME">${esc(CTX('HOME'))}</button><button data-hub-nav-context="ALL">${esc(CTX('ALL'))}</button></div><label class="hub-nav-membership-edit">Zařazení<select data-hub-context-item>${items.map(x => `<option value="${esc(x.itemCode)}">${esc(x.label)}</option>`).join('')}</select><select data-hub-context-membership><option value="WORK">${esc(CTX('WORK'))}</option><option value="HOME">${esc(CTX('HOME'))}</option><option value="BOTH">${esc(CTX('BOTH'))}</option></select><button data-hub-context-membership-save>Uložit</button></label></div><div class="hub-nav-toolbar"><select data-hub-nav-mode aria-label="Režim menu">${modes.map(m => `<option value="${esc(m.code)}">${esc(m.label)}</option>`).join('')}</select><input data-hub-nav-search placeholder="Hledat hub, nástroj nebo kategorii…" aria-label="Hledat v navigaci"><label class="kx-apps-default">${esc(TL('apf.default'))}<select data-apps-default><option value="FAV">★ ${esc(TL('apf.fav'))}</option><option value="ALL">${esc(TL('apf.all'))}</option><option value="LAST">${esc(TL('apf.last'))}</option></select></label><span class="hub-nav-toolbar-status" data-hub-nav-status>Načítám navigační profil…</span></div><div id="hubNavHost" tabindex="0"><div class="empty">Načítám navigaci…</div></div>`);
+        return pageSimple('Aplikace', TL('apps.sub'), `<div class="hub-nav-context-bar"><div class="hub-nav-context-switch" role="group" aria-label="Kontext navigace"><button data-hub-nav-context="WORK">${esc(CTX('WORK'))}</button><button data-hub-nav-context="HOME">${esc(CTX('HOME'))}</button><button data-hub-nav-context="ALL">${esc(CTX('ALL'))}</button></div><label class="hub-nav-membership-edit">Zařazení<select data-hub-context-item>${items.map(x => `<option value="${esc(x.itemCode)}">${esc(x.label)}</option>`).join('')}</select><select data-hub-context-membership><option value="WORK">${esc(CTX('WORK'))}</option><option value="HOME">${esc(CTX('HOME'))}</option><option value="BOTH">${esc(CTX('BOTH'))}</option></select><button data-hub-context-membership-save>Uložit</button></label></div><div class="hub-nav-toolbar"><select data-hub-nav-mode aria-label="Režim menu">${modes.map(m => `<option value="${esc(m.code)}">${esc(m.label)}</option>`).join('')}</select><input data-hub-nav-search placeholder="Hledat hub, nástroj nebo kategorii…" aria-label="Hledat v navigaci"><label class="kx-apps-default">${esc(TL('apf.default'))}<select data-apps-default><option value="FAV">★ ${esc(TL('apf.fav'))}</option><option value="ALL">${esc(TL('apf.all'))}</option><option value="LAST">${esc(TL('apf.last'))}</option></select></label><span class="hub-nav-toolbar-status" data-hub-nav-status>Načítám navigační profil…</span></div><div id="hubNavHost" tabindex="0"><div class="empty">Načítám navigaci…</div></div>`);
     }
     function hubNavDeviceClass() { return window.innerWidth <= 680 ? 'MOBILE' : window.innerWidth <= 1000 ? 'TABLET' : 'DESKTOP'; }
     function hubNavActionContext(extra = []) { return { actorId: CURRENT_USER_ID, appCode: 'APP.NEXUS', deviceId: activeDevice?.id, permissions: ['CORE.SETTING.READ', 'CORE.SETTING.EDIT', ...extra], confirmed: true }; }
@@ -4845,6 +4877,10 @@ var KXAPP;
     }
     let kairaLast = null, kairaSttOk = false;
     function kairaSpeak(text, v) { try {
+        if (text && kxTtsCfg().source === 'SERVER' && kxTtsCfg().url) {
+            void kxServerSpeak(text, v);
+            return true;
+        } /* N2.6b+ server synthesiser prepared (server phase); browser voice is the fallback */
         const ss = globalThis.speechSynthesis;
         if (!ss || !text)
             return false;
@@ -4866,6 +4902,94 @@ var KXAPP;
     catch {
         return false;
     } }
+    /* ---------- N2.6b+ TTS source: browser (today) or NEXUS server (server phase) – contract in docs/server/TTS_SERVER_API.md ---------- */
+    const KX_TTS_VOICES = [['F_YOUNG', 'F', 'friendly'], ['F_ADULT', 'F', 'neutral'], ['F_VELVET', 'F', 'sensual'], ['F_ENERGY', 'F', 'energetic'], ['F_CALM', 'F', 'calm'], ['M_ADULT', 'M', 'neutral'], ['M_DEEP', 'M', 'calm'], ['M_VELVET', 'M', 'sensual'], ['CHILD', 'C', 'friendly'], ['CUSTOM', 'X', 'own']];
+    function kxTtsCfg() { try {
+        const v = JSON.parse(localStorage.getItem('kx.tts') || '{}');
+        return { source: String(v.source || 'BROWSER'), url: String(v.url || ''), voice: String(v.voice || 'F_ADULT') };
+    }
+    catch {
+        return { source: 'BROWSER', url: '', voice: 'F_ADULT' };
+    } } /* no secrets on the client – auth is the server session / a vault reference (server phase) */
+    function kxTtsSet(p) { try {
+        localStorage.setItem('kx.tts', JSON.stringify({ ...kxTtsCfg(), ...p }));
+    }
+    catch { } }
+    /* first without credentials (open servers, wildcard CORS); on 401 / 403 retry with the NEXUS server session */
+    async function kxTtsFetch(url, init = {}) { let r = await fetch(url, { ...init, credentials: 'omit' }); if (r.status === 401 || r.status === 403)
+        r = await fetch(url, { ...init, credentials: 'include' }); return r; }
+    let kxTtsAudio = null;
+    const kxTtsCache = new Map();
+    async function kxServerSpeak(text, v) {
+        const c = kxTtsCfg();
+        const voice = KX_TTS_VOICES.find(x => x[0] === c.voice) || KX_TTS_VOICES[1];
+        const body = { text: String(text).slice(0, 5000), lang: UI_LOCALE === 'en' ? 'en-US' : 'cs-CZ', voice: voice[0], gender: voice[1], style: voice[2], rate: Number(v?.rate) || 1, pitch: v?.pitch != null ? Number(v.pitch) : 1, format: 'mp3' };
+        const key = JSON.stringify(body);
+        try {
+            let url = kxTtsCache.get(key);
+            if (!url) {
+                const ctl = new AbortController();
+                const to = setTimeout(() => ctl.abort(), 15000);
+                const r = await kxTtsFetch(c.url.replace(/\/+$/, '') + '/api/tts/speak', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal });
+                clearTimeout(to);
+                if (!r.ok)
+                    throw new Error('HTTP ' + r.status);
+                url = URL.createObjectURL(await r.blob());
+                if (kxTtsCache.size > 30) {
+                    const f = kxTtsCache.keys().next().value;
+                    URL.revokeObjectURL(kxTtsCache.get(f));
+                    kxTtsCache.delete(f);
+                }
+                kxTtsCache.set(key, url);
+            }
+            kxTtsAudio?.pause();
+            const a = new Audio(url);
+            a.volume = v?.volume != null ? Number(v.volume) : 1;
+            kxTtsAudio = a;
+            a.onended = a.onerror = () => kxSpeakChip(false);
+            kxSpeakChip(true);
+            await a.play();
+        }
+        catch (e) {
+            toast(`${TL('tts.serverFail')}: ${String(e?.message || e)}`);
+            const cfg = kxTtsCfg();
+            try {
+                localStorage.setItem('kx.tts', JSON.stringify({ ...cfg, source: 'BROWSER' }));
+            }
+            catch { }
+            kairaSpeak(text, v);
+            try {
+                localStorage.setItem('kx.tts', JSON.stringify(cfg));
+            }
+            catch { }
+        }
+    }
+    async function kxServerTest(url, token) { try {
+        const r = await kxTtsFetch(url.replace(/\/+$/, '') + '/api/tts/voices');
+        if (!r.ok)
+            throw new Error('HTTP ' + r.status);
+        const d = await r.json();
+        return `${TL('tts.ok')}: ${Array.isArray(d?.voices) ? d.voices.length : 0} ${TL('tts.voices')}`;
+    }
+    catch (e) {
+        return `${TL('tts.serverFail')}: ${String(e?.message || e)}`;
+    } }
+    function kxTtsHtml() {
+        const c = kxTtsCfg();
+        return `<div class="kx-tts" data-kx-tts><div class="kx-vpre-row"><span>${esc(TL('tts.source'))}</span><button type="button" class="chip ${c.source !== 'SERVER' ? 'active' : ''}" data-tts-src="BROWSER">🌐 ${esc(TL('tts.browser'))}</button><button type="button" class="chip ${c.source === 'SERVER' ? 'active' : ''}" data-tts-src="SERVER">🖥 ${esc(TL('tts.server'))}</button></div>
+      <div data-tts-server ${c.source === 'SERVER' ? '' : 'hidden'}><label class="kx-lf"><span>${esc(TL('tts.url'))}</span><input data-tts-url placeholder="https://nexus.example.cz" value="${esc(c.url)}"></label><small class="muted">🔐 ${esc(TL('tts.auth'))}</small>
+      <label class="kx-lf"><span>${esc(TL('tts.voice'))}</span><select data-tts-voice>${['F', 'M', 'C', 'X'].map(g => `<optgroup label="${esc(TL('tts.g.' + g))}">${KX_TTS_VOICES.filter(x => x[1] === g).map(x => `<option value="${x[0]}" ${c.voice === x[0] ? 'selected' : ''}>${esc(TL('tts.v.' + x[0]))}</option>`).join('')}</optgroup>`).join('')}</select></label>
+      <div class="kx-vpre-row"><button type="button" class="btn ghost compact" data-tts-test>🔌 ${esc(TL('tts.test'))}</button><small data-tts-result class="muted">${esc(TL('tts.prepared'))}</small></div></div></div>`;
+    }
+    function kxTtsBind(m) {
+        const box = m.querySelector('[data-kx-tts]');
+        if (!box)
+            return;
+        box.querySelectorAll('[data-tts-src]').forEach((b) => b.onclick = () => { kxTtsSet({ source: b.dataset.ttsSrc }); box.querySelectorAll('[data-tts-src]').forEach((x) => x.classList.toggle('active', x === b)); box.querySelector('[data-tts-server]').hidden = b.dataset.ttsSrc !== 'SERVER'; });
+        box.querySelector('[data-tts-url]').onchange = (e) => kxTtsSet({ url: String(e.target.value || '').trim() });
+        box.querySelector('[data-tts-voice]').onchange = (e) => kxTtsSet({ voice: String(e.target.value) });
+        box.querySelector('[data-tts-test]').onclick = async () => { const r = box.querySelector('[data-tts-result]'); r.textContent = '…'; const c = kxTtsCfg(); r.textContent = c.url ? await kxServerTest(c.url, '') : TL('tts.noUrl'); };
+    }
     function kxSpeakChip(on) { let c = document.getElementById('kxSpeakStop'); if (!on) {
         c?.remove();
         document.querySelectorAll('[data-ka-speak]').forEach((b) => b.classList.remove('on'));
@@ -5092,7 +5216,7 @@ var KXAPP;
         m.innerHTML = `<div class="modal" data-kaira-modal><div class="drawer-head"><div><b>${KXTags.iconSvg('bolt', 16)} Kaira</b><small>${esc(TL('ka.ui.help'))}</small></div><button class="icon-btn" data-close>×</button></div>
         <h4>${esc(TL('ka.ui.personality'))}</h4>${['tone', 'honesty', 'length', 'humor', 'address'].map(grp).join('')}
         <label class="kx-lf"><span>${esc(TL('ka.ui.nickname'))}</span><input data-ka-nick value="${esc(per.nickname || '')}" maxlength="30"></label>
-        <h4>${esc(TL('ka.ui.voice'))}</h4>${kxVoicePresetsHtml()}<label class="kx-lf"><span>${esc(TL('ka.ui.voiceName'))}</span><select data-ka-voice><option value="">${esc(TL('ka.ui.voiceAuto'))}</option>${voices.map((v) => `<option value="${esc(v.name)}" ${per.voice.name === v.name ? 'selected' : ''}>${esc(v.name)} · ${esc(v.lang)} · ${esc(TL(v.localService ? 'ka.ui.offline' : 'ka.ui.online'))}</option>`).join('')}</select></label>
+        <h4>${esc(TL('ka.ui.voice'))}</h4>${kxTtsHtml()}${kxVoicePresetsHtml()}<label class="kx-lf"><span>${esc(TL('ka.ui.voiceName'))}</span><select data-ka-voice><option value="">${esc(TL('ka.ui.voiceAuto'))}</option>${voices.map((v) => `<option value="${esc(v.name)}" ${per.voice.name === v.name ? 'selected' : ''}>${esc(v.name)} · ${esc(v.lang)} · ${esc(TL(v.localService ? 'ka.ui.offline' : 'ka.ui.online'))}</option>`).join('')}</select></label>
         <div class="kx-calc-grid"><label class="kx-lf"><span>${esc(TL('ka.ui.rate'))}</span><input type="range" min="0.5" max="2" step="0.1" value="${per.voice.rate}" data-ka-rate></label><label class="kx-lf"><span>${esc(TL('ka.ui.pitch'))}</span><input type="range" min="0" max="2" step="0.1" value="${per.voice.pitch}" data-ka-pitch></label><label class="kx-lf"><span>${esc(TL('ka.ui.volume'))}</span><input type="range" min="0" max="1" step="0.1" value="${per.voice.volume}" data-ka-vol></label></div>
         ${voices.length ? '' : `<p class="muted">${esc(TL('ka.ui.noVoices'))}</p>`}<button class="btn ghost compact" data-ka-try>🔊 ${esc(TL('ka.ui.try'))}</button> <button class="btn compact" data-ka-save>${esc(TL('laser.save'))}</button> <span class="kx-lf-help" data-ka-msg></span>
         <h4>${esc(TL('ka.ui.learned'))}</h4><p>${esc(TL('ka.ui.learnedFrom').replace('{n}', String(ins.learnedFrom)))}</p><ul>${ins.topHubs.map(([h, n]) => `<li>${esc(hubName(h === 'APP.NEXUS' ? 'APP.KX.NEXUS' : h))} – ${n}× ${ins.busyHours[h] != null ? `· ${esc(TL('ka.ui.usually'))} ${ins.busyHours[h]}:00` : ''}</li>`).join('') || `<li class="muted">${esc(TL('ka.ui.nothingYet'))}</li>`}</ul>
@@ -5107,6 +5231,7 @@ var KXAPP;
         } if (!kairaSpeak(TL('ka.ui.sample'), v()))
             toast(TL('ka.ui.noVoice')); };
         kxVoicePresetsBind(m, v);
+        kxTtsBind(m);
         m.querySelector('[data-ka-save]').onclick = async () => {
             const pick = (k) => m.querySelector(`input[name="ka-${k}"]:checked`)?.value;
             const msg = m.querySelector('[data-ka-msg]');
@@ -5508,7 +5633,7 @@ var KXAPP;
     };
     document.addEventListener('pointerover', (e) => { const el = e.target?.closest?.('[data-kx-help-long]'); if (!el) {
         return;
-    } clearTimeout(helpTimer); helpTimer = setTimeout(() => showTip(el), e.pointerType === 'touch' ? 600 : 700); }, true);
+    } clearTimeout(helpTimer); helpTimer = setTimeout(() => showTip(el), e.pointerType === 'touch' ? 600 : (el.closest('.sidebar') ? 1200 : 700)) /* N2.6b+: bubbles wait longer, in the menu even more, so they do not cover it */; }, true);
     document.addEventListener('pointerout', (e) => { if (e.target?.closest?.('[data-kx-help-long]'))
         hideTip(); }, true);
     document.addEventListener('focusin', (e) => { const el = e.target?.closest?.('[data-kx-help-long]'); if (el && e.target.matches?.(':focus-visible'))
