@@ -1945,3 +1945,5 @@ html[data-kx-scheme="light"] .kx-gold{filter:drop-shadow(0 0 .6px #3a2506) drop-
 .kx-hub-ic.kx-hubic-gold svg.kx-gold{width:34px !important;height:34px !important;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6)) drop-shadow(0 0 8px rgba(242,200,105,.25))}
 .kx-hub-ic.kx-hubic-gold svg.kx-gold{width:48px !important;height:48px !important}
 .kx-hub-ic.kx-hubic-gold{width:56px !important;height:56px !important}
+
+.kx-frequent{margin-bottom:6px}.kx-frequent-head{cursor:default}

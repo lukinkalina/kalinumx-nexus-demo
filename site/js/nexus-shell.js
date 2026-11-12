@@ -1310,6 +1310,34 @@ var KXAPP;
         return ''; kxGoldDefs(); return `<svg class="kx-gold" viewBox="0 0 48 48" width="${size}" height="${size}" aria-hidden="true">${p}</svg>`; }
     globalThis.kxGold = kxGold;
     /* gold icons also on the Hubs page cards and in the open hub header (pack images replaced only in the GOLD mode) */
+    /* N2.6b+ phase A (approved): usage counting on this device + “Frequently used” at the top of the menu (max 6; frequency with a slow decay, so the order does not jump) */
+    function kxUsage() { try {
+        return JSON.parse(localStorage.getItem('kx.usage') || '{}') || {};
+    }
+    catch {
+        return {};
+    } }
+    function kxUsageHit(code) { if (!/^APP\.KX\./.test(code) || code === 'APP.KX.NEXUS')
+        return; const u = kxUsage(); const x = u[code] || { n: 0, last: 0 }; x.n += 1; x.last = Date.now(); u[code] = x; try {
+        localStorage.setItem('kx.usage', JSON.stringify(u));
+    }
+    catch { } }
+    function kxFrequent(max = 6) { const u = kxUsage(); const now = Date.now(); return Object.entries(u).map(([c, x]) => [c, x.n * Math.pow(0.5, (now - x.last) / (14 * 86400000))]).filter(([, s]) => s > 0.3).sort((a, b) => b[1] - a[1]).slice(0, max).map(([c]) => c); }
+    function kxFrequentSweep() {
+        document.querySelectorAll('.kx-hub-head[data-hub-head]:not([data-kx-cnt])').forEach(h => { h.dataset.kxCnt = '1'; kxUsageHit(String(h.dataset.hubHead || '')); const box = document.querySelector('.sidebar [data-kx-frequent]'); if (box)
+            box.remove(); });
+        const host = document.querySelector('.sidebar [data-nexus-tree-hubs]');
+        if (!host || host.querySelector('[data-kx-frequent]') || !host.children.length)
+            return;
+        const list = kxFrequent().filter(c => host.querySelector(`[data-tree-hub="${CSS.escape(c)}"]:not([data-tree-tab])`));
+        if (list.length < 2)
+            return;
+        const box = document.createElement('div');
+        box.dataset.kxFrequent = '1';
+        box.className = 'kx-frequent';
+        box.innerHTML = `<div class="kx-tree-cat kx-tree-cat-band kx-frequent-head" data-cat-tone="core"><span class="kx-cat-ic">${kxIconsMode() === 'GOLD' ? (kxGoldDefs(), `<svg class="kx-gold" viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">${KX_GOLD_I['time']}</svg>`) : '🕘'}</span>${esc(TL('freq.title'))}<span class="kx-tree-r"><small>${list.length}</small></span></div>` + list.map(c => { const src = host.querySelector(`[data-tree-hub="${CSS.escape(c)}"]:not([data-tree-tab])`); const label = (src.querySelector('.kx-tree-label')?.textContent || '').trim(); return `<button class="kx-tree-row kx-tree-hub kx-frequent-row" data-tree-hub="${esc(c)}" data-tree-item="${esc(src.dataset.treeItem || c)}" data-ag-ti="1" title="${esc(label)}"><span class="kx-tree-tw"></span><span class="ag-tree-ico ${kxIconsMode() === 'GOLD' ? 'ag-tree-gold' : ''}" aria-hidden="true">${kxIconsMode() === 'GOLD' ? kxGold(c, 24) : ''}</span><span class="kx-tree-label">${esc(label)}</span></button>`; }).join('');
+        host.prepend(box);
+    }
     function kxGoldSweep() {
         if (kxIconsMode() !== 'GOLD')
             return;
@@ -1411,6 +1439,9 @@ var KXAPP;
     }
     catch { } try {
         kxGoldSweep();
+    }
+    catch { } try {
+        kxFrequentSweep();
     }
     catch { } }).observe(document.documentElement, { childList: true, subtree: true });
     /* N2.6b: the open language list is moved to <body> (above every window), positioned under its button; it goes back when closed */
