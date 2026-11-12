@@ -1924,3 +1924,17 @@ html[data-kx-scheme="light"] body :is(#inspector,#modal,#drawer,.content) :is(bu
 html[data-kx-scheme="light"] body :is(#inspector,#modal,.content) :is(label,legend,.muted,small){color:#5f523a}
 html[data-kx-scheme="light"] body :is(.content,#inspector,#modal) :is(h1,h2,h3,h4,h5,[class*="-head"] > b,[class*="-head"] > strong,[class*="title"]:not(input)){color:#6e4708 !important;-webkit-text-fill-color:#6e4708 !important;background-image:none !important;text-shadow:none !important}
 html[data-kx-scheme="light"] body :is(.hub-hero,[class*="hero"],.ph-banner,[class*="banner"]) :is(h1,h2,h3,b,small,[class*="title"]){color:#fff3d6 !important;-webkit-text-fill-color:#fff3d6 !important;text-shadow:0 1px 3px rgba(0,0,0,.6) !important}
+
+/* metallic gold icons */
+.kx-gold{display:inline-block;vertical-align:middle;filter:drop-shadow(0 1px 1px rgba(0,0,0,.55)) drop-shadow(0 0 4px rgba(242,200,105,.12));flex:0 0 auto}
+.ag-tree-ico.ag-tree-gold{background:none !important;border:0 !important;box-shadow:none !important;display:inline-grid;place-items:center;width:22px;height:22px}
+html[data-kx-scheme="light"] .kx-gold{filter:drop-shadow(0 1px 1px rgba(60,35,5,.45))}
+
+.ag-tree-ico.ag-tree-gold{width:26px;height:26px}
+.kx-cat-ic.kx-cat-gold{background:none !important;box-shadow:none !important;border-color:transparent !important;display:inline-grid;place-items:center}
+.sidebar .ag-tree-ico.ag-tree-gold svg.kx-gold{width:24px !important;height:24px !important;max-height:none !important;transform:none !important}
+.sidebar .kx-cat-ic.kx-cat-gold svg.kx-gold{width:18px !important;height:18px !important;max-height:none !important;transform:none !important}
+.sidebar .kx-cat-ic.kx-cat-gold{width:22px !important;height:22px !important;font-size:0 !important}
+.sidebar .ag-tree-ico.ag-tree-gold{width:26px !important;height:26px !important;min-width:26px !important}
+.kx-gold{filter:drop-shadow(0 0 .45px #2a1a04) drop-shadow(0 1px 1px rgba(0,0,0,.5))}
+html[data-kx-scheme="light"] .kx-gold{filter:drop-shadow(0 0 .6px #3a2506) drop-shadow(0 1px 1.2px rgba(70,40,5,.45))}
