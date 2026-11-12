@@ -1309,6 +1309,20 @@ var KXAPP;
     function kxGold(code, size = 20) { const k = KX_GOLD_M[String(code).replace(/^APP\.KX\./, '')]; const p = k ? KX_GOLD_I[k] : ''; if (!p)
         return ''; kxGoldDefs(); return `<svg class="kx-gold" viewBox="0 0 48 48" width="${size}" height="${size}" aria-hidden="true">${p}</svg>`; }
     globalThis.kxGold = kxGold;
+    /* gold icons also on the Hubs page cards and in the open hub header (pack images replaced only in the GOLD mode) */
+    function kxGoldSweep() {
+        if (kxIconsMode() !== 'GOLD')
+            return;
+        document.querySelectorAll('[data-nav-app] .hub-nav-glyph:not([data-kx-gold])').forEach(g => { const code = String(g.closest('[data-nav-app]')?.dataset.navApp || ''); const svg = kxGold(code, 30); g.dataset.kxGold = '1'; if (svg) {
+            g.innerHTML = svg;
+            g.classList.add('kx-glyph-gold');
+        } });
+        document.querySelectorAll('.kx-hub-ic[data-ag-icon]:not([data-kx-gold])').forEach(h => { const svg = kxGold(String(h.dataset.agIcon || ''), 34); h.dataset.kxGold = '1'; if (svg) {
+            h.style.background = 'none';
+            h.innerHTML = svg;
+            h.classList.add('kx-hubic-gold');
+        } });
+    }
     const KX_GOLD_CAT = { 'NAV.CAT.CORE': 'star', 'NAV.CAT.PERSONAL': 'home', 'NAV.CAT.LEISURE': 'game', 'NAV.CAT.BUSINESS': 'sales', 'NAV.CAT.PRODUCTION': 'gear', 'NAV.CAT.WORK': 'proj', 'NAV.CAT.CREATIVE': 'brush', 'NAV.CAT.DATA_AI': 'db', 'NAV.CAT.LOGISTICS': 'truck', 'NAV.CAT.SYSTEM': 'shield' };
     function kxGoldCat(code) { const k = KX_GOLD_CAT[code]; if (!k || !KX_GOLD_I[k])
         return ''; kxGoldDefs(); return `<svg class="kx-gold" viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">${KX_GOLD_I[k]}</svg>`; }
@@ -1394,6 +1408,9 @@ var KXAPP;
     new MutationObserver(() => { try {
         if (document.querySelector('.sidebar .kx-tree-hub:not([data-tree-tab]):not([data-ag-ti])'))
             agTreeIcons();
+    }
+    catch { } try {
+        kxGoldSweep();
     }
     catch { } }).observe(document.documentElement, { childList: true, subtree: true });
     /* N2.6b: the open language list is moved to <body> (above every window), positioned under its button; it goes back when closed */

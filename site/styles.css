@@ -1938,3 +1938,10 @@ html[data-kx-scheme="light"] .kx-gold{filter:drop-shadow(0 1px 1px rgba(60,35,5,
 .sidebar .ag-tree-ico.ag-tree-gold{width:26px !important;height:26px !important;min-width:26px !important}
 .kx-gold{filter:drop-shadow(0 0 .45px #2a1a04) drop-shadow(0 1px 1px rgba(0,0,0,.5))}
 html[data-kx-scheme="light"] .kx-gold{filter:drop-shadow(0 0 .6px #3a2506) drop-shadow(0 1px 1.2px rgba(70,40,5,.45))}
+
+.hub-nav-glyph.kx-glyph-gold{background:none !important;border-color:transparent !important;box-shadow:none !important;display:inline-grid !important;place-items:center}
+.hub-nav-glyph.kx-glyph-gold svg.kx-gold{width:30px !important;height:30px !important}
+.kx-hub-ic.kx-hubic-gold{background:none !important;display:inline-grid !important;place-items:center;border:0 !important;box-shadow:none !important}
+.kx-hub-ic.kx-hubic-gold svg.kx-gold{width:34px !important;height:34px !important;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6)) drop-shadow(0 0 8px rgba(242,200,105,.25))}
+.kx-hub-ic.kx-hubic-gold svg.kx-gold{width:48px !important;height:48px !important}
+.kx-hub-ic.kx-hubic-gold{width:56px !important;height:56px !important}
