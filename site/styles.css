@@ -1949,3 +1949,7 @@ html[data-kx-scheme="light"] .kx-gold{filter:drop-shadow(0 0 .6px #3a2506) drop-
 .kx-frequent{margin-bottom:6px}.kx-frequent-head{cursor:default}
 
 .kx-tts{display:grid;gap:6px;margin:4px 0 8px;padding:8px 10px;border-radius:10px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 22%,transparent)}
+
+.kx-form{display:grid;gap:8px;min-width:min(420px,92vw)}.kx-form .kx-lf{display:grid;gap:3px}.kx-form-cb{display:flex;gap:8px;align-items:center;font-size:13px}
+
+.ag-combo-o.ag-combo-add{color:var(--accent,#f2c869);font-weight:700;border-top:1px dashed color-mix(in srgb,var(--accent,#f2c869) 40%,transparent)}

@@ -758,7 +758,7 @@ var KXAPP;
         try {
             const pp = await agPlannedPays(day0, agUi.horizon);
             const names = pp.map((x) => String(x.title || '').toLowerCase());
-            items = items.filter((x) => !(x.kind === 'TASK' && names.some((n) => n && String(x.title || '').toLowerCase().includes(n.replace(/^demo\s*·\s*/, '')) && /k\u010d|plat/i.test(String(x.title || '')))));
+            items = items.filter((x) => !(x.kind === 'TASK' && !/^\s*🔔/.test(String(x.title || '')) && names.some((n) => n && String(x.title || '').toLowerCase().includes(n.replace(/^demo\s*·\s*/, '')) && /k\u010d|plat/i.test(String(x.title || '')))));
             items = items.concat(pp.filter((x) => Date.parse(x.dueAt) >= day0 && Date.parse(x.dueAt) < day0 + agUi.horizon * D));
         }
         catch (e) {
@@ -1749,8 +1749,9 @@ var KXAPP;
             const [agenda, spaces] = await Promise.all([runtime.plannerAgenda.snapshot({ userId: CURRENT_USER_ID, scope: calendarUi.scope, from: range.from, to: range.to, types, limit: 300 }), runtime.memberships.listSpaces()]);
             if (token !== calendarHydration || state.activeSection !== 'calendar')
                 return;
+            agenda.items = await kxCalWithPays(agenda.items, range.from, range.to, types);
             const spaceNames = new Map(spaces.map(x => [x.id, x.name]));
-            const kindLabel = { CALENDAR_EVENT: 'UDÁLOST', TASK: 'ÚKOL', ALARM: 'ALARM' };
+            const kindLabel = { CALENDAR_EVENT: 'UDÁLOST', TASK: 'ÚKOL', ALARM: 'ALARM', PLANNED_PAY: 'PLATBA' };
             const grouped = new Map();
             for (const item of agenda.items) {
                 const key = dateValue(new Date(item.at));
@@ -1793,6 +1794,7 @@ var KXAPP;
                     ya = await runtime.plannerAgenda.snapshot({ userId: CURRENT_USER_ID, scope: calendarUi.scope, from: `${Y}-01-01T00:00:00.000Z`, to: `${Y}-12-31T23:59:59.999Z`, types, limit: 3000 });
                 }
                 catch { }
+                ya.items = await kxCalWithPays(ya.items || [], `${Y}-01-01T00:00:00.000Z`, `${Y}-12-31T23:59:59.999Z`, types);
                 if (token !== calendarHydration)
                     return;
                 yearHtml = await kairaCalHtml(ya.items, Y, 'data-cy-range');
@@ -1804,6 +1806,7 @@ var KXAPP;
                     ya = await runtime.plannerAgenda.snapshot({ userId: CURRENT_USER_ID, scope: calendarUi.scope, from: `${Y}-01-01T00:00:00.000Z`, to: `${Y}-12-31T23:59:59.999Z`, types, limit: 3000 });
                 }
                 catch { }
+                ya.items = await kxCalWithPays(ya.items || [], `${Y}-01-01T00:00:00.000Z`, `${Y}-12-31T23:59:59.999Z`, types);
                 /* areas: chips with counts, filter */ const allA = new Map();
                 for (const x of ya.items) {
                     const a = areaOf(x.ownerApp);
@@ -1860,6 +1863,7 @@ var KXAPP;
                     pa = await runtime.plannerAgenda.snapshot({ userId: CURRENT_USER_ID, scope: calendarUi.scope, from: new Date(a0 + 'T00:00:00').toISOString(), to: new Date(a1 + 'T23:59:59').toISOString(), types, limit: 1000 });
                 }
                 catch { }
+                pa.items = await kxCalWithPays(pa.items || [], new Date(a0 + 'T00:00:00').toISOString(), new Date(a1 + 'T23:59:59').toISOString(), types);
                 if (token !== calendarHydration)
                     return;
                 let its = pa.items;
@@ -2828,9 +2832,30 @@ var KXAPP;
     let agComboOpen = null;
     function agComboClose() { if (!agComboOpen)
         return; agComboOpen.panel.remove(); agComboOpen.sel.focus?.(); agComboOpen = null; }
-    function agComboEligible(sel) { return sel && sel.tagName === 'SELECT' && !sel.multiple && !sel.disabled && !sel.dataset.kxSeg && sel.options.length >= 5 && !!sel.closest('.inspector,#modal,#drawer,.workspace,.content'); }
+    function agComboEligible(sel) { return sel && sel.tagName === 'SELECT' && !sel.multiple && !sel.disabled && !sel.dataset.kxSeg && sel.options.length >= 5 && !!sel.closest('.inspector,#modal,#drawer,.workspace,.content,.kx-form'); }
+    /* N2.6b+ (user: when it is not in the list, add it right there) – text lists get “+ Add …”; added values are remembered per list; id lists (records) never get free text */
+    function kxComboKey(sel) { return 'kx.combo.' + String(sel.name || sel.getAttribute('data-field') || Object.keys(sel.dataset).filter(k => !/^(kx|ag)/.test(k)).sort().join('|') || sel.getAttribute('aria-label') || '').slice(0, 60); }
+    function kxComboAddable(sel) { return sel.dataset.kxAddable === '1'; /* only explicitly marked lists (categories, tags…) – codes such as currencies or record ids must never get free text */ }
+    function kxComboRemember(sel, v) { const k = kxComboKey(sel); if (k === 'kx.combo.')
+        return; try {
+        const a = JSON.parse(localStorage.getItem(k) || '[]');
+        if (!a.includes(v))
+            localStorage.setItem(k, JSON.stringify([...a, v].slice(-50)));
+    }
+    catch { } }
+    function kxComboRestore(sel) { const k = kxComboKey(sel); if (k === 'kx.combo.' || !kxComboAddable(sel))
+        return; try {
+        for (const v of JSON.parse(localStorage.getItem(k) || '[]'))
+            if (!Array.from(sel.options).some(o => o.value === v)) {
+                const o = new Option(v, v);
+                o.dataset.kxAdded = '1';
+                sel.appendChild(o);
+            }
+    }
+    catch { } }
     function agComboOpenFor(sel, initial = '') {
         agComboClose();
+        kxComboRestore(sel);
         const r = sel.getBoundingClientRect();
         const panel = document.createElement('div');
         panel.className = 'ag-combo-panel';
@@ -2868,6 +2893,12 @@ var KXAPP;
                 }
                 h += `<button type="button" class="ag-combo-o ${i === sel.selectedIndex ? 'cur' : ''}" data-i="${i}" role="option" title="${esc(txt)}">${i === sel.selectedIndex ? '✓ ' : ''}${lab}</button>`;
             });
+            {
+                const qv = qi.value.trim();
+                const exact = Array.from(sel.options).some(o => agFold((o.textContent || '').trim()) === agFold(qv));
+                if (qv && !exact && kxComboAddable(sel))
+                    h += `<button type="button" class="ag-combo-o ag-combo-add" data-add="1" role="option">＋ ${esc(TL('combo.add').replace('{t}', qv))}</button>`;
+            }
             list.innerHTML = h || `<p class="muted">${esc(TL('combo.none'))}</p>`;
             rows = Array.from(list.querySelectorAll('.ag-combo-o'));
             cnt.textContent = TL('combo.count').replace('{n}', String(n)).replace('{t}', String(sel.options.length));
@@ -2878,8 +2909,13 @@ var KXAPP;
         };
         const mark = () => { rows.forEach((x, i) => x.classList.toggle('act', i === act)); rows[act]?.scrollIntoView({ block: 'nearest' }); };
         const pick = (i) => { sel.selectedIndex = i; sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true })); agComboClose(); };
+        const addNew = () => { const v = qi.value.trim().slice(0, 80); if (!v)
+            return; const o = new Option(v, v); o.dataset.kxAdded = '1'; sel.appendChild(o); kxComboRemember(sel, v); pick(sel.options.length - 1); toast(TL('combo.added').replace('{t}', v)); };
         list.addEventListener('mousedown', (e) => { const b = e.target.closest('.ag-combo-o'); if (!b)
-            return; e.preventDefault(); pick(Number(b.dataset.i)); });
+            return; e.preventDefault(); if (b.dataset.add) {
+            addNew();
+            return;
+        } pick(Number(b.dataset.i)); });
         qi.addEventListener('input', draw);
         qi.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowDown') {
@@ -2893,7 +2929,9 @@ var KXAPP;
                 e.preventDefault();
             }
             else if (e.key === 'Enter') {
-                if (rows[act])
+                if (rows[act]?.dataset.add)
+                    addNew();
+                else if (rows[act])
                     pick(Number(rows[act].dataset.i));
                 e.preventDefault();
                 e.stopPropagation();
@@ -2957,6 +2995,65 @@ var KXAPP;
             setTimeout(() => w.querySelector('[data-c="ok"]')?.focus(), 0);
         });
     }
+    /* N2.6b+ small in-app form for conversions (text / number / date / select / checkbox) */
+    function kxForm(title, fields) {
+        return new Promise(res => {
+            const w = document.createElement('div');
+            w.className = 'ag-confirm-wrap';
+            w.setAttribute('data-keep-open', '');
+            w.innerHTML = `<form class="ag-confirm kx-form" role="dialog" aria-modal="true"><b>${esc(title)}</b>${fields.map(f => f.type === 'checkbox' ? `<label class="kx-form-cb"><input type="checkbox" name="${f.k}" ${f.value ? 'checked' : ''}> ${esc(f.label)}</label>` : `<label class="kx-lf"><span>${esc(f.label)}</span>${f.type === 'select' ? `<select name="${f.k}" ${f.addable ? 'data-kx-addable="1"' : ''}>${(f.options || []).map(([v, l]) => `<option value="${esc(v)}" ${v === f.value ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>` : `<input name="${f.k}" type="${f.type || 'text'}" value="${esc(f.value || '')}" ${f.type === 'number' ? 'min="0" step="1"' : ''}>`}</label>`).join('')}<div><button type="submit" class="btn primary" data-c="ok" title="${esc(TL('cv.save'))}">✓ ${esc(TL('cv.save'))}</button><button type="button" class="btn ghost" data-c="no">${esc(TL('vault.cancel'))}</button></div></form>`;
+            document.body.appendChild(w);
+            const form = w.querySelector('form');
+            const done = (v) => { w.remove(); res(v); };
+            form.onsubmit = (e) => { e.preventDefault(); const out = {}; fields.forEach(f => { const el = form.elements.namedItem(f.k); out[f.k] = f.type === 'checkbox' ? !!el?.checked : String(el?.value || '').trim(); }); done(out); };
+            w.querySelector('[data-c="no"]').onclick = () => done(null);
+            w.addEventListener('keydown', (e) => { if (e.key === 'Escape') {
+                e.preventDefault();
+                done(null);
+            } });
+            w.addEventListener('mousedown', (e) => { if (e.target === w)
+                done(null); });
+            setTimeout(() => form.querySelector('input,select')?.focus(), 0);
+        });
+    }
+    /* N2.6b+ calendar: planned payments from Finance as 💳 items in every view; tasks duplicating them are hidden */
+    /* a click on a 💳 payment in the calendar opens the same payment menu as in the plan */
+    document.addEventListener('click', (e) => { const b = e.target?.closest?.('[data-pk-open^="pay:"]'); if (!b)
+        return; e.preventDefault(); e.stopPropagation(); try {
+        const d = JSON.parse(decodeURIComponent(String(b.dataset.pkOpen).slice(4)));
+        b.dataset.agPid = String(d.p || '');
+        b.dataset.agDate = String(d.d || '');
+        b.dataset.agAmt = String(d.a || 0);
+        b.dataset.agName = String(d.n || '');
+        b.dataset.agSp = String(d.s || '');
+        void agPayAction(b);
+    }
+    catch { } }, true);
+    async function kxCalWithPays(items, fromIso, toIso, types) {
+        try {
+            if (types && types.length && !types.includes('TASK'))
+                return items;
+            const f0 = Date.parse(fromIso), t0 = Date.parse(toIso);
+            const pp = await agPlannedPays(f0, Math.ceil((t0 - f0) / 86400000) + 1);
+            const sc = String(calendarUi.scope || 'ALL');
+            const out = [...items];
+            for (const x of pp) {
+                const at = Date.parse(x.dueAt);
+                if (at < f0 || at > t0)
+                    continue;
+                if (sc !== 'ALL' && !String(x.spaceId || '').toUpperCase().includes(sc.toUpperCase()))
+                    continue;
+                const amt = Number(x.amount || 0).toLocaleString('cs-CZ') + ' Kč';
+                out.push({ ...x, id: 'PAY:' + x.id, kind: 'PLANNED_PAY', at: x.dueAt, startAt: x.dueAt, endAt: x.dueAt, dueAt: x.dueAt, title: `💳 ${x.title} – ${amt}`, description: '', spaceIds: [x.spaceId].filter(Boolean), ownerApp: 'APP.KX.FINANCE', sourceApp: 'APP.KX.FINANCE', sourceType: 'PLANNED_PAY', sourceId: String(x.plannedId || ''), deepLink: 'pay:' + encodeURIComponent(JSON.stringify({ p: x.plannedId, d: x.date, a: x.amount, n: x.title, s: x.spaceId })), status: 'OPEN', allDay: false, timezone: 'Europe/Prague', revision: 0, tags: [] }); /* same fields as agenda items, so every calendar view can render it */
+            }
+            const names = pp.map(x => String(x.title || '').toLowerCase().replace(/^demo\s*·\s*/, ''));
+            return out.filter((x) => !(x.kind === 'TASK' && !/^\s*🔔/.test(String(x.title || '')) && names.some((n) => n && String(x.title || '').toLowerCase().includes(n) && /k\u010d|plat/i.test(String(x.title || '')))));
+        }
+        catch (e) {
+            console.warn('calendar planned pays', e);
+            return items;
+        }
+    }
     /* planned payments from Finance for My day (real occurrences with plan id / date / moved-from) */
     async function agPlannedPays(fromMs, days) {
         const out = [];
@@ -2987,7 +3084,7 @@ var KXAPP;
         const ok = async (f, msg, undo) => { try {
             await f();
             toast(msg);
-            render();
+            kxAgRefresh();
         }
         catch (e) {
             toast(String(e?.message || e));
@@ -3005,6 +3102,12 @@ var KXAPP;
                     return; await ok(() => CH({ op: 'SKIP', date }), TL('pq.skipped')); } },
             { key: 'stop', label: `⛔ ${TL('pq.stop')}`, hint: TL('pq.stopHint'), danger: true, run: async () => { if (!await agConfirm(TL('pq.stopT'), TL('pq.stopQ').replace('{n}', name).replace('{d}', dl), `⛔ ${TL('pq.stop')}`, true))
                     return; await ok(() => CH({ op: 'STOP', date }), TL('pq.stopped')); } },
+            { key: 'totask', group: TL('cv.group'), label: `☑ ${TL('cv.payToTask')}`, hint: TL('cv.payToTaskHint'), run: async () => {
+                    const v = await kxForm(TL('cv.payToTask'), [{ k: 'title', label: TL('cv.name'), value: name }, { k: 'when', label: TL('cv.when'), type: 'select', value: '0', options: [['0', TL('cv.sameDay')], ['1', TL('cv.dayBefore')], ['3', TL('cv.3days')]] }]);
+                    if (!v)
+                        return;
+                    await ok(async () => { const d = new Date(date + 'T09:00:00'); d.setDate(d.getDate() - Number(v.when || 0)); await runtime.actions.invoke('ACTION.CORE.TASK.SAVE', { title: `🔔 ${String(v.title || name)} – ${kc}`, ownerApp: 'APP.KX.FINANCE', spaceIds: [sp].filter(Boolean), dueAt: d.toISOString() }, { actorId: CURRENT_USER_ID, appCode: 'APP.NEXUS', deviceId: activeDevice?.id, permissions: ['CORE.TASK.EDIT'], confirmed: true }); }, TL('cv.taskMade'));
+                } },
             { key: 'open', label: `⌂ ${TL('pq.open')}`, run: () => openHubAt('APP.KX.FINANCE') }
         ]);
     }
@@ -3054,6 +3157,30 @@ var KXAPP;
             { key: 'm1', group: TL('tq.move'), label: `📅 ${TL('tq.month')}`, hint: dl(at(0, 1)), run: () => save({ dueAt: at(0, 1) }, TL('tq.moved').replace('{d}', dl(at(0, 1)))) },
             { key: 'dx', group: TL('tq.move'), label: `📅 ${TL('tq.pick')}`, run: async () => { const v = await agAskDate(TL('tq.pickT').replace('{n}', t.title), String(t.dueAt || '').slice(0, 10)); if (!v)
                     return; const iso = new Date(v + 'T09:00:00').toISOString(); await save({ dueAt: iso }, TL('tq.moved').replace('{d}', dl(iso))); } },
+            { key: 'topay', group: TL('cv.group'), label: `💳 ${TL('cv.taskToPay')}`, hint: TL('cv.taskToPayHint'), run: async () => {
+                    const m = String(t.title || '').match(/(\d[\d\s\u00a0]*)\s*K\u010d/);
+                    const am = m ? Number(m[1].replace(/[\s\u00a0]/g, '')) : '';
+                    const nm = String(t.title || '').replace(/^\s*(DEMO\s*·\s*)/i, '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, '').trim();
+                    const spaces = await runtime.memberships.listSpaces();
+                    const v = await kxForm(TL('cv.taskToPay'), [{ k: 'name', label: TL('cv.name'), value: nm }, { k: 'amount', label: TL('cv.amount'), type: 'number', value: String(am) }, { k: 'date', label: TL('cv.date'), type: 'date', value: String(t.dueAt || new Date().toISOString()).slice(0, 10) }, { k: 'every', label: TL('cv.every'), type: 'select', value: /n\u00e1jem|hypot|z\u00e1loh|internet|tarif/i.test(nm) ? 'MONTHLY' : 'ONCE', options: [['ONCE', TL('cv.once')], ['MONTHLY', TL('cv.monthly')], ['QUARTERLY', TL('cv.quarterly')], ['YEARLY', TL('cv.yearly')]] }, { k: 'category', label: TL('cv.category'), type: 'select', addable: true, value: /n\u00e1jem|hypot/i.test(nm) ? TL('cv.catHousing') : /potravin|n\u00e1kup/i.test(nm) ? TL('cv.catFood') : '', options: [['', TL('cv.catNone')], ...['catHousing', 'catFood', 'catEnergy', 'catTransport', 'catHealth', 'catKids', 'catHome', 'catBusiness', 'catOther'].map(k => [TL('cv.' + k), TL('cv.' + k)]), ...(() => { try {
+                                    return JSON.parse(localStorage.getItem('kx.combo.category') || '[]').map(v => [v, v]);
+                                }
+                                catch {
+                                    return [];
+                                } })()] }, { k: 'space', label: TL('cv.space'), type: 'select', value: String((t.spaceIds || [])[0] || spaces[0]?.id || ''), options: spaces.map((s) => [s.id, s.name || s.id]) }, { k: 'keep', label: TL('cv.keepTask'), type: 'checkbox', value: '' }]);
+                    if (!v)
+                        return;
+                    try {
+                        await runtime.actions.invoke('ACTION.FINANCE.PLANNED.SAVE', { spaceId: v.space, data: { name: v.name, kind: 'EXPENSE', amount: Number(v.amount), currency: 'CZK', category: v.category || '', every: v.every, nextDate: v.date } }, { actorId: CURRENT_USER_ID, appCode: 'APP.KX.FINANCE', deviceId: activeDevice?.id, permissions: [], confirmed: true });
+                        if (!v.keep)
+                            await runtime.actions.invoke('ACTION.CORE.TASK.SAVE', { id, title: t.title, ownerApp: t.ownerApp, spaceIds: t.spaceIds, expectedRevision: t.revision, status: 'DONE' }, TC);
+                        toast(TL('cv.payMade'));
+                        kxAgRefresh();
+                    }
+                    catch (e) {
+                        toast(`${TL('cv.fail')}: ${String(e?.message || e)}`);
+                    }
+                } },
             { key: 'wait', group: TL('tq.state'), label: `⏸ ${t.status === 'WAITING' ? TL('tq.resume') : TL('tq.pause')}`, hint: t.status === 'WAITING' ? TL('tq.resumeHint') : TL('tq.pauseHint'), run: () => save({ status: t.status === 'WAITING' ? 'TODO' : 'WAITING' }, t.status === 'WAITING' ? TL('tq.resumed') : TL('tq.paused')) },
             { key: 'end', group: TL('tq.state'), label: `⛔ ${TL('tq.end')}`, hint: TL('tq.endHint'), danger: true, run: async () => { if (!await agConfirm(TL('tq.endT'), TL('tq.endQ').replace('{n}', t.title), `⛔ ${TL('tq.end')}`, true))
                     return; await save({ status: 'CANCELLED' }, TL('tq.ended')); } }
