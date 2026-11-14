@@ -1970,3 +1970,5 @@ html[data-kx-scheme="light"] .kx-gold{filter:drop-shadow(0 0 .6px #3a2506) drop-
 .lce-foot{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid color-mix(in srgb,var(--accent,#f2c869) 18%,transparent)}.lce-foot small{margin-right:auto}.lce-err{color:var(--kx-bad,#ff8a8d)}
 .kx-badge-off{background:color-mix(in srgb,var(--muted,#a39e8e) 18%,transparent);border:1px dashed var(--muted,#a39e8e)}
 .kx-lh-layerbar{display:flex;align-items:center;gap:10px}
+/* N2.6b+ (strict, intermittent): on a phone the hub window is full width also while it is being re-rendered / not marked open (closed state still hidden by clip-path / opacity) */
+@media (max-width:680px){#inspector,.inspector{left:0 !important;right:0 !important;width:100% !important;max-width:100vw !important;margin-left:0 !important}}

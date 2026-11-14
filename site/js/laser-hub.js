@@ -573,7 +573,105 @@ var KXLaserHub;
         };
         vis();
         void runGuard();
-        setTimeout(() => $('[data-lce="layerName"]')?.focus(), 0);
+        if (project.data.evidence?.projectLocked) {
+            all('[data-lce]').forEach((el) => el.disabled = true);
+            const sb = $('[data-lce-save]');
+            sb.disabled = true;
+            $('.lce-body').insertAdjacentHTML('afterbegin', `<div class="lce-guard lce-guard-off" data-lce-locked><b>🔒 ${esc(TL('lce.locked', 'Parameters are locked'))}</b><small>${esc(TL('lce.lockedHow', 'Unlock in the project evidence (✎ Evidence) to change them, or duplicate the project as a new version.'))}</small></div>`);
+        }
+        else
+            setTimeout(() => $('[data-lce="layerName"]')?.focus(), 0);
+    }
+    /* N2.6b+ projects table: live protection state over all layers (guard of the project's source + override flags) */
+    function lceProjectGuard(project, layers, byId) {
+        const G = globalThis.KXLaserGuard;
+        if (!G || !layers.length)
+            return '';
+        const src = byId(project.data.sourceModuleId);
+        const guard = src ? G.effective(src.data) : null;
+        if (!guard)
+            return TL('lce.gs.na', '— no table');
+        let worst = 'safe', off = false;
+        for (const o of layers) {
+            if (o.archivedAt)
+                continue;
+            const pr = o.data.parameters || {};
+            const r = G.evaluate(guard, pr);
+            if (pr.extras?.guardOverride && r.status === 'danger') {
+                off = true;
+                continue;
+            }
+            if (r.status === 'danger')
+                worst = 'danger';
+            else if (r.status === 'warn' && worst !== 'danger')
+                worst = 'warn';
+        }
+        const lab = worst === 'danger' ? '⛔ ' + TL('lce.gs.danger', 'STOP') : worst === 'warn' ? '⚠ ' + TL('lce.gs.warn', 'caution') : '✓ ' + TL('lce.gs.safe', 'OK');
+        return off ? `${lab} · 🛡 ${TL('lce.guard.offShort', 'protection off')}` : lab;
+    }
+    /* N2.6b+ project evidence (P566 1:1): all evidence fields except machine / profile (chosen at creation); stored in data.evidence, title / tags / material on the project */
+    async function openProjectEvidence(core, opts, ctx) {
+        const pj = ctx.project;
+        const ev = pj.data.evidence || {};
+        const ex = new Set(['machineId', 'profileId', 'timing', 'extras:gallery']);
+        const fields = LCAT.filter((g) => g.g === 'evidence' || g.g === 'notes').flatMap((g) => g.params).filter((q) => !ex.has(q.st) && !['machine', 'profile', 'gallery', 'duration'].includes(q.t));
+        const val = (q) => q.st === 'title' ? pj.data.title : q.st === 'tags' ? (pj.data.tags || []).join(', ') : q.st === 'material' ? pj.data.material : ev[q.k];
+        const ctl = (q) => { const v = val(q); if (q.t === 'select')
+            return `<select data-pe="${q.k}"><option value="">—</option>${(q.opts || []).map((c) => `<option value="${c}" ${String(v ?? '') === c ? 'selected' : ''}>${esc(TL('lc.o.' + q.k + '.' + c, c))}</option>`).join('')}</select>`; if (q.t === 'checkbox')
+            return `<input type="checkbox" data-pe="${q.k}" ${v ? 'checked' : ''}>`; if (q.t === 'textarea')
+            return `<textarea data-pe="${q.k}" rows="2">${esc(v ?? '')}</textarea>`; return `<input data-pe="${q.k}" type="${q.t === 'number' ? 'number' : 'text'}" step="any" ${q.min != null ? `min="${q.min}"` : ''} ${q.max != null ? `max="${q.max}"` : ''} value="${esc(v ?? '')}">`; };
+        const w = document.createElement('div');
+        w.className = 'lce-wrap';
+        w.setAttribute('data-keep-open', '');
+        w.setAttribute('data-laser-evidence', '');
+        w.innerHTML = `<div class="lce" role="dialog" aria-modal="true"><div class="lce-head"><div><b>✎ ${esc(TL('lce.ev.title', 'Project evidence'))}</b><small>${esc(pj.data.recordCode || '')} · ${esc(pj.data.title || '')}</small></div><button type="button" class="icon-btn" data-pe-close>✕</button></div><div class="lce-body"><div class="lce-grid">${fields.map((q) => `<label class="lce-f"><span class="lce-l">${esc(TL('lc.' + q.k, q.lb))}${q.u ? ` <small>[${esc(q.u)}]</small>` : ''}${q.req ? ' *' : ''} <i class="lce-i" title="${esc(TL('lc.' + q.k + '.d', ''))}" tabindex="0">ⓘ</i></span>${ctl(q)}</label>`).join('')}</div></div><div class="lce-foot"><span class="lce-err" data-pe-err></span><button type="button" class="btn ghost" data-pe-close>${esc(TL('vault.cancel', 'Cancel'))}</button><button type="button" class="btn primary" data-pe-save>✓ ${esc(TL('cv.save', 'Save'))}</button></div></div>`;
+        document.body.appendChild(w);
+        ['click', 'pointerdown', 'mousedown', 'touchstart'].forEach(e2 => w.addEventListener(e2, (e) => e.stopPropagation()));
+        const close = () => w.remove();
+        w.querySelectorAll('[data-pe-close]').forEach(b => b.onclick = close);
+        w.addEventListener('keydown', (e) => { if (e.key === 'Escape') {
+            e.stopPropagation();
+            close();
+        } });
+        w.querySelector('[data-pe-save]').onclick = async () => {
+            const err = w.querySelector('[data-pe-err]');
+            const v = {};
+            w.querySelectorAll('[data-pe]').forEach(el => { v[el.dataset.pe] = el.type === 'checkbox' ? !!el.checked : String(el.value ?? '').trim(); });
+            if (!v.projectName) {
+                err.textContent = TL('laser.prj.titleReq', 'Title is required.');
+                return;
+            }
+            for (const q of fields) {
+                if (q.t === 'number' && v[q.k] !== '' && v[q.k] != null) {
+                    const n = Number(String(v[q.k]).replace(',', '.'));
+                    if (!Number.isFinite(n) || (q.min != null && n < q.min) || (q.max != null && n > q.max)) {
+                        err.textContent = `${TL('lc.' + q.k, q.lb)}: ${q.min ?? '−∞'}–${q.max ?? '∞'}`;
+                        return;
+                    }
+                    v[q.k] = n;
+                }
+            }
+            const evidence = { ...ev };
+            for (const q of fields) {
+                if (['title', 'tags', 'material'].includes(q.st))
+                    continue;
+                const x = v[q.k];
+                if (x === '' || x === false || x == null)
+                    delete evidence[q.k];
+                else
+                    evidence[q.k] = x;
+            }
+            const data = { ...pj.data, title: v.projectName, tags: String(v.projectTags || '').split(',').map((t) => t.trim()).filter(Boolean), material: v.material || pj.data.material, evidence };
+            try {
+                await core.actions.invoke('ACTION.LASER.PROJECT.SAVE', { id: pj.id, expectedRevision: pj.revision, spaceIds: pj.spaceIds, data }, ctx.PC);
+                close();
+                opts.onToast?.(TL('lce.ev.saved', 'Evidence saved'));
+                ctx.onSaved();
+            }
+            catch (e) {
+                err.textContent = String(e?.message || e);
+            }
+        };
     }
     function lceMsg(f) { const T2 = (k, d) => TL('lce.m.' + k, d); switch (f.code) {
         case 'BELOW_CUTOFF': return T2('BELOW_CUTOFF', 'Below cut-off').replace('{p}', f.pulse).replace('{c}', f.cutoff) + (f.estimatedW != null ? ` · ≈ ${f.estimatedW} W` : '');
@@ -744,7 +842,7 @@ var KXLaserHub;
         core.__laserPrjTable = true;
         try {
             core.lists?.registerList('LASER.PRJSTATUS', { name: T('laser.list.prjStatus', 'Project state'), owner: OWNER, items: ['DRAFT', 'READY', 'RUNNING', 'DONE', 'ARCHIVED'].map(k => ({ key: k, label: T('laser.prjStatus.' + k, k) })) });
-            core.fields?.registerDefaults(PRJ_SCOPE, [{ key: 'recordCode', type: 'TEXT', label: T('laser.prj.code', 'Code'), width: 90 }, { key: 'title', type: 'TEXT', label: T('laser.prj.title', 'Title'), width: 240 }, { key: 'machine', type: 'TEXT', label: T('laser.prj.machine', 'Laser'), width: 200 }, { key: 'profile', type: 'TEXT', label: T('laser.prj.profile', 'Profile'), width: 150 }, { key: 'material', type: 'TEXT', label: T('laser.mat.name', 'Material'), width: 180 }, { key: 'status', type: 'SELECT', label: T('laser.prj.status', 'State'), listId: 'LASER.PRJSTATUS', width: 110 }, { key: 'layers', type: 'NUMBER', label: T('laser.prj.layersCol', 'Layers'), width: 70 }]);
+            core.fields?.registerDefaults(PRJ_SCOPE, [{ key: 'recordCode', type: 'TEXT', label: T('laser.prj.code', 'Code'), width: 90 }, { key: 'title', type: 'TEXT', label: T('laser.prj.title', 'Title'), width: 240 }, { key: 'machine', type: 'TEXT', label: T('laser.prj.machine', 'Laser'), width: 200 }, { key: 'profile', type: 'TEXT', label: T('laser.prj.profile', 'Profile'), width: 150 }, { key: 'material', type: 'TEXT', label: T('laser.mat.name', 'Material'), width: 180 }, { key: 'status', type: 'SELECT', label: T('laser.prj.status', 'State'), listId: 'LASER.PRJSTATUS', width: 110 }, { key: 'layers', type: 'NUMBER', label: T('laser.prj.layersCol', 'Layers'), width: 70 }, { key: 'guard', type: 'TEXT', label: T('lce.col.guard', 'Protection'), info: T('lce.col.guardHelp', 'Source protection over all layers: STOP / caution / OK / switched off.'), width: 110 }]);
         }
         catch (e) {
             globalThis.KXBugs?.pushErr?.(e);
@@ -1079,6 +1177,7 @@ var KXLaserHub;
                         case 'material': return d.material || '';
                         case 'status': return d.status;
                         case 'layers': return ops(r.id).length;
+                        case 'guard': return lceProjectGuard(r, ops(r.id), byId);
                         default: return f.custom ? (d.custom?.[f.key] ?? '') : '';
                     } };
                     await globalThis.KXTable(ph, { scope: PRJ_SCOPE, rows: projs, rowId: (r) => r.id, value: pv, exportValue: pv, filterState: () => st.pfilter || {}, onFilter: (x) => { st.pfilter = x; }, density: st.pdensity || 'COMPACT', onDensity: (d) => { st.pdensity = d; }, selection: st.psel, sortState: () => st.psort, onSort: (x) => { st.psort = x; }, compare: true,
@@ -1104,7 +1203,7 @@ var KXLaserHub;
                     const row = (o, depth) => `<tr data-lh-layer="${esc(o.id)}" class="${o.data.parentId ? 'kx-sublayer' : ''}"><td style="padding-left:${6 + depth * 16}px">${depth ? '↳ ' : ''}${esc(o.data.name)}${o.data.parameters?.extras?.guardOverride ? ` <span class="kx-badge kx-badge-off" data-lg-override title="${esc(TL('lce.guard.off', 'Protection switched off for this layer'))}">🛡 ${esc(TL('lce.guard.offShort', 'protection off'))}</span>` : ''}${o.data.parameters?.extras?.guardWarning ? ` <span class="kx-badge kx-badge-warn" data-lg-warnrec title="${esc(TL('lg.warnRecHelp', ''))}">⚠ ${esc(TL('lg.warnRec', ''))}</span>` : ''}</td>${pf.map(p => cell(o, 'lb', p.k)).join('')}${isLp4 ? LDS.map(p => cell(o, 'lds', p.k)).join('') : ''}
             <td class="kx-layer-act"><button class="icon-btn" data-lh-adv="${esc(o.id)}" title="${esc(TL('lce.edit', 'Layer settings'))}">⚙</button><button class="icon-btn" data-lh-edit="${esc(o.id)}" title="✎">✎</button><button class="icon-btn" data-lh-sub="${esc(o.id)}" title="${esc(TL('laser.prj.addSub', 'add a sublayer'))}">＋↳</button><button class="icon-btn" data-lh-del="${esc(o.id)}" title="🗑">🗑</button></td></tr>` + kids(o.id).map((k) => row(k, depth + 1)).join('');
                     const form = (prefix) => `<tr data-lh-layer-form="${esc(prefix)}"><td><input data-ln="name" maxlength="80" placeholder="${esc(TL('laser.prj.layerPh', 'e.g. Fill logo'))}"></td>${pf.map(p => `<td><input data-lp="${p.k}" inputmode="decimal" style="width:68px"><span class="kx-lf-help" data-lp-help="${p.k}"></span></td>`).join('')}${isLp4 ? LDS.map(p => `<td>${p.opts ? `<select data-lds="${p.k}"><option value="">—</option>${p.opts.map(x => `<option>${x}</option>`).join('')}</select>` : `<input data-lds="${p.k}" inputmode="decimal" style="width:60px">`}</td>`).join('') : ''}<td><button class="btn compact" data-ln-add>✓</button></td></tr>`;
-                    det.innerHTML = `<section class="kx-lcard open" data-lh-project="${esc(cur.id)}"><header class="kx-lcard-h"><b>${esc(cur.data.recordCode)} · ${esc(cur.data.title)}</b><small class="muted">${esc(mc?.data.name || '')} · ${esc(byId(cur.data.profileId)?.data.name || '')}${cur.data.material ? ` · ${esc(cur.data.material)}` : ''}</small><button class="icon-btn" data-lh-pclose>×</button></header>
+                    det.innerHTML = `<section class="kx-lcard open" data-lh-project="${esc(cur.id)}"><header class="kx-lcard-h"><b>${esc(cur.data.recordCode)} · ${esc(cur.data.title)}</b><small class="muted">${esc(mc?.data.name || '')} · ${esc(byId(cur.data.profileId)?.data.name || '')}${cur.data.material ? ` · ${esc(cur.data.material)}` : ''}</small><button class="btn compact" data-lh-evid title="${esc(TL('lce.ev.title', 'Project evidence'))}">✎ ${esc(TL('lce.ev.btn', 'Evidence'))}</button>${cur.data.evidence?.projectFavorite ? '<span class="kx-badge">★</span>' : ''}${cur.data.evidence?.projectLocked ? `<span class="kx-badge" title="${esc(TL('lce.locked', 'Parameters are locked'))}">🔒</span>` : ''}<button class="icon-btn" data-lh-pclose>×</button></header>
             <div class="kx-lh-layerbar"><h5>${esc(TL('laser.prj.layers', 'Layers (LightBurn order)'))}</h5><button type="button" class="btn compact" data-lh-advnew="" title="${esc(TL('lce.new', 'New layer'))}">＋ ⚙ ${esc(TL('lce.new', 'New layer'))}</button></div>${isLp4 ? `<p class="muted kx-acc-help">${esc(TL('laser.prj.lp4dual', 'LaserPecker LP4: LightBurn and Design Space side by side – values are NOT converted (Design Space uses Depth, LightBurn speed).'))}</p>` : ''}
             <table class="kx-calc-table" data-lh-layers><tr><th>${esc(TL('laser.prj.layerName', 'Name'))}</th>${pf.map(p => `<th title="${esc(TL('laser.param.help.' + p.k, ''))}">${isLp4 ? 'LB · ' : ''}${esc(TL('laser.param.' + p.k, p.k))} <small>${esc(p.u)}</small></th>`).join('')}${isLp4 ? LDS.map(p => `<th class="kx-lds" title="${esc(TL('laser.param.help.lds.' + p.k, ''))}">DS · ${esc(TL('laser.param.lds.' + p.k, p.k))} <small>${esc(p.u)}</small></th>`).join('') : ''}<th></th></tr>
             ${kids(null).map((o) => row(o, 0)).join('')}${form(st.pForm || '')}</table>
@@ -1156,6 +1255,7 @@ var KXLaserHub;
                     fRow.querySelectorAll('[data-lp]').forEach(x => x.oninput = () => { const g = guardParam(String(x.dataset.lp), x.value); const c = x.closest('td'); c.style.boxShadow = g ? '0 0 0 2px #e5484d inset' : ''; c.querySelector('[data-lp-help]').textContent = g ? g.msg : ''; clearTimeout(lgT); lgT = setTimeout(() => void lgRun(), 250); });
                     void lgRun();
                     det.querySelectorAll('[data-lh-edit]').forEach(b => b.onclick = () => { st.pEdit = b.dataset.lhEdit; st.pForm = ''; again2(); });
+                    det.querySelector('[data-lh-evid]')?.addEventListener('click', () => void openProjectEvidence(core, opts, { project: cur, onSaved: again2, PC }));
                     det.querySelectorAll('[data-lh-adv]').forEach(b => b.onclick = () => { const o = layers.find((x) => x.id === b.dataset.lhAdv); if (o)
                         void openLayerEditor(core, opts, { project: cur, op: o, layers, onSaved: again2, PC }); });
                     det.querySelectorAll('[data-lh-advnew]').forEach(b => b.onclick = () => void openLayerEditor(core, opts, { project: cur, layers, onSaved: again2, PC, parentId: b.dataset.lhAdvnew || null }));
