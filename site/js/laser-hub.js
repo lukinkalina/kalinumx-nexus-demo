@@ -6,9 +6,9 @@ var KXLaserHub;
     /* machine definitions: user's machines from the original Laser Parameter Hub P566 + demo machines. Lens field sizes are NOT invented (only focal lengths from P566). */
     const SEEDS = [
         { uid: 'KX.LASER.PERSONAL.HAOTIAN_MOPA_60W_JPT_M7', origin: 'PERSONAL', name: 'Haotian Galvo fiber MOPA 60W JPT M7', manufacturer: 'Haotian', model: 'Galvo fiber MOPA 60W (JPT M7)', tech: ['FIBER_MOPA', 'GALVO'],
-            sources: [{ key: 'IR', name: 'JPT M7 MOPA 1064 nm', tech: 'FIBER_MOPA', nm: 1064, w: 60 }], lenses: [110, 210, 310], capacity: 8 },
+            sources: [{ key: 'IR', name: 'JPT M7 MOPA 1064 nm', tech: 'FIBER_MOPA', nm: 1064, w: 60, caps: 'GALVO_P566' }], lenses: [110, 210, 310], capacity: 8 },
         { uid: 'KX.LASER.PERSONAL.LASERPECKER_LP4', origin: 'PERSONAL', name: 'LaserPecker LP4', manufacturer: 'LaserPecker', model: 'LP4', tech: ['LP4', 'DIODE', 'FIBER'],
-            sources: [{ key: 'BLUE', name: TL('laser.src.blue450', 'Blue 450 nm'), tech: 'DIODE', nm: 450 }, { key: 'IR', name: 'IR 1064 nm', tech: 'FIBER', nm: 1064 }], lenses: [], modes: ['STANDARD', 'SLIDE', 'ROTARY'], capacity: 6 },
+            sources: [{ key: 'BLUE', name: TL('laser.src.blue450', 'Blue 450 nm'), tech: 'DIODE', nm: 450, w: 10, caps: 'LP4_P566' }, { key: 'IR', name: 'IR 1064 nm', tech: 'FIBER', nm: 1064, w: 2, caps: 'LP4_P566' }], lenses: [], modes: ['STANDARD', 'SLIDE', 'ROTARY'], capacity: 6 },
         { uid: 'KX.LASER.DEMO.UV_10W', origin: 'DEMO', name: TL('laser.demo.UV_10W', 'UV laser 10 W (demo)'), manufacturer: '', model: 'UV 355 nm 10 W', tech: ['UV', 'GALVO'], sources: [{ key: 'UV', name: 'UV 355 nm', tech: 'UV', nm: 355, w: 10 }], lenses: [110], capacity: 8 },
         { uid: 'KX.LASER.DEMO.UV_15W', origin: 'DEMO', name: TL('laser.demo.UV_15W', 'UV laser 15 W (demo)'), manufacturer: '', model: 'UV 355 nm 15 W', tech: ['UV', 'GALVO'], sources: [{ key: 'UV', name: 'UV 355 nm', tech: 'UV', nm: 355, w: 15 }], lenses: [110], capacity: 8 },
         { uid: 'KX.LASER.DEMO.FIBER_MOPA_60W', origin: 'DEMO', name: TL('laser.demo.FIBER_MOPA_60W', 'Fiber MOPA 60 W (demo)'), manufacturer: '', model: 'Galvo fiber MOPA 60 W', tech: ['FIBER_MOPA', 'GALVO'], sources: [{ key: 'IR', name: 'MOPA 1064 nm', tech: 'FIBER_MOPA', nm: 1064, w: 60 }], lenses: [110, 210, 310], capacity: 8 },
@@ -292,8 +292,8 @@ var KXLaserHub;
        MOPA: one profile per lens (LightBurn), focus 174 mm known only for 110 mm. LP4: 450 / 1064 nm × Standard / Slide / Rotary (LightBurn + Design Space),
        integrated optics (no invented focal length; working distance 150 mm per P566). */
     const PROFILE_SEEDS = () => ({
-        'KX.LASER.PERSONAL.HAOTIAN_MOPA_60W_JPT_M7': [110, 210, 310].map(f => ({ id: 'hao' + f, name: TL('laser.prof.lens', '{f} mm lens').replace('{f}', String(f)), nm: 1064, mode: 'Standard', software: 'LightBurn', lens: f, notes: f === 110 ? TL('laser.prof.focus174', 'focus 174 mm (original program)') : '' })),
-        'KX.LASER.PERSONAL.LASERPECKER_LP4': [['450', 'std', 'Standard', '160 × 120 mm', 'M3010', 'M3030'], ['ir', 'std', 'Standard', '160 × 120 mm', 'M3011', 'M3030'], ['450', 'slide', 'Slide Extension', '160 × 300 mm', 'M3010', 'M3031'], ['ir', 'slide', 'Slide Extension', '160 × 300 mm', 'M3011', 'M3031'], ['450', 'rot', 'Rotary', '160 × 628 mm', 'M3010', 'M3032'], ['ir', 'rot', 'Rotary', '160 × 628 mm', 'M3011', 'M3032']].map(([w, m, mode, area, lc, mc]) => ({ id: `lp4_${w}_${m}`, name: `${w === '450' ? '450' : '1064'} nm · ${mode === 'Slide Extension' ? 'Slide' : mode}`, nm: w === '450' ? 450 : 1064, mode, software: 'LightBurn + LaserPecker Design Space', lens: 'INTEGRATED', notes: `${TL('laser.prof.area', 'work area')} ${area} · ${TL('laser.prof.distance', 'working distance 150 mm')} · ${lc} / ${mc} (P566)` }))
+        'KX.LASER.PERSONAL.HAOTIAN_MOPA_60W_JPT_M7': [110, 210, 310].map(f => ({ id: 'hao' + f, name: TL('laser.prof.lens', '{f} mm lens').replace('{f}', String(f)), nm: 1064, mode: 'Standard', software: 'LightBurn', lens: f, speedUnit: 'mm/s', ...(f === 110 ? { focusMm: 174 } : {}), notes: f === 110 ? TL('laser.prof.focus174', 'focus 174 mm (original program)') : '' })),
+        'KX.LASER.PERSONAL.LASERPECKER_LP4': [['450', 'std', 'Standard', '160 × 120 mm', 'M3010', 'M3030'], ['ir', 'std', 'Standard', '160 × 120 mm', 'M3011', 'M3030'], ['450', 'slide', 'Slide Extension', '160 × 300 mm', 'M3010', 'M3031'], ['ir', 'slide', 'Slide Extension', '160 × 300 mm', 'M3011', 'M3031'], ['450', 'rot', 'Rotary', '160 × 628 mm', 'M3010', 'M3032'], ['ir', 'rot', 'Rotary', '160 × 628 mm', 'M3011', 'M3032']].map(([w, m, mode, area, lc, mc]) => ({ id: `lp4_${w}_${m}`, name: `${w === '450' ? '450' : '1064'} nm · ${mode === 'Slide Extension' ? 'Slide' : mode}`, nm: w === '450' ? 450 : 1064, mode, software: 'LightBurn + LaserPecker Design Space', lens: 'INTEGRATED', speedUnit: 'Depth %', workspace: area, focusMm: 150, maxSpeedMmS: 4000, laserCommand: lc, modeCommand: mc, notes: `${TL('laser.prof.area', 'work area')} ${area} · ${TL('laser.prof.distance', 'working distance 150 mm')} · ${lc} / ${mc} (P566)` }))
     });
     async function ensureProfiles(core, opts) {
         let n = 0;
@@ -310,6 +310,46 @@ var KXLaserHub;
                 lenses = [...lenses, l];
                 n++;
             }
+            /* N2.6b+ (P566 1:1): fill only MISSING source data (power, capabilities) and structured profile data – never overwrite what the user set */
+            const seedM = SEEDS.find((x) => x.uid === m.data.recordUid);
+            for (const ss of (seedM?.sources || [])) {
+                const src = srcs.find((x) => Number(x.data.wavelengthNm) === ss.nm);
+                if (!src)
+                    continue;
+                const patch = {};
+                if (src.data.nominalPowerW == null && ss.w != null)
+                    patch.nominalPowerW = ss.w;
+                if (!src.data.capabilities && ss.caps && globalThis.KXLaserGuard?.PRESET_CAPS?.[ss.caps])
+                    patch.capabilities = { ...globalThis.KXLaserGuard.PRESET_CAPS[ss.caps] };
+                if (Object.keys(patch).length) {
+                    try {
+                        await core.actions.invoke('ACTION.LASER.SOURCE_MODULE.SAVE', { id: src.id, expectedRevision: src.revision, spaceIds: src.spaceIds, data: { ...src.data, ...patch } }, C2);
+                        n++;
+                    }
+                    catch (err) {
+                        globalThis.KXBugs?.pushErr?.(err);
+                    }
+                }
+            }
+            const PK = ['speedUnit', 'workspace', 'focusMm', 'maxSpeedMmS', 'laserCommand', 'modeCommand'];
+            for (const w of want) {
+                const ex = all.find((x) => x.type === 'APP.LASER.PROFILE' && x.data.recordUid === 'KX.LASER.PROFILE.' + w.id && !x.archivedAt);
+                if (!ex)
+                    continue;
+                const patch = {};
+                for (const k of PK)
+                    if ((ex.data[k] == null || ex.data[k] === '') && w[k] != null)
+                        patch[k] = w[k];
+                if (Object.keys(patch).length) {
+                    try {
+                        await core.actions.invoke('ACTION.LASER.PROFILE.SAVE', { id: ex.id, expectedRevision: ex.revision, spaceIds: ex.spaceIds, data: { ...ex.data, ...patch } }, C2);
+                        n++;
+                    }
+                    catch (err) {
+                        globalThis.KXBugs?.pushErr?.(err);
+                    }
+                }
+            }
             const have = new Set(all.filter((x) => x.type === 'APP.LASER.PROFILE').map((x) => x.data.recordUid));
             for (const w of want) {
                 const uidP = 'KX.LASER.PROFILE.' + w.id;
@@ -319,7 +359,7 @@ var KXLaserHub;
                 if (!src)
                     continue;
                 const lens = w.lens === 'INTEGRATED' ? lenses.find((l) => String(l.data.recordUid || '').endsWith('_INTEGRATED')) : lenses.find((l) => Number(l.data.focalLengthMm) === w.lens);
-                await core.actions.invoke('ACTION.LASER.PROFILE.SAVE', { spaceIds: m.spaceIds, data: { recordUid: uidP, machineId: m.id, sourceModuleId: src.id, name: w.name, mode: w.mode, software: w.software, defaultLensId: lens?.id, notes: w.notes } }, C2);
+                await core.actions.invoke('ACTION.LASER.PROFILE.SAVE', { spaceIds: m.spaceIds, data: { recordUid: uidP, machineId: m.id, sourceModuleId: src.id, name: w.name, mode: w.mode, software: w.software, defaultLensId: lens?.id, notes: w.notes, ...Object.fromEntries(['speedUnit', 'workspace', 'focusMm', 'maxSpeedMmS', 'laserCommand', 'modeCommand'].filter(k => w[k] != null).map(k => [k, w[k]])) } }, C2);
                 n++;
             }
         }
@@ -328,6 +368,225 @@ var KXLaserHub;
     /* N2.4j: layer parameters in the LightBurn 2.1 order; only fields the machine can do; guard ranges from P566 (JPT M7: 1–4000 kHz, 2–500 ns) */
     const PARAMS = [{ k: 'speedMmPerS', u: 'mm/s', min: 0.1, max: 20000, need: 'GALVO' }, { k: 'speedMmPerMin', u: 'mm/min', min: 1, max: 240000, need: 'NOGALVO' }, { k: 'powerPercent', u: '%', min: 0, max: 100 }, { k: 'frequencyKHz', u: 'kHz', min: 1, max: 4000, need: 'GALVO' }, { k: 'qPulseNs', u: 'ns', min: 2, max: 500, need: 'FIBER_MOPA' },
         { k: 'lineIntervalMm', u: 'mm', min: 0.001, max: 5 }, { k: 'dpi', u: 'DPI', min: 10, max: 5000, need: 'NOGALVO' }, { k: 'passes', u: '×', min: 1, max: 100 }, { k: 'hatchAngleDeg', u: '°', min: 0, max: 360, need: 'GALVO' }, { k: 'wobbleMm', u: 'mm', min: 0, max: 10, need: 'GALVO' }, { k: 'depthPercent', u: '%', min: 0, max: 100, need: 'LP4' }];
+    /* ---------- N2.6b+ LAYER EDITOR (P566 1:1 + LightBurn): catalogue of 88 parameters (docs/laser/LASER_LAYER_PARAMS_CZ.json), sections by mode,
+       only what the chosen SOURCE can do (ACTION.LASER.CAPS.FOR), ⓘ description per field, live cut-off guard (ACTION.LASER.GUARD.CHECK):
+       red / orange panel + highlighted fields + one-click fix; inherited values from the parent layer as hints; saves core values + extras ---------- */
+    const LCAT = [{ "g": "evidence", "params": [{ "k": "projectName", "lb": "Project name", "t": "text", "st": "title", "req": true }, { "k": "machine", "lb": "Laser", "t": "machine", "st": "machineId", "req": true }, { "k": "preset", "lb": "Profile / lens / mode", "t": "profile", "st": "profileId", "req": true }, { "k": "projectSoftware", "lb": "Software", "t": "select", "st": "extras", "opts": ["LIGHTBURN", "EZCAD_2", "EZCAD_3", "LASERPECKER_DESIGN_SPACE", "XTOOL_CREATIVE_SPACE", "RDWORKS", "JINY"] }, { "k": "projectSoftwareVersion", "lb": "Version", "t": "text", "st": "extras" }, { "k": "speedUnit", "lb": "Speed unit", "t": "select", "st": "extras", "opts": ["MM_S", "MM_MIN", "MM_ROTATION", "DEPTH", "VLASTNI"] }, { "k": "nativeDepth", "lb": "Depth", "t": "number", "st": "depthPercent", "u": "%", "min": 0, "max": 100 }, { "k": "material", "lb": "Material", "t": "material", "st": "material", "req": true }, { "k": "thickness", "lb": "Thickness", "t": "number", "st": "extras", "u": "mm", "min": 0 }, { "k": "focusOffset", "lb": "Focus offset", "t": "number", "st": "extras", "u": "mm" }, { "k": "surface", "lb": "Surface", "t": "text", "st": "extras" }, { "k": "quantity", "lb": "Quantity", "t": "number", "st": "extras", "min": 1 }, { "k": "purpose", "lb": "Purpose / effect", "t": "select", "st": "extras", "opts": ["GRAVIROVANI", "HLUBOKE_GRAVIROVANI", "3D_RELIEF", "ZNACENI", "CERNE_ZNACENI", "BAREVNE_ZNACENI", "REZANI", "CISTENI_ODSTRANENI_POVRCHU", "TESTOVACI_MATICE"] }, { "k": "result", "lb": "Result", "t": "select", "st": "extras", "opts": ["NEOZNACENO", "FINALNI_NEJLEPSI", "TEST_ROZPRACOVANO", "NEVYHOVUJE"] }, { "k": "projectFile", "lb": "Project file", "t": "file", "st": "extras" }, { "k": "time", "lb": "Time", "t": "duration", "st": "timing" }, { "k": "projectFavorite", "lb": "Favourite", "t": "checkbox", "st": "extras" }, { "k": "projectLocked", "lb": "Lock parameters", "t": "checkbox", "st": "extras" }, { "k": "projectTags", "lb": "Tags", "t": "tags", "st": "tags" }] }, { "g": "layer", "params": [{ "k": "layerName", "lb": "Name", "t": "text", "st": "name" }, { "k": "output", "lb": "Output", "t": "select", "st": "extras", "opts": ["ANO", "NE"] }, { "k": "layer", "lb": "LightBurn layer", "t": "text", "st": "layerName" }, { "k": "speed", "lb": "Speed", "t": "number", "st": "speedMmPerS", "u": "mm/s", "min": 0 }, { "k": "power", "lb": "Max Power", "t": "number", "st": "powerPercent", "u": "%", "min": 0, "max": 100 }, { "k": "minPower", "lb": "Min Power", "t": "number", "st": "extras", "u": "%", "min": 0, "max": 100, "modes": ["LINE", "FILL", "OFFSET_FILL", "IMAGE"] }, { "k": "frequency", "lb": "Frequency", "t": "number", "st": "frequencyKHz", "u": "kHz", "min": 1, "cap": "frequency" }, { "k": "pulseWidth", "lb": "Q-Pulse Width", "t": "number", "st": "qPulseNs", "u": "ns", "min": 1, "cap": "qpulse" }, { "k": "globalPasses", "lb": "Global Passes", "t": "number", "st": "extras", "min": 1 }, { "k": "useLaser2", "lb": "Use Laser 2", "t": "select", "st": "extras", "opts": ["NE", "ANO"] }, { "k": "constantPower", "lb": "Constant Power Mode", "t": "select", "st": "extras", "opts": ["NE_M4_VARIABLE", "ANO_M3_CONSTANT"] }, { "k": "airAssist", "lb": "Air Assist", "t": "select", "st": "extras", "cap": "airAssist", "opts": ["NE", "ANO", "N_A"] }, { "k": "mode", "lb": "Mode", "t": "select", "st": "operationType", "opts": ["LINE", "FILL", "OFFSET_FILL", "IMAGE"] }] }, { "g": "line", "params": [{ "k": "passes", "lb": "Number of Passes", "t": "number", "st": "passes", "min": 1 }, { "k": "zOffset", "lb": "Z Offset", "t": "number", "st": "extras", "u": "mm" }, { "k": "zStep", "lb": "Z Step per Pass", "t": "number", "st": "extras", "u": "mm" }, { "k": "kerfOffset", "lb": "Kerf Offset", "t": "number", "st": "extras", "u": "mm" }], "modes": ["LINE"] }, { "g": "fill", "params": [{ "k": "bidirectional", "lb": "Bi-directional Fill", "t": "select", "st": "extras", "opts": ["ANO", "NE"] }, { "k": "crossHatch", "lb": "Cross-Hatch", "t": "select", "st": "extras", "opts": ["NE", "ANO"] }, { "k": "overscanEnabled", "lb": "Overscanning", "t": "select", "st": "extras", "cap": "overscan", "opts": ["NE", "ANO"] }, { "k": "overscan", "lb": "Overscan", "t": "number", "st": "extras", "u": "%", "min": 0, "cap": "overscan" }, { "k": "lineInterval", "lb": "Line Interval", "t": "number", "st": "lineIntervalMm", "u": "mm", "min": 0 }, { "k": "dpi", "lb": "Lines per Inch / DPI", "t": "number", "st": "dpi", "min": 0 }, { "k": "scanAngle", "lb": "Scan Angle", "t": "number", "st": "hatchAngleDeg", "u": "\u00b0" }, { "k": "fillGrouping", "lb": "Fill Grouping", "t": "select", "st": "extras", "opts": ["VYCHOZI_AUTO", "VSECHNY_TVARY_NAJEDNOU", "PO_SKUPINACH", "PO_JEDNOTLIVYCH_TVARECH"] }, { "k": "rampLength", "lb": "Ramp Length", "t": "number", "st": "extras", "u": "mm", "min": 0 }, { "k": "floodFill", "lb": "Flood Fill", "t": "select", "st": "extras", "opts": ["NE", "ANO"] }], "modes": ["FILL"] }, { "g": "image", "params": [{ "k": "imageMode", "lb": "Image Mode", "t": "select", "st": "extras", "opts": ["THRESHOLD", "ORDERED", "ATKINSON", "DITHER", "STUCKI", "JARVIS", "NEWSPRINT", "HALFTONE", "SKETCH", "GRAYSCALE", "3D_SLICED"] }, { "k": "negativeImage", "lb": "Negative Image", "t": "select", "st": "extras", "opts": ["NE", "ANO"] }, { "k": "dotWidth", "lb": "Dot Width Correction", "t": "number", "st": "extras", "u": "mm" }, { "k": "angleIncrement", "lb": "Angle Increment", "t": "number", "st": "extras", "u": "\u00b0" }, { "k": "cellsPerInch", "lb": "Cells per Inch", "t": "number", "st": "extras" }, { "k": "halftoneAngle", "lb": "Halftone Angle", "t": "number", "st": "extras", "u": "\u00b0" }, { "k": "passThrough", "lb": "Pass-Through", "t": "select", "st": "extras", "opts": ["NE", "ANO"] }], "modes": ["IMAGE"] }, { "g": "imageAdjust", "params": [{ "k": "gamma", "lb": "Gamma", "t": "number", "st": "extras" }, { "k": "contrast", "lb": "Contrast", "t": "number", "st": "extras" }, { "k": "brightness", "lb": "Brightness", "t": "number", "st": "extras" }, { "k": "enhanceRadius", "lb": "Enhance Radius", "t": "number", "st": "extras" }, { "k": "enhanceAmount", "lb": "Enhance Amount", "t": "number", "st": "extras" }, { "k": "enhanceDenoise", "lb": "Enhance Denoise", "t": "select", "st": "extras", "opts": ["NE", "ANO"] }], "modes": ["IMAGE"] }, { "g": "galvo", "params": [{ "k": "wobble", "lb": "Wobble", "t": "select", "st": "extras", "cap": "wobble", "opts": ["NE", "ANO"] }, { "k": "wobbleSize", "lb": "Wobble Size", "t": "number", "st": "wobbleMm", "u": "mm", "cap": "wobble" }, { "k": "wobbleStep", "lb": "Wobble Step", "t": "number", "st": "extras", "u": "mm", "cap": "wobble" }, { "k": "autoRotate", "lb": "Auto-Rotate", "t": "select", "st": "extras", "opts": ["NE", "ANO"] }, { "k": "dotWidthAdjust", "lb": "Dot Width Adjust", "t": "number", "st": "extras", "u": "mm" }], "cap": "wobble" }, { "g": "depth3d", "params": [{ "k": "cleanupPass", "lb": "Enable Cleanup Pass", "t": "select", "st": "extras", "opts": ["NE", "ANO"] }, { "k": "cleanAfter", "lb": "Clean after # of passes", "t": "number", "st": "extras", "min": 1 }, { "k": "cleanWhole", "lb": "Clean Whole Image", "t": "select", "st": "extras", "opts": ["NE", "ANO"] }, { "k": "depthMapFile", "lb": "Depth map", "t": "file", "st": "extras" }], "cap": "sliced3d" }, { "g": "galvoTimings", "params": [{ "k": "overrideTimings", "lb": "Override Default Timings", "t": "select", "st": "extras", "opts": ["NE", "ANO"] }, { "k": "jumpSpeed", "lb": "Jump Speed", "t": "number", "st": "extras", "u": "mm/s" }, { "k": "minJumpDelay", "lb": "Min Jump Delay", "t": "number", "st": "extras", "u": "\u00b5s" }, { "k": "maxJumpDelay", "lb": "Max Jump Delay", "t": "number", "st": "extras", "u": "\u00b5s" }, { "k": "jumpDistanceLimit", "lb": "Jump Distance Limit", "t": "number", "st": "extras", "u": "mm" }, { "k": "laserOnTC", "lb": "Laser On TC", "t": "number", "st": "extras", "u": "\u00b5s" }, { "k": "laserOffTC", "lb": "Laser Off TC", "t": "number", "st": "extras", "u": "\u00b5s" }, { "k": "endTC", "lb": "End TC", "t": "number", "st": "extras", "u": "\u00b5s" }, { "k": "polygonTC", "lb": "Polygon TC", "t": "number", "st": "extras", "u": "\u00b5s" }, { "k": "pauseBefore", "lb": "Pause Before", "t": "number", "st": "extras", "u": "ms" }, { "k": "pauseAfter", "lb": "Pause After", "t": "number", "st": "extras", "u": "ms" }], "cap": "galvoTimings" }, { "g": "rotary", "params": [{ "k": "rotaryEnabled", "lb": "Rotary Enabled", "t": "select", "st": "extras", "opts": ["NE", "ANO"] }, { "k": "rotaryType", "lb": "Rotary type", "t": "select", "st": "extras", "opts": ["CHUCK", "ROLLER", "JINY"] }, { "k": "rotaryAxis", "lb": "Axis", "t": "select", "st": "extras", "opts": ["Y", "X"] }, { "k": "objectDiameter", "lb": "Object diameter", "t": "number", "st": "rotaryDiameterMm", "u": "mm" }, { "k": "circumference", "lb": "Circumference", "t": "number", "st": "rotaryCircumferenceMm", "u": "mm" }, { "k": "rotationSpeed", "lb": "mm per rotation", "t": "number", "st": "extras", "u": "mm/rot" }], "cap": "rotary" }, { "g": "notes", "params": [{ "k": "preparation", "lb": "Preparation", "t": "textarea", "st": "extras" }, { "k": "notes", "lb": "Result notes", "t": "textarea", "st": "notes" }, { "k": "gallery", "lb": "Photos", "t": "gallery", "st": "extras" }] }];
+    const LC_CORE = { speed: 'speedMmPerS', power: 'powerPercent', frequency: 'frequencyKHz', pulseWidth: 'qPulseNs', lineInterval: 'lineIntervalMm', dpi: 'dpi', passes: 'passes', scanAngle: 'hatchAngleDeg', wobbleSize: 'wobbleMm', objectDiameter: 'rotaryDiameterMm', circumference: 'rotaryCircumferenceMm' };
+    const LC_GUARD_FIELD = { frequencyKHz: 'frequency', qPulseNs: 'pulseWidth', powerPercent: 'power', speedMmPerS: 'speed', passes: 'passes' };
+    const LC_LAYER_GROUPS = ['layer', 'line', 'fill', 'image', 'imageAdjust', 'galvo', 'depth3d', 'galvoTimings', 'rotary'];
+    function lcValue(op, k, st) { const pr = op?.data?.parameters || {}; if (st === 'name')
+        return op?.data?.name; if (st === 'layerName')
+        return op?.data?.layerName; if (st === 'operationType')
+        return pr.extras?.mode || ''; if (LC_CORE[k])
+        return pr[LC_CORE[k]]; return pr.extras?.[k]; }
+    async function openLayerEditor(core, opts, ctx) {
+        const { project, op, layers } = ctx;
+        const parent = ctx.parentId ? layers.find((x) => x.id === ctx.parentId) : (op?.data?.parentId ? layers.find((x) => x.id === op.data.parentId) : null);
+        const RC = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['LASER.READ'], confirmed: true };
+        let capsRes = null, guardFor = null;
+        try {
+            capsRes = await core.actions.invoke('ACTION.LASER.CAPS.FOR', { profileId: project.data.profileId }, RC);
+        }
+        catch { }
+        try {
+            guardFor = await core.actions.invoke('ACTION.LASER.GUARD.FOR', { profileId: project.data.profileId }, RC);
+        }
+        catch { }
+        const caps = capsRes?.caps || null;
+        const CAPMAP = { qpulse: 'pulse', galvoTimings: 'timings', airAssist: 'air', sliced3d: 'threeD' }; /* catalogue names → core capability keys; an unknown name is never treated as allowed */
+        const capOk = (c) => { if (!c || !caps)
+            return true; const k = CAPMAP[c] || c; return k in caps ? caps[k] === true : false; };
+        const G = globalThis.KXLaserGuard;
+        const gt = guardFor?.guard?.customTable || (guardFor?.guard?.tableId ? G?.TABLES?.[guardFor.guard.tableId] : null);
+        const pulses = (guardFor?.guard?.ranges?.pulseValues) || (gt?.rows || []).map((r) => r.pulse);
+        const mode0 = String(lcValue(op, 'mode', 'operationType') || lcValue(parent, 'mode', 'operationType') || 'FILL');
+        const field = (q) => {
+            const v = lcValue(op, q.k, q.st);
+            const inh = parent ? lcValue(parent, q.k, q.st) : undefined;
+            const ph = inh != null && inh !== '' ? `↳ ${inh}` : '';
+            const lab = TL('lc.' + q.k, q.lb);
+            const desc = TL('lc.' + q.k + '.d', '');
+            let ctl = '';
+            if (q.t === 'select')
+                ctl = `<select data-lce="${q.k}"><option value="">${esc(ph || '—')}</option>${(q.opts || []).map((c) => `<option value="${c}" ${String(v ?? '') === c ? 'selected' : ''}>${esc(TL('lc.o.' + q.k + '.' + c, c))}</option>`).join('')}</select>`;
+            else if (q.t === 'textarea')
+                ctl = `<textarea data-lce="${q.k}" rows="2" placeholder="${esc(ph)}">${esc(v ?? '')}</textarea>`;
+            else if (q.t === 'number')
+                ctl = `<input data-lce="${q.k}" type="number" step="any" ${q.min != null ? `min="${q.min}"` : ''} ${q.max != null ? `max="${q.max}"` : ''} value="${esc(v ?? '')}" placeholder="${esc(ph)}" ${q.k === 'pulseWidth' && pulses.length ? 'list="lcePulses"' : ''}>`;
+            else if (q.t === 'checkbox')
+                ctl = `<input data-lce="${q.k}" type="checkbox" ${v ? 'checked' : ''}>`;
+            else
+                ctl = `<input data-lce="${q.k}" type="text" value="${esc(v ?? '')}" placeholder="${esc(ph)}">`;
+            return `<label class="lce-f" data-lce-f="${q.k}" ${q.cap ? `data-cap="${q.cap}"` : ''}><span class="lce-l">${esc(lab)}${q.u ? ` <small>[${esc(q.u)}]</small>` : ''} <i class="lce-i" title="${esc(desc)}" tabindex="0">ⓘ</i></span>${ctl}<small class="lce-h" data-lce-h="${q.k}"></small></label>`;
+        };
+        const groups = LCAT.filter((g) => LC_LAYER_GROUPS.includes(g.g));
+        const w = document.createElement('div');
+        w.className = 'lce-wrap';
+        w.setAttribute('data-keep-open', '');
+        w.setAttribute('data-laser-layer-editor', '');
+        w.innerHTML = `<div class="lce" role="dialog" aria-modal="true"><div class="lce-head"><div><b>⚙ ${esc(op ? TL('lce.edit', 'Layer settings') : TL('lce.new', 'New layer'))}</b><small>${esc(project.data.title || '')}${capsRes?.source ? ` · ${esc(capsRes.source.name)}${capsRes.source.nominalPowerW ? ` ${capsRes.source.nominalPowerW} W` : ''}` : ''}${capsRes?.profile?.name ? ` · ${esc(capsRes.profile.name)}` : ''}</small></div><button type="button" class="icon-btn" data-lce-close title="${esc(TL('vault.cancel', 'Cancel'))}">✕</button></div>
+      <div class="lce-guard" data-lce-guard hidden></div>
+      <div class="lce-body">${groups.map((g) => `<details class="lce-g" data-lce-g="${g.g}" ${g.modes ? `data-modes="${g.modes.join(',')}"` : ''} ${g.cap ? `data-cap="${g.cap}"` : ''} open><summary>${esc(TL('lc.g.' + g.g, g.g))}</summary><div class="lce-grid">${g.params.map(field).join('')}</div></details>`).join('')}</div>
+      ${pulses.length ? `<datalist id="lcePulses">${pulses.map(x => `<option value="${x}">`).join('')}</datalist>` : ''}
+      <div class="lce-foot"><small class="muted">${caps ? esc(TL('lce.capsNote', 'Only parameters the chosen source supports are shown.')) : esc(TL('lce.noCaps', 'Source capabilities unknown – all parameters are shown.'))}</small><span class="lce-err" data-lce-err></span><button type="button" class="btn ghost" data-lce-close>${esc(TL('vault.cancel', 'Cancel'))}</button><button type="button" class="btn primary" data-lce-save>✓ ${esc(TL('cv.save', 'Save'))}</button></div></div>`;
+        document.body.appendChild(w);
+        ['click', 'pointerdown', 'mousedown', 'touchstart'].forEach(ev => w.addEventListener(ev, (e) => e.stopPropagation())); /* clicks never reach the page-level outside-click rule (it closed the Laser window) */
+        const $ = (q) => w.querySelector(q);
+        const all = (q) => Array.from(w.querySelectorAll(q));
+        const modeSel = $('[data-lce="mode"]');
+        if (modeSel && !modeSel.value)
+            modeSel.value = mode0;
+        const vis = () => { const m = modeSel?.value || mode0; all('[data-lce-g]').forEach(g => { const md = g.dataset.modes; const ok = (!md || md.split(',').includes(m)) && capOk(g.dataset.cap); g.hidden = !ok; }); all('[data-lce-f]').forEach(f => { f.hidden = !capOk(f.dataset.cap); }); };
+        const read = () => { const out = {}; all('[data-lce]').forEach((el) => { const k = el.dataset.lce; if (el.type === 'checkbox') {
+            out[k] = !!el.checked;
+            return;
+        } const v = String(el.value ?? '').trim(); if (v !== '')
+            out[k] = v; }); return out; };
+        const guardParams = () => { const v = read(); const eff = (k) => v[k] ?? (parent ? lcValue(parent, k, LC_CORE[k] ? '' : 'extras') : undefined); const o = {}; for (const [k, dk] of Object.entries(LC_CORE)) {
+            if (!LC_GUARD_FIELD[dk])
+                continue;
+            const x = eff(k);
+            if (x != null && x !== '')
+                o[dk] = Number(String(x).replace(',', '.'));
+        } return o; };
+        let ovr = op?.data?.parameters?.extras?.guardOverride || null;
+        let gTimer = null;
+        const runGuard = async () => {
+            all('[data-lce-f]').forEach(f => f.classList.remove('lce-bad', 'lce-warn'));
+            all('[data-lce-h]').forEach(h => h.textContent = '');
+            const box = $('[data-lce-guard]');
+            let r = null;
+            try {
+                r = await core.actions.invoke('ACTION.LASER.GUARD.CHECK', { profileId: project.data.profileId, params: guardParams() }, RC);
+            }
+            catch { }
+            if (!r || r.status === 'na' || !r.findings?.length) {
+                box.hidden = true;
+                return r;
+            }
+            const probs = r.findings.filter((x) => x.status !== 'info');
+            for (const f of r.findings) {
+                const k = LC_GUARD_FIELD[f.field];
+                const el = k && w.querySelector(`[data-lce-f="${k}"]`);
+                const h = k && w.querySelector(`[data-lce-h="${k}"]`);
+                if (el && f.status !== 'info')
+                    el.classList.add(f.status === 'danger' ? 'lce-bad' : 'lce-warn');
+                if (h)
+                    h.textContent = lceMsg(f);
+            }
+            const off = !!ovr && r.status === 'danger';
+            box.className = `lce-guard lce-guard-${off ? 'off' : r.status}`;
+            box.innerHTML = `${off ? `<b>🛡 ${esc(TL('lce.guard.off', 'Protection switched off for this layer'))}</b> <small>${esc(new Date(ovr.at).toLocaleString('cs-CZ'))}</small> <button type="button" class="btn compact" data-lce-ovr-on>${esc(TL('lce.guard.on', 'Switch protection on'))}</button><br>` : ''}<b>${r.status === 'danger' ? '⛔' : r.status === 'warn' ? '⚠' : '✓'} ${esc(TL('lce.guard.' + r.status, r.status))}</b>${r.table ? ` <small>${esc(r.table.name)}${r.suggested ? ' · ' + esc(TL('lce.guard.suggested', 'suggested by the source name – verify')) : ''}</small>` : ''}${probs.map((f) => `<div class="lce-gf lce-gf-${f.status}"><span>${esc(lceMsg(f))}</span>${f.fix && f.fix.value != null ? `<button type="button" class="btn compact" data-lce-fix="${esc(LC_GUARD_FIELD[f.fix.field] || '')}" data-v="${esc(f.fix.value)}">${esc(TL('lce.fix', 'Set'))} ${esc(f.fix.value)}</button>` : ''}</div>`).join('')}`;
+            box.hidden = false;
+            if (r.status === 'danger' && !off)
+                box.insertAdjacentHTML('beforeend', `<div class="lce-ovr"><button type="button" class="btn ghost compact" data-lce-ovr>${esc(TL('lce.guard.offBtn', 'Switch STOP off for this layer…'))}</button></div>`);
+            $('[data-lce-ovr]')?.addEventListener('click', () => { if (!confirm(TL('lce.guard.offConfirm', 'Switch off the STOP protection for this layer?')))
+                return; ovr = { at: new Date().toISOString(), by: String(opts.actorId || ''), status: r.status }; void runGuard(); });
+            $('[data-lce-ovr-on]')?.addEventListener('click', () => { ovr = null; void runGuard(); });
+            all('[data-lce-fix]').forEach(b => b.onclick = () => { const el = $(`[data-lce="${b.dataset.lceFix}"]`); if (el) {
+                el.value = String(b.dataset.v);
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            } });
+            return r;
+        };
+        w.addEventListener('input', (e) => { if (e.target?.dataset?.lce === 'mode')
+            vis(); clearTimeout(gTimer); gTimer = setTimeout(() => void runGuard(), 180); });
+        w.addEventListener('change', (e) => { if (e.target?.dataset?.lce === 'mode')
+            vis(); });
+        const close = () => w.remove();
+        all('[data-lce-close]').forEach(b => b.onclick = close);
+        w.addEventListener('keydown', (e) => { if (e.key === 'Escape')
+            close(); });
+        $('[data-lce-save]').onclick = async () => {
+            const v = read();
+            const err = $('[data-lce-err]');
+            err.textContent = '';
+            const name = String(v.layerName || op?.data?.name || '').trim();
+            if (!name) {
+                err.textContent = TL('lce.nameReq', 'Enter the layer name.');
+                $('[data-lce="layerName"]')?.focus();
+                return;
+            }
+            for (const g of groups)
+                for (const q of g.params) {
+                    if (q.t === 'number' && v[q.k] != null) {
+                        const n = Number(String(v[q.k]).replace(',', '.'));
+                        if (!Number.isFinite(n)) {
+                            err.textContent = `${TL('lc.' + q.k, q.lb)}: ${TL('lce.notNumber', 'not a number')}`;
+                            return;
+                        }
+                        if (q.min != null && n < q.min || q.max != null && n > q.max) {
+                            err.textContent = `${TL('lc.' + q.k, q.lb)}: ${q.min ?? '−∞'}–${q.max ?? '∞'}`;
+                            return;
+                        }
+                    }
+                }
+            const g = await runGuard();
+            if (g?.status === 'danger' && !ovr && !confirm(TL('lce.saveDanger', 'The guard reports a dangerous combination. Save anyway (marked ⚠)?')))
+                return;
+            const pr = { ...(op?.data?.parameters || {}) };
+            const ex = { ...(pr.extras || {}) };
+            for (const gg of groups)
+                for (const q of gg.params) {
+                    if (['name', 'layerName', 'operationType'].includes(q.st))
+                        continue;
+                    const has = Object.prototype.hasOwnProperty.call(v, q.k);
+                    const val = has ? (q.t === 'number' ? Number(String(v[q.k]).replace(',', '.')) : v[q.k]) : undefined;
+                    if (LC_CORE[q.k]) {
+                        if (has)
+                            pr[LC_CORE[q.k]] = val;
+                        else
+                            delete pr[LC_CORE[q.k]];
+                    }
+                    else {
+                        if (has && val !== false)
+                            ex[q.k] = val;
+                        else
+                            delete ex[q.k];
+                    }
+                }
+            ex.mode = v.mode || mode0;
+            if (g?.status === 'danger' || g?.status === 'warn')
+                ex.guardWarning = g.status;
+            else
+                delete ex.guardWarning;
+            if (ovr && g?.status === 'danger')
+                ex.guardOverride = { ...ovr, status: 'danger' };
+            else
+                delete ex.guardOverride;
+            pr.extras = ex;
+            const lens = project.data.defaultLensId || (project.data.lensIds || [])[0];
+            const seq = op ? op.data.sequence : (Math.max(-1, ...layers.filter((x) => (x.data.parentId || null) === (ctx.parentId || null)).map((x) => Number(x.data.sequence) || 0)) + 1);
+            const data = { ...(op?.data || {}), projectId: project.id, name, sequence: seq, lensId: op?.data?.lensId || lens, parameters: pr, layerName: v.layer || op?.data?.layerName || '', ...(ctx.parentId ? { parentId: ctx.parentId } : {}) };
+            if (!data.operationType)
+                data.operationType = ex.mode;
+            try {
+                await core.actions.invoke('ACTION.LASER.OPERATION.SAVE', op ? { id: op.id, expectedRevision: op.revision, spaceIds: op.spaceIds, data } : { spaceIds: project.spaceIds, data }, ctx.PC);
+                close();
+                opts.onToast?.(TL('lce.saved', 'Layer saved'));
+                ctx.onSaved();
+            }
+            catch (e) {
+                err.textContent = String(e?.message || e);
+            }
+        };
+        vis();
+        void runGuard();
+        setTimeout(() => $('[data-lce="layerName"]')?.focus(), 0);
+    }
+    function lceMsg(f) { const T2 = (k, d) => TL('lce.m.' + k, d); switch (f.code) {
+        case 'BELOW_CUTOFF': return T2('BELOW_CUTOFF', 'Below cut-off').replace('{p}', f.pulse).replace('{c}', f.cutoff) + (f.estimatedW != null ? ` · ≈ ${f.estimatedW} W` : '');
+        case 'STOP_OVER_MAX': return T2('STOP_OVER_MAX', 'Over max').replace('{p}', f.pulse).replace('{m}', f.max);
+        case 'IN_RANGE': return T2('IN_RANGE', 'In range').replace('{p}', f.pulse).replace('{c}', f.cutoff).replace('{m}', f.max);
+        case 'PULSE_NOT_ALLOWED': return T2('PULSE_NOT_ALLOWED', 'Pulse not allowed').replace('{o}', (f.options || []).join(', '));
+        case 'PULSE_RANGE':
+        case 'FREQ_RANGE': return T2('RANGE', 'Out of range').replace('{a}', f.min ?? '−∞').replace('{b}', f.max ?? '∞');
+        case 'SPEED_OVER': return T2('SPEED_OVER', 'Over max speed').replace('{m}', f.max);
+        case 'PASSES_OVER': return T2('PASSES_OVER', 'Too many passes').replace('{m}', f.max);
+        case 'POWER_INVALID': return T2('POWER_INVALID', 'Power 0–100 %');
+        default: return f.code;
+    } }
     const paramsFor = (d) => { const t = new Set(d?.technologyCodes || []); return PARAMS.filter(p => !p.need || (p.need === 'GALVO' && t.has('GALVO')) || (p.need === 'NOGALVO' && !t.has('GALVO')) || t.has(p.need)); };
     /* N2.5s: section „Source protection“ on the laser card – per source: state (confirmed / suggested / unknown), manufacturer table, ranges */
     function guardSection(srcs) {
@@ -842,11 +1101,11 @@ var KXLaserHub;
                             return '<td class="muted">—</td>';
                         return `<td class="${own != null ? 'kx-own' : 'kx-inh'}" title="${esc(own != null ? TL('laser.prj.ownValue', 'own value') : TL('laser.prj.inherited', 'inherited from the parent layer'))}">${esc(v)}${own != null && o.data.parentId ? ` <button class="icon-btn" data-lh-reset="${esc(o.id)}" data-set="${set}" data-k="${esc(k)}" title="↺ ${esc(TL('laser.prj.resetInherit', 'return the inherited value'))}">↺</button>` : ''}</td>`;
                     };
-                    const row = (o, depth) => `<tr data-lh-layer="${esc(o.id)}" class="${o.data.parentId ? 'kx-sublayer' : ''}"><td style="padding-left:${6 + depth * 16}px">${depth ? '↳ ' : ''}${esc(o.data.name)}${o.data.parameters?.extras?.guardWarning ? ` <span class="kx-badge kx-badge-warn" data-lg-warnrec title="${esc(TL('lg.warnRecHelp', ''))}">⚠ ${esc(TL('lg.warnRec', ''))}</span>` : ''}</td>${pf.map(p => cell(o, 'lb', p.k)).join('')}${isLp4 ? LDS.map(p => cell(o, 'lds', p.k)).join('') : ''}
-            <td class="kx-layer-act"><button class="icon-btn" data-lh-edit="${esc(o.id)}" title="✎">✎</button><button class="icon-btn" data-lh-sub="${esc(o.id)}" title="${esc(TL('laser.prj.addSub', 'add a sublayer'))}">＋↳</button><button class="icon-btn" data-lh-del="${esc(o.id)}" title="🗑">🗑</button></td></tr>` + kids(o.id).map((k) => row(k, depth + 1)).join('');
+                    const row = (o, depth) => `<tr data-lh-layer="${esc(o.id)}" class="${o.data.parentId ? 'kx-sublayer' : ''}"><td style="padding-left:${6 + depth * 16}px">${depth ? '↳ ' : ''}${esc(o.data.name)}${o.data.parameters?.extras?.guardOverride ? ` <span class="kx-badge kx-badge-off" data-lg-override title="${esc(TL('lce.guard.off', 'Protection switched off for this layer'))}">🛡 ${esc(TL('lce.guard.offShort', 'protection off'))}</span>` : ''}${o.data.parameters?.extras?.guardWarning ? ` <span class="kx-badge kx-badge-warn" data-lg-warnrec title="${esc(TL('lg.warnRecHelp', ''))}">⚠ ${esc(TL('lg.warnRec', ''))}</span>` : ''}</td>${pf.map(p => cell(o, 'lb', p.k)).join('')}${isLp4 ? LDS.map(p => cell(o, 'lds', p.k)).join('') : ''}
+            <td class="kx-layer-act"><button class="icon-btn" data-lh-adv="${esc(o.id)}" title="${esc(TL('lce.edit', 'Layer settings'))}">⚙</button><button class="icon-btn" data-lh-edit="${esc(o.id)}" title="✎">✎</button><button class="icon-btn" data-lh-sub="${esc(o.id)}" title="${esc(TL('laser.prj.addSub', 'add a sublayer'))}">＋↳</button><button class="icon-btn" data-lh-del="${esc(o.id)}" title="🗑">🗑</button></td></tr>` + kids(o.id).map((k) => row(k, depth + 1)).join('');
                     const form = (prefix) => `<tr data-lh-layer-form="${esc(prefix)}"><td><input data-ln="name" maxlength="80" placeholder="${esc(TL('laser.prj.layerPh', 'e.g. Fill logo'))}"></td>${pf.map(p => `<td><input data-lp="${p.k}" inputmode="decimal" style="width:68px"><span class="kx-lf-help" data-lp-help="${p.k}"></span></td>`).join('')}${isLp4 ? LDS.map(p => `<td>${p.opts ? `<select data-lds="${p.k}"><option value="">—</option>${p.opts.map(x => `<option>${x}</option>`).join('')}</select>` : `<input data-lds="${p.k}" inputmode="decimal" style="width:60px">`}</td>`).join('') : ''}<td><button class="btn compact" data-ln-add>✓</button></td></tr>`;
                     det.innerHTML = `<section class="kx-lcard open" data-lh-project="${esc(cur.id)}"><header class="kx-lcard-h"><b>${esc(cur.data.recordCode)} · ${esc(cur.data.title)}</b><small class="muted">${esc(mc?.data.name || '')} · ${esc(byId(cur.data.profileId)?.data.name || '')}${cur.data.material ? ` · ${esc(cur.data.material)}` : ''}</small><button class="icon-btn" data-lh-pclose>×</button></header>
-            <h5>${esc(TL('laser.prj.layers', 'Layers (LightBurn order)'))}</h5>${isLp4 ? `<p class="muted kx-acc-help">${esc(TL('laser.prj.lp4dual', 'LaserPecker LP4: LightBurn and Design Space side by side – values are NOT converted (Design Space uses Depth, LightBurn speed).'))}</p>` : ''}
+            <div class="kx-lh-layerbar"><h5>${esc(TL('laser.prj.layers', 'Layers (LightBurn order)'))}</h5><button type="button" class="btn compact" data-lh-advnew="" title="${esc(TL('lce.new', 'New layer'))}">＋ ⚙ ${esc(TL('lce.new', 'New layer'))}</button></div>${isLp4 ? `<p class="muted kx-acc-help">${esc(TL('laser.prj.lp4dual', 'LaserPecker LP4: LightBurn and Design Space side by side – values are NOT converted (Design Space uses Depth, LightBurn speed).'))}</p>` : ''}
             <table class="kx-calc-table" data-lh-layers><tr><th>${esc(TL('laser.prj.layerName', 'Name'))}</th>${pf.map(p => `<th title="${esc(TL('laser.param.help.' + p.k, ''))}">${isLp4 ? 'LB · ' : ''}${esc(TL('laser.param.' + p.k, p.k))} <small>${esc(p.u)}</small></th>`).join('')}${isLp4 ? LDS.map(p => `<th class="kx-lds" title="${esc(TL('laser.param.help.lds.' + p.k, ''))}">DS · ${esc(TL('laser.param.lds.' + p.k, p.k))} <small>${esc(p.u)}</small></th>`).join('') : ''}<th></th></tr>
             ${kids(null).map((o) => row(o, 0)).join('')}${form(st.pForm || '')}</table>
             <small class="muted" data-lh-form-ctx>${esc(st.pEdit ? TL('laser.prj.editing', 'Editing') + ': ' + (layers.find((x) => x.id === st.pEdit)?.data.name || '') : st.pForm ? TL('laser.prj.newSub', 'New sublayer of') + ': ' + (layers.find((x) => x.id === st.pForm)?.data.name || '') : TL('laser.prj.newTop', 'New layer'))}</small> <span class="kx-lf-help" data-ln-err></span><div class="kx-lguard" data-ln-guard></div><label class="kx-lguard-ack" data-ln-ack hidden><input type="checkbox" data-ln-guard-ack> ${esc(TL('lg.ack', ''))}</label></section>`;
@@ -897,6 +1156,9 @@ var KXLaserHub;
                     fRow.querySelectorAll('[data-lp]').forEach(x => x.oninput = () => { const g = guardParam(String(x.dataset.lp), x.value); const c = x.closest('td'); c.style.boxShadow = g ? '0 0 0 2px #e5484d inset' : ''; c.querySelector('[data-lp-help]').textContent = g ? g.msg : ''; clearTimeout(lgT); lgT = setTimeout(() => void lgRun(), 250); });
                     void lgRun();
                     det.querySelectorAll('[data-lh-edit]').forEach(b => b.onclick = () => { st.pEdit = b.dataset.lhEdit; st.pForm = ''; again2(); });
+                    det.querySelectorAll('[data-lh-adv]').forEach(b => b.onclick = () => { const o = layers.find((x) => x.id === b.dataset.lhAdv); if (o)
+                        void openLayerEditor(core, opts, { project: cur, op: o, layers, onSaved: again2, PC }); });
+                    det.querySelectorAll('[data-lh-advnew]').forEach(b => b.onclick = () => void openLayerEditor(core, opts, { project: cur, layers, onSaved: again2, PC, parentId: b.dataset.lhAdvnew || null }));
                     det.querySelectorAll('[data-lh-sub]').forEach(b => b.onclick = () => { st.pForm = b.dataset.lhSub; st.pEdit = ''; again2(); });
                     det.querySelectorAll('[data-lh-del]').forEach(b => b.onclick = async () => {
                         const o = layers.find((x) => x.id === b.dataset.lhDel);

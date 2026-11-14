@@ -31,24 +31,51 @@ var KXLaserGuard;
             pv = [...new Set(pv)].sort((a, b) => a - b);
         }
         if (pv.length)
-            r.pulseValues = pv;
-        const tableId = g?.tableId && TABLES[g.tableId] ? String(g.tableId) : null;
-        if (g?.tableId && !tableId)
+            r.pulseValues = pv; /* N2.6b+ (user): an own manufacturer table per source – rows pulse → cut-off → max; validated, sorted; takes precedence over a built-in table */
+        let customTable = null;
+        if (g?.customTable) {
+            const c = g.customTable;
+            const rows = (Array.isArray(c.rows) ? c.rows : []).map((x) => ({ pulse: num(x?.pulse), cutoff: num(x?.cutoff), max: num(x?.max) }));
+            if (!rows.length)
+                throw new Error('LASER_GUARD_TABLE_EMPTY');
+            if (rows.length > 64)
+                throw new Error('LASER_GUARD_TABLE_TOO_LONG');
+            for (const x of rows) {
+                if (x.pulse == null || x.cutoff == null || Number.isNaN(x.pulse) || Number.isNaN(x.cutoff) || x.pulse <= 0 || x.cutoff <= 0)
+                    throw new Error('LASER_GUARD_TABLE_ROW');
+                if (x.max != null && (Number.isNaN(x.max) || x.max < x.cutoff))
+                    throw new Error('LASER_GUARD_TABLE_ROW');
+            }
+            const seen = new Set();
+            for (const x of rows) {
+                if (seen.has(x.pulse))
+                    throw new Error('LASER_GUARD_TABLE_DUP');
+                seen.add(x.pulse);
+            }
+            rows.sort((a, b) => a.pulse - b.pulse);
+            const lim = (k) => { const n = num(c[k]); if (n == null)
+                return undefined; if (Number.isNaN(n) || n < 0)
+                throw new Error('LASER_GUARD_RANGE:' + k); return n; };
+            customTable = { name: String(c.name || '').trim().slice(0, 80) || 'CUSTOM', nominalPowerW: lim('nominalPowerW'), frequencyMinKHz: lim('frequencyMinKHz'), frequencyMaxKHz: lim('frequencyMaxKHz'), pulseMinNs: lim('pulseMinNs'), pulseMaxNs: lim('pulseMaxNs'), rows: rows.map((x) => ({ pulse: x.pulse, cutoff: x.cutoff, max: x.max ?? null })) };
+        }
+        const tableId = customTable ? null : (g?.tableId && TABLES[g.tableId] ? String(g.tableId) : null);
+        if (!customTable && g?.tableId && !TABLES[g.tableId])
             throw new Error('LASER_GUARD_TABLE_UNKNOWN');
-        return { ranges: r, tableId, source: String(g?.source || '').slice(0, 300), updatedAt: g?.updatedAt || null };
+        return { ranges: r, tableId, ...(customTable ? { customTable } : {}), source: String(g?.source || '').slice(0, 300), updatedAt: g?.updatedAt || null };
     }
     /* suggestion by the source name / power – never applied as verified */
     function suggest(src) { const t = `${src?.name || ''} ${src?.sourceFamily || ''} ${src?.notes || ''}`; if (/JPT/i.test(t) && /M7/i.test(t) && (src?.nominalPowerW == null || Number(src.nominalPowerW) === 60))
         return { tableId: 'JPT_M7_60_1_5MJ', reason: 'JPT M7 60 W by the source name' }; return null; }
     /* effective guard: explicit (from the source) or suggested (flag) */
-    function effective(src) { const g = src?.guard ? normalize(src.guard) : null; if (g && (g.tableId || Object.keys(g.ranges).length))
+    function effective(src) { const g = src?.guard ? normalize(src.guard) : null; if (g && (g.tableId || g.customTable || Object.keys(g.ranges).length))
         return { ...g, suggested: false }; const s = suggest(src); return s ? { ranges: {}, tableId: s.tableId, source: s.reason, suggested: true } : null; }
     /* evaluate parameters → findings (danger / warn / info) with one-click fixes; overall status: danger > warn > safe; na = no guard */
     function evaluate(guard, p) {
         if (!guard)
             return { status: 'na', findings: [] };
         const F = [];
-        const t = guard.tableId ? TABLES[guard.tableId] : null;
+        const ct = guard.customTable;
+        const t = ct ? { id: 'CUSTOM', name: ct.name, nominalPowerW: ct.nominalPowerW ?? null, frequencyMinKHz: ct.frequencyMinKHz, frequencyMaxKHz: ct.frequencyMaxKHz, pulseMinNs: ct.pulseMinNs ?? (ct.rows[0]?.pulse), pulseMaxNs: ct.pulseMaxNs ?? (ct.rows[ct.rows.length - 1]?.pulse), rows: ct.rows, origin: 'Own table of the source', originKey: 'lg.origin.CUSTOM' } : (guard.tableId ? TABLES[guard.tableId] : null);
         const R = { ...(t ? { frequencyMinKHz: t.frequencyMinKHz, frequencyMaxKHz: t.frequencyMaxKHz, pulseMinNs: t.pulseMinNs, pulseMaxNs: t.pulseMaxNs } : {}), ...guard.ranges };
         const f = num(p?.frequencyKHz), q = num(p?.qPulseNs), pw = num(p?.powerPercent), vs = num(p?.speedMmPerS), vm = num(p?.speedMmPerMin), ps = num(p?.passes);
         if (pw != null && (Number.isNaN(pw) || pw < 0 || pw > 100))
@@ -78,10 +105,10 @@ var KXLaserGuard;
             else if (t && q != null && !Number.isNaN(q)) {
                 const row = t.rows.find((x) => x.pulse === q);
                 if (row) {
-                    if (f > row.max)
+                    if (row.max != null && f > row.max)
                         F.push({ field: 'frequencyKHz', status: 'danger', code: 'STOP_OVER_MAX', pulse: q, value: f, max: row.max, cutoff: row.cutoff, fix: { field: 'frequencyKHz', value: row.max } });
                     else if (f < row.cutoff)
-                        F.push({ field: 'frequencyKHz', status: 'warn', code: 'BELOW_CUTOFF', pulse: q, value: f, cutoff: row.cutoff, max: row.max, estimatedW: Math.round(t.nominalPowerW * f / row.cutoff * 10) / 10, fix: { field: 'frequencyKHz', value: row.cutoff } });
+                        F.push({ field: 'frequencyKHz', status: 'warn', code: 'BELOW_CUTOFF', pulse: q, value: f, cutoff: row.cutoff, max: row.max, estimatedW: t.nominalPowerW != null ? Math.round(t.nominalPowerW * f / row.cutoff * 10) / 10 : null, fix: { field: 'frequencyKHz', value: row.cutoff } });
                     else
                         F.push({ field: 'frequencyKHz', status: 'info', code: 'IN_RANGE', pulse: q, value: f, cutoff: row.cutoff, max: row.max });
                 }
@@ -146,6 +173,81 @@ var KXLaserGuard;
         core.laserGuard = svc;
         return svc;
     }
-    KXLaserGuard = { TABLES, normalize, suggest, effective, evaluate, install };
+    /* ---------- N2.6b+ SOURCE CAPABILITIES (original KalinumX Laser Parameter Hub v5.8.10: capabilities per source; technology templates KX58_TECHS) ----------
+       The fields a project / test / import shows depend on what the chosen SOURCE can do (LP4 450 nm ≠ 1064 nm). Explicit capabilities on the source win; otherwise the template of its technology. */
+    const CAP_KEYS = ['frequency', 'pulse', 'wobble', 'timings', 'overscan', 'air', 'threeD', 'rotary', 'autoRotate'];
+    const TECH_CAPS = {
+        FIBER_MOPA: { frequency: true, pulse: true, wobble: true, timings: true, overscan: false, air: false, threeD: true, rotary: true, autoRotate: true },
+        FIBER: { frequency: true, pulse: false, wobble: true, timings: true, overscan: false, air: false, threeD: true, rotary: true, autoRotate: true },
+        UV: { frequency: true, pulse: true, wobble: true, timings: true, overscan: false, air: false, threeD: false, rotary: true, autoRotate: true },
+        CO2: { frequency: false, pulse: false, wobble: false, timings: false, overscan: true, air: true, threeD: false, rotary: true, autoRotate: false },
+        DIODE: { frequency: false, pulse: false, wobble: false, timings: false, overscan: true, air: true, threeD: false, rotary: true, autoRotate: false }
+    };
+    /* the two physical machines of the original program – exact capability sets */
+    const PRESET_CAPS = { GALVO_P566: { frequency: true, pulse: true, wobble: true, timings: true, overscan: false, air: false, threeD: true, rotary: true, autoRotate: true }, LP4_P566: { frequency: false, pulse: false, wobble: false, timings: false, overscan: true, air: true, threeD: false, rotary: true, autoRotate: false } };
+    function normalizeCaps(c) { if (c == null)
+        return null; if (typeof c !== 'object')
+        throw new Error('LASER_CAPS_INVALID'); const out = {}; for (const k of Object.keys(c)) {
+        if (!CAP_KEYS.includes(k))
+            throw new Error('LASER_CAPS_KEY:' + k);
+        if (typeof c[k] !== 'boolean')
+            throw new Error('LASER_CAPS_VALUE:' + k);
+        out[k] = c[k];
+    } for (const k of CAP_KEYS)
+        if (!(k in out))
+            out[k] = false; return out; }
+    function capsOf(src) { const ex = src?.capabilities ? normalizeCaps(src.capabilities) : null; if (ex)
+        return { caps: ex, explicit: true, template: null }; const t = TECH_CAPS[String(src?.technologyCode || '')]; return { caps: t ? { ...t } : Object.fromEntries(CAP_KEYS.map(k => [k, false])), explicit: false, template: t ? String(src.technologyCode) : null }; }
+    const PROFILE_KEYS = ['speedUnit', 'workspace', 'focusMm', 'maxSpeedMmS', 'laserCommand', 'modeCommand', 'software', 'mode'];
+    function installCaps(core) {
+        if (core.laserCaps)
+            return core.laserCaps;
+        const OWNER = 'APP.KX.LASER';
+        const svc = { CAP_KEYS, TECH_CAPS, PRESET_CAPS, normalizeCaps, capsOf,
+            /* resolve: profile → its source; source; or the only / first source of the machine */
+            async capsFor(p) {
+                let src = null, prof = null;
+                if (p?.profileId) {
+                    prof = await core.laserDomain.get(String(p.profileId), 'APP.LASER.PROFILE').catch(() => null);
+                    if (prof?.data?.sourceModuleId)
+                        src = await core.laserDomain.get(String(prof.data.sourceModuleId), 'APP.LASER.SOURCE_MODULE').catch(() => null);
+                }
+                if (!src && p?.sourceModuleId)
+                    src = await core.laserDomain.get(String(p.sourceModuleId), 'APP.LASER.SOURCE_MODULE').catch(() => null);
+                if (!src && p?.machineId) {
+                    const all = (await core.laserDomain.list('APP.LASER.SOURCE_MODULE')).filter((r) => !r.archivedAt && r.data.machineId === String(p.machineId));
+                    src = all[0] || null;
+                }
+                if (!src)
+                    return { caps: null, source: null, profile: null };
+                const c = capsOf(src.data);
+                const pd = prof?.data || {};
+                return { ...c, source: { id: src.id, name: src.data.name, technologyCode: src.data.technologyCode, wavelengthNm: src.data.wavelengthNm ?? null, nominalPowerW: src.data.nominalPowerW ?? null }, profile: prof ? { id: prof.id, name: pd.name, ...Object.fromEntries(PROFILE_KEYS.filter(k => pd[k] != null && pd[k] !== '').map(k => [k, pd[k]])) } : null };
+            },
+            async setCaps(p, ctx) {
+                const src = await core.laserDomain.get(String(p?.sourceModuleId || ''), 'APP.LASER.SOURCE_MODULE');
+                if (!src)
+                    throw new Error('LASER_CAPS_SOURCE_UNKNOWN');
+                const caps = p?.capabilities == null ? null : normalizeCaps(p.capabilities);
+                const data = { ...src.data };
+                if (caps)
+                    data.capabilities = caps;
+                else
+                    delete data.capabilities;
+                return core.laserDomain.saveSourceModule({ id: src.id, expectedRevision: src.revision, spaceIds: src.spaceIds, data }, { ...ctx, appCode: OWNER });
+            } };
+        const reg = (code, risk, fn) => { try {
+            core.actions.register({ code, ownerApp: OWNER, risk, handler: fn });
+        }
+        catch { } };
+        reg('ACTION.LASER.CAPS.FOR', 'READ', (p) => svc.capsFor(p));
+        reg('ACTION.LASER.CAPS.SET', 'SAFE_WRITE', (p, c) => svc.setCaps(p, c));
+        reg('ACTION.LASER.CAPS.TEMPLATES', 'READ', () => ({ keys: [...CAP_KEYS], technologies: TECH_CAPS, presets: PRESET_CAPS }));
+        core.laserCaps = svc;
+        return svc;
+    }
+    const install0 = install;
+    function installAll(core) { const g = install0(core); installCaps(core); return g; }
+    KXLaserGuard = { TABLES, normalize, suggest, effective, evaluate, install: installAll, installCaps, normalizeCaps, capsOf, TECH_CAPS, PRESET_CAPS, CAP_KEYS };
     globalThis.KXLaserGuard = KXLaserGuard;
 })();
