@@ -425,7 +425,7 @@ var KXLaserHub;
         w.className = 'lce-wrap';
         w.setAttribute('data-keep-open', '');
         w.setAttribute('data-laser-layer-editor', '');
-        w.innerHTML = `<div class="lce" role="dialog" aria-modal="true"><div class="lce-head"><div><b>⚙ ${esc(op ? TL('lce.edit', 'Layer settings') : TL('lce.new', 'New layer'))}</b><small>${esc(project.data.title || '')}${capsRes?.source ? ` · ${esc(capsRes.source.name)}${capsRes.source.nominalPowerW ? ` ${capsRes.source.nominalPowerW} W` : ''}` : ''}${capsRes?.profile?.name ? ` · ${esc(capsRes.profile.name)}` : ''}</small></div><button type="button" class="icon-btn" data-lce-close title="${esc(TL('vault.cancel', 'Cancel'))}">✕</button></div>
+        w.innerHTML = `<div class="lce" role="dialog" aria-modal="true"><div class="lce-head"><div><b>⚙ ${esc(ctx.title || (op ? TL('lce.edit', 'Layer settings') : TL('lce.new', 'New layer')))}</b><small>${esc(project.data.title || '')}${capsRes?.source ? ` · ${esc(capsRes.source.name)}${capsRes.source.nominalPowerW ? ` ${capsRes.source.nominalPowerW} W` : ''}` : ''}${capsRes?.profile?.name ? ` · ${esc(capsRes.profile.name)}` : ''}</small></div><button type="button" class="icon-btn" data-lce-close title="${esc(TL('vault.cancel', 'Cancel'))}">✕</button></div>
       <div class="lce-guard" data-lce-guard hidden></div>
       <div class="lce-body">${groups.map((g) => `<details class="lce-g" data-lce-g="${g.g}" ${g.modes ? `data-modes="${g.modes.join(',')}"` : ''} ${g.cap ? `data-cap="${g.cap}"` : ''} open><summary>${esc(TL('lc.g.' + g.g, g.g))}</summary><div class="lce-grid">${g.params.map(field).join('')}</div></details>`).join('')}</div>
       ${pulses.length ? `<datalist id="lcePulses">${pulses.map(x => `<option value="${x}">`).join('')}</datalist>` : ''}
@@ -503,7 +503,7 @@ var KXLaserHub;
             const err = $('[data-lce-err]');
             err.textContent = '';
             const name = String(v.layerName || op?.data?.name || '').trim();
-            if (!name) {
+            if (!name && !ctx.saveStep) {
                 err.textContent = TL('lce.nameReq', 'Enter the layer name.');
                 $('[data-lce="layerName"]')?.focus();
                 return;
@@ -556,6 +556,18 @@ var KXLaserHub;
             else
                 delete ex.guardOverride;
             pr.extras = ex;
+            if (ctx.saveStep) {
+                try {
+                    await ctx.saveStep(pr, name);
+                    close();
+                    opts.onToast?.(TL('lts.stepSaved', 'Step saved'));
+                    ctx.onSaved();
+                }
+                catch (e) {
+                    err.textContent = String(e?.message || e);
+                }
+                return;
+            } /* test step: same editor, saved as a test run */
             const lens = project.data.defaultLensId || (project.data.lensIds || [])[0];
             const seq = op ? op.data.sequence : (Math.max(-1, ...layers.filter((x) => (x.data.parentId || null) === (ctx.parentId || null)).map((x) => Number(x.data.sequence) || 0)) + 1);
             const data = { ...(op?.data || {}), projectId: project.id, name, sequence: seq, lensId: op?.data?.lensId || lens, parameters: pr, layerName: v.layer || op?.data?.layerName || '', ...(ctx.parentId ? { parentId: ctx.parentId } : {}) };
@@ -672,6 +684,149 @@ var KXLaserHub;
                 err.textContent = String(e?.message || e);
             }
         };
+    }
+    /* ---------- N2.6b+ TEST SESSION WITH STEPS (original hub: baseline → steps, what changed, result, note, compare, return to an older step, combine, REC timer, save as project) ---------- */
+    const LC_INV = Object.fromEntries(Object.entries({ speed: 'speedMmPerS', power: 'powerPercent', frequency: 'frequencyKHz', pulseWidth: 'qPulseNs', lineInterval: 'lineIntervalMm', dpi: 'dpi', passes: 'passes', scanAngle: 'hatchAngleDeg', wobbleSize: 'wobbleMm', objectDiameter: 'rotaryDiameterMm', circumference: 'rotaryCircumferenceMm' }).map(([a, b]) => [b, a]));
+    function lcsFlat(pr) { const o = {}; for (const [k, v] of Object.entries(pr || {})) {
+        if (k === 'extras')
+            continue;
+        if (v != null && v !== '')
+            o[LC_INV[k] || k] = v;
+    } for (const [k, v] of Object.entries(pr?.extras || {})) {
+        if (['guardWarning', 'guardOverride'].includes(k))
+            continue;
+        if (v != null && v !== '' && v !== false)
+            o[k] = v;
+    } return o; }
+    function lcsDiff(a, b) { const A = lcsFlat(a), B = lcsFlat(b); const keys = [...new Set([...Object.keys(A), ...Object.keys(B)])]; return keys.filter(k => String(A[k] ?? '') !== String(B[k] ?? '')).map(k => ({ k, from: A[k], to: B[k] })); }
+    function lcsName(k) { const v = TL('lc.' + k, ''); return v && v !== 'lc.' + k ? v : k; }
+    function lcsVal(k, v) { if (v == null || v === '')
+        return '—'; if (typeof v === 'string' && /^[A-Z0-9_]+$/.test(v)) {
+        const t = TL('lc.o.' + k + '.' + v, '');
+        if (t && t !== 'lc.o.' + k + '.' + v)
+            return t;
+    } return String(v); }
+    function renderSession(core, opts, root, cur, all, byId, again) {
+        const det = root.querySelector('[data-lt-detail]');
+        const runs = all.filter((x) => x.type === 'APP.LASER.TEST_RUN' && x.data.testId === cur.id && !x.archivedAt).sort((a, b) => a.data.sequence - b.data.sequence);
+        const TC = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['LASER.TEST.EDIT', 'LASER.CONFIG.EDIT', 'LASER.PROJECT.EDIT'], confirmed: true };
+        const G = globalThis.KXLaserGuard;
+        const src = byId(cur.data.sourceModuleId);
+        const guard = src && G ? G.effective(src.data) : null;
+        const recKey = 'kx.laser.rec.' + cur.id;
+        const recAt = Number(localStorage.getItem(recKey) || 0);
+        const fmtMs = (ms) => { const s2 = Math.round(ms / 1000); return `${Math.floor(s2 / 3600)}:${String(Math.floor(s2 % 3600 / 60)).padStart(2, '0')}:${String(s2 % 60).padStart(2, '0')}`; };
+        const RS = { PENDING: '⏳', PASS: '✓', FAIL: '✗', MIXED: '≈' };
+        const KEY = ['speed', 'power', 'frequency', 'pulseWidth', 'lineInterval', 'passes', 'mode'];
+        const gst = (pr) => { if (!guard)
+            return ''; const r = G.evaluate(guard, pr || {}); if (pr?.extras?.guardOverride && r.status === 'danger')
+            return `<span class="kx-badge kx-badge-off">🛡</span>`; return r.status === 'danger' ? '<span class="kx-badge kx-badge-bad">⛔</span>' : r.status === 'warn' ? '<span class="kx-badge kx-badge-warn">⚠</span>' : '<span class="kx-badge kx-badge-ok">✓</span>'; };
+        det.innerHTML = `<section class="kx-lcard open" data-lt-test="${esc(cur.id)}" data-lts-session><header class="kx-lcard-h"><b>${esc(cur.data.recordCode)} · ${esc(cur.data.title)}</b><small class="muted">${esc(byId(cur.data.machineId)?.data.name || '')} · ${esc(byId(cur.data.profileId)?.data.name || '')}${cur.data.material ? ' · ' + esc(cur.data.material) : ''} · ${esc(TL('lts.status.' + cur.data.status, cur.data.status))}</small><button class="icon-btn" data-lt-close title="${esc(TL('lts.close', 'Close the session'))}">×</button></header>
+      <div class="kx-lts-bar"><button class="btn primary" data-lts-next>＋ ${esc(TL('lts.next', 'Next step'))}</button><button class="btn ${recAt ? 'kx-rec-on' : ''}" data-lts-rec>${recAt ? '■ ' + esc(TL('lts.recStop', 'Stop')) + ' <b data-lts-recclock>' + fmtMs(Date.now() - recAt) + '</b>' : '● ' + esc(TL('lts.rec', 'REC'))}</button>${cur.data.status !== 'DONE' ? `<button class="btn" data-lts-done>✓ ${esc(TL('lts.finish', 'Finish the session'))}</button>` : ''}<small class="muted">${esc(TL('lts.hint', 'Each step remembers all parameters; changes against the previous step are highlighted.'))}</small></div>
+      ${runs.length ? `<table class="kx-calc-table kx-lts-table"><thead><tr><th>#</th><th>${esc(TL('lts.changed', 'What changed'))}</th>${KEY.map(k => `<th>${esc(lcsName(k))}</th>`).join('')}<th>${esc(TL('lce.col.guard', 'Protection'))}</th><th>${esc(TL('lts.result', 'Result'))}</th><th>${esc(TL('lts.note', 'Note'))}</th><th>${esc(TL('lts.time', 'Time'))}</th><th></th></tr></thead><tbody>
+      ${runs.map((r, i) => {
+            const pr = r.data.parameters || {};
+            const F = lcsFlat(pr);
+            const dif = i ? lcsDiff(runs[i - 1].data.parameters, pr) : [];
+            return `<tr data-lts-step="${esc(r.id)}"><td><b>${i + 1}</b></td><td class="kx-lts-diff">${i ? (dif.length ? dif.slice(0, 6).map(d => `<span class="kx-chip-diff">${esc(lcsName(d.k))}: ${esc(lcsVal(d.k, d.from))} → <b>${esc(lcsVal(d.k, d.to))}</b></span>`).join('') : `<small class="muted">${esc(TL('lts.noChange', 'no change'))}</small>`) : `<small class="muted">${esc(TL('lts.baseline', 'baseline'))}</small>`}</td>${KEY.map(k => `<td class="${dif.some(d => d.k === k) ? 'kx-lts-chg' : ''}">${esc(lcsVal(k, F[k]))}</td>`).join('')}<td>${gst(pr)}</td>
+          <td class="kx-lts-res">${['PENDING', 'PASS', 'FAIL', 'MIXED'].map(x => `<button class="icon-btn ${r.data.result === x ? 'on' : ''}" data-lts-res="${x}" title="${esc(TL('lts.r.' + x, x))}">${RS[x]}</button>`).join('')}</td>
+          <td><input class="kx-lts-note" data-lts-note value="${esc(r.data.notes || '')}" placeholder="${esc(TL('lts.notePh', 'what did you see?'))}"></td><td>${r.data.durationMs ? fmtMs(r.data.durationMs) : '—'}</td>
+          <td class="kx-lts-act"><button class="icon-btn" data-lts-edit title="${esc(TL('lts.edit', 'Edit the step'))}">⚙</button>${i ? `<button class="icon-btn" data-lts-cmp title="${esc(TL('lts.compare', 'Compare with the previous step'))}">⇄</button>` : ''}${i < runs.length - 1 ? `<button class="icon-btn" data-lts-back title="${esc(TL('lts.back', 'Return to this step (new step with its values)'))}">↺</button><button class="icon-btn" data-lts-comb title="${esc(TL('lts.combine', 'Combine values of this step with the last one'))}">⊕</button>` : ''}<button class="icon-btn" data-lts-proj title="${esc(TL('lts.toProject', 'Save as a project'))}">💾</button></td></tr>`;
+        }).join('')}</tbody></table>` : `<p class="muted">${esc(TL('lts.empty', 'No steps yet – add the baseline with “＋ Next step”.'))}</p>`}
+      <div data-lts-panel></div></section>`;
+        const runOf = (el) => runs.find((x) => x.id === el.closest('[data-lts-step]')?.dataset.ltsStep);
+        const pj = { id: cur.id, spaceIds: cur.spaceIds, data: { profileId: cur.data.profileId, title: cur.data.title, defaultLensId: cur.data.lensIds?.[0], lensIds: cur.data.lensIds } };
+        const saveRun = async (pr, base, patch = {}) => core.actions.invoke('ACTION.LASER.TEST_RUN.SAVE', base ? { id: base.id, expectedRevision: base.revision, spaceIds: base.spaceIds, data: { ...base.data, parameters: pr, ...patch } } : { spaceIds: cur.spaceIds, data: { testId: cur.id, lensId: cur.data.lensIds?.[0], sequence: runs.length ? Math.max(...runs.map((x) => Number(x.data.sequence) || 0)) + 1 : 0, parameters: pr, result: 'PENDING', ...patch } }, TC);
+        const editStep = (start, base, title) => void openLayerEditor(core, opts, { project: pj, op: start ? { data: { name: '', parameters: start } } : undefined, layers: [], onSaved: again, PC: TC, title: title || TL('lts.stepTitle', 'Test step'), saveStep: async (pr) => { await saveRun(pr, base); } });
+        det.querySelector('[data-lt-close]').onclick = () => { globalThis.__kxLtsClose?.(); det.innerHTML = ''; };
+        det.querySelector('[data-lts-next]').onclick = () => editStep(runs.length ? structuredClone(runs[runs.length - 1].data.parameters) : null, undefined, runs.length ? `${TL('lts.stepTitle', 'Test step')} ${runs.length + 1}` : TL('lts.baselineTitle', 'Baseline'));
+        det.querySelector('[data-lts-rec]').onclick = async () => { if (!recAt) {
+            localStorage.setItem(recKey, String(Date.now()));
+            again();
+            return;
+        } localStorage.removeItem(recKey); const last = runs[runs.length - 1]; if (last) {
+            try {
+                await saveRun(last.data.parameters, last, { durationMs: (Number(last.data.durationMs) || 0) + (Date.now() - recAt) });
+                opts.onToast?.(TL('lts.recSaved', 'Time added to the last step'));
+            }
+            catch (e) {
+                opts.onToast?.(String(e?.message || e));
+            }
+        } again(); };
+        det.querySelector('[data-lts-done]')?.addEventListener('click', async () => { try {
+            await core.actions.invoke('ACTION.LASER.TEST.SAVE', { id: cur.id, expectedRevision: cur.revision, spaceIds: cur.spaceIds, data: { ...cur.data, status: 'DONE' } }, TC);
+            again();
+        }
+        catch (e) {
+            opts.onToast?.(String(e?.message || e));
+        } });
+        det.querySelectorAll('[data-lts-res]').forEach(b => b.onclick = async () => { const r = runOf(b); if (!r)
+            return; try {
+            await saveRun(r.data.parameters, r, { result: b.dataset.ltsRes });
+            again();
+        }
+        catch (e) {
+            opts.onToast?.(String(e?.message || e));
+        } });
+        det.querySelectorAll('[data-lts-note]').forEach(inp => inp.onchange = async () => { const r = runOf(inp); if (!r)
+            return; try {
+            await saveRun(r.data.parameters, r, { notes: inp.value.trim() });
+            opts.onToast?.(TL('lts.noteSaved', 'Note saved'));
+        }
+        catch (e) {
+            opts.onToast?.(String(e?.message || e));
+        } });
+        det.querySelectorAll('[data-lts-edit]').forEach(b => b.onclick = () => { const r = runOf(b); if (r)
+            editStep(structuredClone(r.data.parameters), r); });
+        det.querySelectorAll('[data-lts-back]').forEach(b => b.onclick = async () => { const r = runOf(b); if (!r)
+            return; try {
+            await saveRun(structuredClone(r.data.parameters), undefined, { notes: TL('lts.backNote', 'returned to step {n}').replace('{n}', String(runs.indexOf(r) + 1)) });
+            again();
+        }
+        catch (e) {
+            opts.onToast?.(String(e?.message || e));
+        } });
+        det.querySelectorAll('[data-lts-cmp]').forEach(b => b.onclick = () => { const r = runOf(b); const i = runs.indexOf(r); const dif = lcsDiff(runs[i - 1].data.parameters, r.data.parameters); det.querySelector('[data-lts-panel]').innerHTML = `<div class="kx-lts-panel"><b>⇄ ${esc(TL('lts.compare', 'Compare with the previous step'))}: ${i} → ${i + 1}</b>${dif.length ? `<table class="kx-calc-table"><tr><th></th><th>${i}</th><th>${i + 1}</th></tr>${dif.map(d => `<tr><td>${esc(lcsName(d.k))}</td><td>${esc(lcsVal(d.k, d.from))}</td><td><b>${esc(lcsVal(d.k, d.to))}</b></td></tr>`).join('')}</table>` : `<p class="muted">${esc(TL('lts.noChange', 'no change'))}</p>`}<p>${esc(TL('lts.result', 'Result'))}: ${RS[runs[i - 1].data.result]} → ${RS[r.data.result]}</p></div>`; });
+        det.querySelectorAll('[data-lts-comb]').forEach(b => b.onclick = () => {
+            const r = runOf(b);
+            const last = runs[runs.length - 1];
+            const dif = lcsDiff(last.data.parameters, r.data.parameters);
+            const panel = det.querySelector('[data-lts-panel]');
+            panel.innerHTML = `<div class="kx-lts-panel"><b>⊕ ${esc(TL('lts.combine', 'Combine values of this step with the last one'))}</b><p class="muted">${esc(TL('lts.combineHelp', 'Tick the values to take from step {a}; the rest stays from the last step {b}.').replace('{a}', String(runs.indexOf(r) + 1)).replace('{b}', String(runs.length)))}</p>${dif.map(d => `<label class="kx-lts-cb"><input type="checkbox" data-lts-pick="${esc(d.k)}" checked> ${esc(lcsName(d.k))}: ${esc(lcsVal(d.k, d.from))} → <b>${esc(lcsVal(d.k, d.to))}</b></label>`).join('') || `<p class="muted">${esc(TL('lts.noChange', 'no change'))}</p>`}<button class="btn primary" data-lts-combgo>⊕ ${esc(TL('lts.combineGo', 'Create the combined step'))}</button></div>`;
+            panel.querySelector('[data-lts-combgo]').onclick = () => { const pr = structuredClone(last.data.parameters || {}); pr.extras = { ...(pr.extras || {}) }; const src2 = r.data.parameters || {}; panel.querySelectorAll('[data-lts-pick]').forEach(cb => { if (!cb.checked)
+                return; const k = cb.dataset.ltsPick; const ck = Object.entries(LC_INV).find(([, v]) => v === k)?.[0]; if (ck) {
+                if (src2[ck] != null)
+                    pr[ck] = src2[ck];
+                else
+                    delete pr[ck];
+            }
+            else {
+                if (src2.extras?.[k] != null)
+                    pr.extras[k] = src2.extras[k];
+                else
+                    delete pr.extras[k];
+            } }); editStep(pr, undefined, TL('lts.combineTitle', 'Combined step')); };
+        });
+        det.querySelectorAll('[data-lts-proj]').forEach(b => b.onclick = async () => {
+            const r = runOf(b);
+            if (!r)
+                return;
+            const n = runs.indexOf(r) + 1;
+            try {
+                const pj2 = await core.actions.invoke('ACTION.LASER.PROJECT.SAVE', { spaceIds: cur.spaceIds, data: { title: `${cur.data.title} – ${TL('lts.fromStep', 'from step')} ${n}`, machineId: cur.data.machineId, sourceModuleId: cur.data.sourceModuleId, profileId: cur.data.profileId, lensIds: cur.data.lensIds, defaultLensId: cur.data.lensIds?.[0], status: 'DRAFT', material: cur.data.material || '', evidence: { fromTest: cur.data.recordCode, fromStep: n } } }, TC);
+                await core.actions.invoke('ACTION.LASER.OPERATION.SAVE', { spaceIds: cur.spaceIds, data: { projectId: pj2.id, name: `${TL('lts.stepTitle', 'Test step')} ${n}`, sequence: 0, lensId: cur.data.lensIds?.[0], parameters: structuredClone(r.data.parameters), operationType: r.data.parameters?.extras?.mode || 'FILL' } }, TC);
+                opts.onToast?.(TL('lts.projMade', 'Project created from the step') + ': ' + (pj2.data?.recordCode || ''));
+            }
+            catch (e) {
+                opts.onToast?.(String(e?.message || e));
+            }
+        });
+        if (recAt) {
+            const t = setInterval(() => { const c = det.querySelector('[data-lts-recclock]'); if (!c || !det.isConnected) {
+                clearInterval(t);
+                return;
+            } c.textContent = fmtMs(Date.now() - recAt); }, 1000);
+        }
     }
     function lceMsg(f) { const T2 = (k, d) => TL('lce.m.' + k, d); switch (f.code) {
         case 'BELOW_CUTOFF': return T2('BELOW_CUTOFF', 'Below cut-off').replace('{p}', f.pulse).replace('{c}', f.cutoff) + (f.estimatedW != null ? ` · ≈ ${f.estimatedW} W` : '');
@@ -999,7 +1154,7 @@ var KXLaserHub;
             /* N2.4d: utilisation of every laser across all open orders (the same planner as SHOP); „Plánovat v SHOPu“ opens the SHOP orders */
             if (st.tab === 'TESTS') {
                 const all = await core.laserDomain.list();
-                const tests = all.filter((x) => x.type === 'APP.LASER.TEST' && !x.archivedAt && x.data.grid);
+                const tests = all.filter((x) => x.type === 'APP.LASER.TEST' && !x.archivedAt && (x.data.grid || x.data.kind === 'SESSION')); /* N2.6b+: grid tests AND sessions with steps */
                 const own = (await machines(core)).filter((m) => m.data.origin !== 'DEMO');
                 const mats = await materials(core);
                 const byId = (id) => all.find((x) => x.id === id);
@@ -1013,7 +1168,7 @@ var KXLaserHub;
             <label class="kx-lf"><span>${esc(TL('laser.mat.name', 'Material'))}*</span><select data-lt="material">${mats.map((m) => `<option value="${esc(m.id)}">${esc(m.data.name)}</option>`).join('')}</select></label>
             ${['x', 'y'].map(a => `<label class="kx-lf"><span>${a.toUpperCase()} – ${esc(TL('laser.grid.param', 'parameter'))}</span><select data-lt="${a}Param">${PO}</select></label><label class="kx-lf"><span>${a.toUpperCase()} ${esc(TL('laser.grid.from', 'from'))}</span><input data-lt="${a}From" inputmode="decimal"></label><label class="kx-lf"><span>${a.toUpperCase()} ${esc(TL('laser.grid.to', 'to'))}</span><input data-lt="${a}To" inputmode="decimal"></label><label class="kx-lf"><span>${a.toUpperCase()} ${esc(TL('laser.grid.steps', 'steps'))}</span><input data-lt="${a}Steps" inputmode="numeric"></label>`).join('')}
             <label class="kx-lf"><span>${esc(TL('laser.grid.base', 'Fixed parameters (JSON)'))}</span><input data-lt="base"></label></div>
-            <small class="muted" data-lt-preview></small> <button class="btn" data-lt-create>${esc(TL('laser.grid.create', 'Create the grid'))}</button> <span class="kx-lf-help" data-lt-err></span></details>
+            <small class="muted" data-lt-preview></small> <button class="btn" data-lt-create>${esc(TL('laser.grid.create', 'Create the grid'))}</button> <button class="btn primary" data-lts-create title="${esc(TL('lts.createHelp', 'Test session with steps like the original hub'))}">＋ ${esc(TL('lts.create', 'Create a session with steps'))}</button> <span class="kx-lf-help" data-lt-err></span></details>
           <div data-lt-table></div><div data-lt-detail></div></div>`;
                 bindTabs();
                 const q = (k) => root.querySelector(`[data-lt="${k}"]`);
@@ -1041,6 +1196,26 @@ var KXLaserHub;
                     x.oninput = preview; });
                 fillP();
                 prefill();
+                root.querySelector('[data-lts-create]').onclick = async () => {
+                    const er = root.querySelector('[data-lt-err]');
+                    const title = q('title').value.trim();
+                    if (!title) {
+                        er.textContent = TL('laser.prj.titleReq', 'Title is required.');
+                        return;
+                    }
+                    const prof = byId(q('profile').value);
+                    const m = mats.find((x) => x.id === q('material').value);
+                    const mc = own.find((x) => x.id === q('machine').value);
+                    const lens = prof?.data.defaultLensId || all.find((x) => x.type === 'APP.LASER.LENS' && x.data.machineId === q('machine').value)?.id;
+                    try {
+                        const t = await core.actions.invoke('ACTION.LASER.TEST.SAVE', { spaceIds: mc.spaceIds, data: { title, kind: 'SESSION', machineId: mc.id, sourceModuleId: prof.data.sourceModuleId, profileId: prof.id, lensIds: [lens], status: 'RUNNING', material: m?.data.name || '', materialId: m?.id } }, { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['LASER.TEST.EDIT', 'LASER.CONFIG.EDIT'], confirmed: true });
+                        st.tOpen = t.id;
+                        void KXLaserHub.mountHub(root, core, opts);
+                    }
+                    catch (e) {
+                        er.textContent = String(e?.message || e);
+                    }
+                };
                 root.querySelector('[data-lt-create]').onclick = async () => {
                     const er = root.querySelector('[data-lt-err]');
                     const title = q('title').value.trim();
@@ -1062,7 +1237,10 @@ var KXLaserHub;
                         er.textContent = TL('laser.grid.err.' + String(e?.message || '').split(':')[0], String(e?.message || e));
                     }
                 };
-                if (cur) {
+                if (cur && cur.data.kind === 'SESSION') {
+                    renderSession(core, opts, root, cur, all, byId, () => void KXLaserHub.mountHub(root, core, opts));
+                }
+                else if (cur) {
                     const runs = all.filter((x) => x.type === 'APP.LASER.TEST_RUN' && x.data.testId === cur.id).sort((a, b) => a.data.sequence - b.data.sequence);
                     const g = cur.data.grid;
                     const xs = gridAxis(+g.xFrom, +g.xTo, +g.xSteps), ys = gridAxis(+g.yFrom, +g.yTo, +g.ySteps);
@@ -1098,7 +1276,7 @@ var KXLaserHub;
                         case 'title': return d.title;
                         case 'machine': return byId(d.machineId)?.data.name || '';
                         case 'material': return d.material || '';
-                        case 'grid': return `${d.grid.xSteps} × ${d.grid.ySteps}`;
+                        case 'grid': return d.kind === 'SESSION' ? `${TL('lts.kind', 'session')} · ${all.filter((x) => x.type === 'APP.LASER.TEST_RUN' && x.data.testId === r.id && !x.archivedAt).length} ${TL('lts.steps', 'steps')}` : (d.grid ? `${d.grid.xSteps} × ${d.grid.ySteps}` : '');
                         case 'best': return all.filter((x) => x.type === 'APP.LASER.TEST_RUN' && x.data.testId === r.id && x.data.rating === 'BEST').length;
                         default: return '';
                     } };
