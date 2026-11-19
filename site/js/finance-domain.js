@@ -568,7 +568,7 @@ var KXFinanceHub;
             st.navCtx = navCtx;
             st.space = '';
         } /* the context changed – choose its default space again */
-        if (!st.space || !spaces.some((s) => s.id === st.space))
+        if (!st.space || (st.space === '__SUM__' && spaces.length < 2) || (st.space !== '__SUM__' && !spaces.some((s) => s.id === st.space)))
             st.space = (navCtx === 'HOME' ? spaces.find((s) => s.kind === 'FAMILY') : navCtx === 'WORK' ? spaces.find((s) => s.kind === 'COMPANY') : null)?.id || spaces[0]?.id || '';
         const sp = spaces.find((s) => s.id === st.space);
         /* N2.5p: goals of this space for the movement form */ let goalsForForm = [];
@@ -580,6 +580,49 @@ var KXFinanceHub;
         const finExtraFields = () => `<label class="kx-lf" data-ff-tronly><span>${esc(TL('fin.f.transferType', 'Transfer type'))}</span><select data-ff="transferType">${K.TRANSFER_TYPES.map((k) => `<option value="${k}" ${k === 'HOUSEHOLD' ? 'selected' : ''}>${esc(TL('fin.transfer.' + k, k))}</option>`).join('')}</select></label>
        <label class="kx-lf"><span>${esc(TL('fin.f.reimburse', 'Reimbursement'))}</span><select data-ff="reimburse"><option value="">${esc(TL('fin.f.noReimb', 'not reimbursed'))}</option>${K.REIMB.map((k) => `<option value="${k}">${esc(TL('fin.reimb.' + k, k))}</option>`).join('')}</select></label><label class="kx-lf"><span>${esc(TL('fin.f.who', 'Who (reimbursement)'))}</span><input data-ff="reimburseWho" maxlength="120"></label>
        ${goalsForForm.length ? `<label class="kx-lf"><span>${esc(TL('fin.f.goal', 'Saving goal'))}</span><select data-ff="goalRef"><option value="">—</option>${goalsForForm.map((g) => `<option value="${esc(g.ref)}">${esc(g.name)}</option>`).join('')}</select></label>` : ''}`;
+        /* N2.6b+ (user): summary over the visible spaces – “All · summary” (All) / “Household · summary” (Home = personal + family) */
+        const sumLabel = navCtx === 'HOME' ? TL('fin.sum.home', 'Household · summary') : TL('fin.sum.all', 'All · summary');
+        const sumChip = spaces.length > 1 ? `<button class="chip ${st.space === '__SUM__' ? 'active' : ''}" data-fin-space="__SUM__" title="${esc(TL('fin.sum.help', 'Totals of all shown areas together'))}">Σ ${esc(sumLabel)}</button>` : '';
+        if (st.space === '__SUM__') {
+            st.month = st.month || new Date().toISOString().slice(0, 7);
+            st.sumCur = st.sumCur || 'CZK';
+            const rates = core.currency ? (await core.currency.rates())?.rates || { CZK: 1 } : { CZK: 1 };
+            const per = [];
+            for (const spx of spaces) {
+                let rws = [];
+                try {
+                    rws = await core.actions.invoke('ACTION.FINANCE.MOVEMENT.LIST', { spaceId: spx.id }, C);
+                }
+                catch { }
+                const sm = st.convert ? K.summaryConverted(rws, st.month, st.sumCur, rates) : K.summary(rws, st.month, st.sumCur);
+                per.push({ sp: spx, sm });
+            }
+            const tot = { income: 0, expense: 0, balance: 0, count: 0 };
+            const cats = {};
+            const other = new Set();
+            for (const x of per) {
+                tot.income += x.sm.income;
+                tot.expense += x.sm.expense;
+                tot.balance += x.sm.balance;
+                tot.count += x.sm.count;
+                for (const [k, v] of Object.entries(x.sm.byCategory || {}))
+                    cats[k] = (cats[k] || 0) + Number(v);
+                for (const c of (x.sm.otherCurrencies || []))
+                    other.add(c);
+            }
+            const f = (n) => Number(Math.round(n * 100) / 100).toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const nm = (spx) => { const k = TL('fin.space.' + spx.kind, spx.kind); const n = String(spx.name || ''); return n.toLowerCase().startsWith(String(k).toLowerCase()) ? n : `${k} · ${n}`; };
+            const top = Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 6);
+            root.innerHTML = `<div class="kx-fin" data-fin-hub data-fin-sum><div class="kx-print3d-tabs" data-fin-spaces>${spaces.map((s2) => `<button class="chip" data-fin-space="${esc(s2.id)}" title="${esc(TL('fin.sum.openArea', 'Open this area'))}">${esc(nm(s2))}</button>`).join('')}${sumChip}</div>
+         <div class="kx-fin-head"><label>${esc(TL('fin.month', 'Month'))} <input type="month" data-fin-summonth value="${esc(st.month)}"></label><small class="muted">${esc(st.sumCur)}${st.convert ? ' · ' + esc(TL('fin.sum.converted', 'converted')) : ''}</small></div>
+         <div class="kx-fin-kpis kx-fin-sumkpi"><div><small>${esc(TL('fin.income', 'Income'))}</small><b>${f(tot.income)} ${esc(st.sumCur)}</b></div><div><small>${esc(TL('fin.expense', 'Expenses'))}</small><b>${f(tot.expense)} ${esc(st.sumCur)}</b></div><div><small>${esc(TL('fin.balance', 'Balance'))}</small><b class="${tot.balance < 0 ? 'kx-neg' : 'kx-pos'}">${f(tot.balance)} ${esc(st.sumCur)}</b></div></div>
+         <table class="kx-calc-table kx-fin-sumtab"><thead><tr><th>${esc(TL('fin.sum.area', 'Area'))}</th><th class="num">${esc(TL('fin.income', 'Income'))}</th><th class="num">${esc(TL('fin.expense', 'Expenses'))}</th><th class="num">${esc(TL('fin.balance', 'Balance'))}</th><th class="num">${esc(TL('fin.sum.count', 'Movements'))}</th><th></th></tr></thead><tbody>${per.map(x => `<tr><td>${esc(nm(x.sp))}</td><td class="num">${f(x.sm.income)}</td><td class="num">${f(x.sm.expense)}</td><td class="num ${x.sm.balance < 0 ? 'kx-neg' : 'kx-pos'}">${f(x.sm.balance)}</td><td class="num">${x.sm.count}</td><td><button class="btn compact" data-fin-space="${esc(x.sp.id)}" title="${esc(TL('fin.sum.openArea', 'Open this area'))}">${esc(TL('fin.sum.open', 'Open'))} →</button></td></tr>`).join('')}<tr class="kx-fin-total"><td><b>Σ ${esc(TL('fin.sum.total', 'Total'))}</b></td><td class="num"><b>${f(tot.income)}</b></td><td class="num"><b>${f(tot.expense)}</b></td><td class="num ${tot.balance < 0 ? 'kx-neg' : 'kx-pos'}"><b>${f(tot.balance)}</b></td><td class="num"><b>${tot.count}</b></td><td></td></tr></tbody></table>
+         ${top.length ? `<h5>${esc(TL('fin.sum.topCats', 'Largest expenses by category'))}</h5><div class="kx-fin-cats">${top.map(([k, v]) => `<div><span>${esc(TL('fin.cat.' + k, k))}</span><b>${f(Number(v))}</b><i style="width:${Math.max(4, Math.round(Number(v) / top[0][1] * 100))}%"></i></div>`).join('')}</div>` : ''}
+         ${other.size ? `<p class="muted">${esc(TL('fin.sum.otherCur', 'Other currencies are not added: {c}').replace('{c}', [...other].join(', ')))}</p>` : ''}</div>`;
+            root.querySelectorAll('[data-fin-space]').forEach(b2 => b2.onclick = () => { st.space = String(b2.dataset.finSpace); void KXFinanceHub.mountHub(root, core, opts); });
+            root.querySelector('[data-fin-summonth]').onchange = (e) => { st.month = String(e.target.value || st.month); void KXFinanceHub.mountHub(root, core, opts); };
+            return;
+        }
         let rows = [];
         let locked = false;
         try {
@@ -591,7 +634,7 @@ var KXFinanceHub;
             else
                 throw e;
         }
-        const spaceChips = `<div class="kx-print3d-tabs" data-fin-spaces>${spaces.map((s) => `<button class="chip ${s.id === st.space ? 'active' : ''}" data-fin-space="${esc(s.id)}">${(() => { const k = TL('fin.space.' + s.kind, s.kind); const nm = String(s.name || ''); return nm.toLowerCase().startsWith(String(k).toLowerCase()) ? esc(nm) : `${esc(k)} · ${esc(nm)}`; })()}</button>`).join('')}</div>`;
+        const spaceChips = `<div class="kx-print3d-tabs" data-fin-spaces>${spaces.map((s) => `<button class="chip ${s.id === st.space ? 'active' : ''}" data-fin-space="${esc(s.id)}">${(() => { const k = TL('fin.space.' + s.kind, s.kind); const nm = String(s.name || ''); return nm.toLowerCase().startsWith(String(k).toLowerCase()) ? esc(nm) : `${esc(k)} · ${esc(nm)}`; })()}</button>`).join('')}${sumChip}</div>`;
         const tabBar = `<div class="kx-sf-scope" data-fin-tabs>${TABS.map(([k, l]) => `<button type="button" class="${st.view === k ? 'active' : ''}" data-fin-tab="${k}">${esc(l)}</button>`).join('')}</div>`;
         if (locked) {
             root.innerHTML = `<div class="kx-fin" data-fin-hub data-fin-locked>${spaceChips}<div class="kx-tw-safety">🔒 ${esc(TL('fin.locked', 'Finance is sensitive – sign in to see and record movements.'))} <span class="kx-fix"><button type="button" class="btn ghost compact" data-fix-place="IDENTITY">🔐 ${esc(TL('fix.place.IDENTITY', 'Sign in'))}</button><button type="button" class="btn ghost compact" data-fix-manual="${esc(TL('fix.idManual', 'identity'))}">📘 ${esc(TL('fix.manual', 'Manual'))}</button></span></div></div>`;
