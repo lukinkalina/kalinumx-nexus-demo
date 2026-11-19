@@ -1981,3 +1981,11 @@ html[data-kx-scheme="light"] .kx-gold{filter:drop-shadow(0 0 .6px #3a2506) drop-
 .kx-lts-res .icon-btn.on{background:color-mix(in srgb,var(--accent,#f2c869) 30%,transparent);border-color:var(--accent,#f2c869)}
 .kx-lts-note{min-width:150px}.kx-lts-panel{margin-top:10px;padding:10px;border-radius:10px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 30%,transparent);display:grid;gap:6px}.kx-lts-cb{display:block;font-size:12.5px}
 .kx-badge-bad{background:color-mix(in srgb,var(--kx-bad,#ff8a8d) 18%,transparent);border:1px solid var(--kx-bad,#ff8a8d)}.kx-badge-ok{background:color-mix(in srgb,var(--kx-ok,#7fe0a5) 16%,transparent)}
+
+/* Import Lab */
+.kx-li-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}.kx-li-up{cursor:pointer}.kx-li-q{flex:1 1 220px;min-width:180px}.kx-li-sel{display:flex;gap:6px;align-items:center;font-size:12px}
+.kx-li-table tr.on td{background:color-mix(in srgb,var(--accent,#f2c869) 10%,transparent)}.kx-link{background:none;border:0;color:var(--accent,#f2c869);cursor:pointer;text-decoration:underline;padding:0}
+.kx-li-pics,.lce-imgs{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.kx-li-pics img,.lce-imgs img{height:110px;border-radius:8px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 30%,transparent);cursor:zoom-in;object-fit:cover}
+.kx-li-pics img.big,.lce-imgs img.big{height:auto;max-height:70vh;max-width:100%;cursor:zoom-out}.lce-imgs{margin:8px 16px 0}
+.kx-li-meta{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}.kx-li-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}.kx-li-sep{flex:1}
+.kx-li-msg{min-height:0;font-size:12.5px;color:var(--accent,#f2c869);margin:4px 0}.kx-li-msg:empty{display:none}

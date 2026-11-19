@@ -159,7 +159,7 @@ var KXLaserHub;
         }
         return null;
     }
-    const TABS = [['MACHINES', TL('laser.tab.MACHINES', 'Lasers')], ['PROJECTS', TL('laser.tab.PROJECTS', 'Projects')], ['TESTS', TL('laser.tab.TESTS', 'Tests')], ['MATERIALS', TL('laser.tab.MATERIALS', 'Materials')], ['UTIL', TL('laser.tab.UTIL', 'Utilisation')]];
+    const TABS = [['MACHINES', TL('laser.tab.MACHINES', 'Lasers')], ['PROJECTS', TL('laser.tab.PROJECTS', 'Projects')], ['TESTS', TL('laser.tab.TESTS', 'Tests')], ['IMPORTS', TL('laser.tab.IMPORTS', 'Import Lab')], ['MATERIALS', TL('laser.tab.MATERIALS', 'Materials')], ['UTIL', TL('laser.tab.UTIL', 'Utilisation')]];
     const ORIGIN_BADGE = { PERSONAL: '🔒', DEMO: '◇', USER: '' };
     const num0 = (v) => Number.isFinite(Number(v)) ? Number(v) : 0;
     const fmtMin = (m) => m >= 60 ? `${Math.floor(m / 60)} h${Math.round(m % 60) ? ` ${Math.round(m % 60)} min` : ''}` : `${Math.round(m)} min`;
@@ -426,12 +426,13 @@ var KXLaserHub;
         w.setAttribute('data-keep-open', '');
         w.setAttribute('data-laser-layer-editor', '');
         w.innerHTML = `<div class="lce" role="dialog" aria-modal="true"><div class="lce-head"><div><b>⚙ ${esc(ctx.title || (op ? TL('lce.edit', 'Layer settings') : TL('lce.new', 'New layer')))}</b><small>${esc(project.data.title || '')}${capsRes?.source ? ` · ${esc(capsRes.source.name)}${capsRes.source.nominalPowerW ? ` ${capsRes.source.nominalPowerW} W` : ''}` : ''}${capsRes?.profile?.name ? ` · ${esc(capsRes.profile.name)}` : ''}</small></div><button type="button" class="icon-btn" data-lce-close title="${esc(TL('vault.cancel', 'Cancel'))}">✕</button></div>
-      <div class="lce-guard" data-lce-guard hidden></div>
+      <div class="lce-guard" data-lce-guard hidden></div>${ctx.images?.length ? `<div class="lce-imgs" data-lce-imgs>${ctx.images.map(u => `<img src="${esc(u)}" alt="" data-lce-zoom>`).join('')}<small class="muted">${esc(TL('li.zoomHint', 'Click a picture to enlarge'))}</small></div>` : ''}
       <div class="lce-body">${groups.map((g) => `<details class="lce-g" data-lce-g="${g.g}" ${g.modes ? `data-modes="${g.modes.join(',')}"` : ''} ${g.cap ? `data-cap="${g.cap}"` : ''} open><summary>${esc(TL('lc.g.' + g.g, g.g))}</summary><div class="lce-grid">${g.params.map(field).join('')}</div></details>`).join('')}</div>
       ${pulses.length ? `<datalist id="lcePulses">${pulses.map(x => `<option value="${x}">`).join('')}</datalist>` : ''}
       <div class="lce-foot"><small class="muted">${caps ? esc(TL('lce.capsNote', 'Only parameters the chosen source supports are shown.')) : esc(TL('lce.noCaps', 'Source capabilities unknown – all parameters are shown.'))}</small><span class="lce-err" data-lce-err></span><button type="button" class="btn ghost" data-lce-close>${esc(TL('vault.cancel', 'Cancel'))}</button><button type="button" class="btn primary" data-lce-save>✓ ${esc(TL('cv.save', 'Save'))}</button></div></div>`;
         document.body.appendChild(w);
         ['click', 'pointerdown', 'mousedown', 'touchstart'].forEach(ev => w.addEventListener(ev, (e) => e.stopPropagation())); /* clicks never reach the page-level outside-click rule (it closed the Laser window) */
+        w.querySelectorAll('[data-lce-zoom]').forEach(im => im.onclick = () => im.classList.toggle('big'));
         const $ = (q) => w.querySelector(q);
         const all = (q) => Array.from(w.querySelectorAll(q));
         const modeSel = $('[data-lce="mode"]');
@@ -828,6 +829,207 @@ var KXLaserHub;
             } c.textContent = fmtMs(Date.now() - recAt); }, 1000);
         }
     }
+    /* ---------- N2.6b+ IMPORT LAB (original: third table of the hub) – screenshots / photos → layers (typed from the picture, AI in the server phase) → cut-off check BEFORE conversion → project / test / to consider / reference / reject; merge selected ---------- */
+    async function renderImports(core, opts, body, all, st, again) {
+        const IC = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['LASER.READ', 'LASER.IMPORT.EDIT', 'LASER.PROJECT.EDIT', 'LASER.TEST.EDIT', 'LASER.CONFIG.EDIT', 'CORE.ENTITY.CREATE', 'CORE.FILE.WRITE'], confirmed: true };
+        const say = (m) => { st.liMsg = m; const el = body.querySelector('[data-li-msg]'); if (el)
+            el.textContent = m; try {
+            opts.onToast?.(m);
+        }
+        catch { } };
+        const byId = (id) => all.find((x) => x.id === id);
+        const imps = all.filter((x) => x.type === 'APP.LASER.IMPORT' && !x.archivedAt).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+        const profs = all.filter((x) => x.type === 'APP.LASER.PROFILE' && !x.archivedAt);
+        const G = globalThis.KXLaserGuard;
+        const guardOf = (im) => { const pf = byId(im.data.profileId); const src = pf && byId(pf.data.sourceModuleId); return src && G ? G.effective(src.data) : null; };
+        const layerStatus = (im, pr) => { const g = guardOf(im); if (!g)
+            return 'na'; const r = G.evaluate(g, pr || {}); if (pr?.extras?.guardOverride && r.status === 'danger')
+            return 'off'; return r.status; };
+        const worst = (im) => { const L = im.data.layers || []; if (!L.length)
+            return ''; const ss = L.map((l) => layerStatus(im, l.parameters)); return ss.includes('danger') ? 'danger' : ss.includes('warn') ? 'warn' : ss.includes('off') ? 'off' : ss.includes('na') ? 'na' : 'safe'; };
+        const badge = (s2) => s2 === 'danger' ? '<span class="kx-badge kx-badge-bad">⛔ ' + esc(TL('lce.gs.danger', 'STOP')) + '</span>' : s2 === 'warn' ? '<span class="kx-badge kx-badge-warn">⚠ ' + esc(TL('lce.gs.warn', 'caution')) + '</span>' : s2 === 'off' ? '<span class="kx-badge kx-badge-off">🛡</span>' : s2 === 'safe' ? '<span class="kx-badge kx-badge-ok">✓</span>' : s2 === 'na' ? '<small class="muted">' + esc(TL('lce.gs.na', '— no table')) + '</small>' : '';
+        const stLab = (im) => im.data.status === 'REJECTED' ? TL('li.st.REJECTED', 'rejected') : im.data.status === 'IMPORTED' ? (im.data.targetKind === 'REFERENCE' ? TL('li.st.REFERENCE', 'reference') : TL('li.st.IMPORTED', 'converted')) : im.data.consider ? TL('li.st.CONSIDER', 'to consider') : TL('li.st.PREVIEW', 'new');
+        const q2 = String(st.liQ || '').toLowerCase();
+        const shown = imps.filter((im) => !q2 || JSON.stringify(im.data).toLowerCase().includes(q2));
+        st.liSel = st.liSel || new Set();
+        const cur = st.liOpen ? imps.find((x) => x.id === st.liOpen) : null;
+        body.innerHTML = `<div class="kx-li-msg" data-li-msg role="status" aria-live="polite">${esc(st.liMsg || '')}</div><div class="kx-li-bar"><label class="btn primary kx-li-up">＋ ${esc(TL('li.new', 'New import (screenshot / photo)'))}<input type="file" accept="image/*" multiple capture="environment" data-li-file hidden></label><input class="kx-li-q" data-li-q placeholder="${esc(TL('li.search', 'Search import, material, product…'))}" value="${esc(st.liQ || '')}"><span class="kx-li-sel">${st.liSel.size ? `${st.liSel.size} ${esc(TL('li.selected', 'selected'))} · <button class="btn compact" data-li-merge="PROJECT">${esc(TL('li.mergeP', 'Merge → Project'))}</button><button class="btn compact" data-li-merge="TEST">${esc(TL('li.mergeT', 'Merge → Test'))}</button><button class="btn ghost compact" data-li-clearsel>${esc(TL('li.clearSel', 'Clear selection'))}</button>` : ''}</span></div>
+      <p class="muted kx-acc-help">${esc(TL('li.help', 'Screenshots of LightBurn / EZCAD / LaserPecker settings and photos of results. Type the values from the picture (AI reading comes with the server phase); the source protection is checked BEFORE conversion.'))}</p>
+      ${shown.length ? `<table class="kx-calc-table kx-li-table"><thead><tr><th></th><th>${esc(TL('li.col.code', 'Code'))}</th><th>${esc(TL('li.col.title', 'Name'))}</th><th>${esc(TL('li.col.pics', 'Pictures'))}</th><th>${esc(TL('li.col.profile', 'Laser / profile'))}</th><th>${esc(TL('li.col.layers', 'Layers'))}</th><th>${esc(TL('lce.col.guard', 'Protection'))}</th><th>${esc(TL('li.col.state', 'State'))}</th></tr></thead><tbody>${shown.map((im) => `<tr data-li-row="${esc(im.id)}" class="${cur?.id === im.id ? 'on' : ''}"><td><input type="checkbox" data-li-pick="${esc(im.id)}" ${st.liSel.has(im.id) ? 'checked' : ''}></td><td>${esc(im.data.recordCode || '')}</td><td><button class="kx-link" data-li-open="${esc(im.id)}">${esc(im.data.title)}</button></td><td>${(im.data.fileIds || []).length}</td><td>${esc(byId(im.data.profileId)?.data.name || '—')}</td><td>${(im.data.layers || []).length}</td><td>${badge(worst(im))}</td><td>${esc(stLab(im))}</td></tr>`).join('')}</tbody></table>` : `<p class="muted">${esc(TL('li.empty', 'No imports yet – add a screenshot or a photo.'))}</p>`}
+      <div data-li-detail></div>`;
+        body.querySelector('[data-li-q]').onchange = (e) => { st.liQ = e.target.value; again(); };
+        body.querySelectorAll('[data-li-pick]').forEach(cb => cb.onchange = () => { cb.checked ? st.liSel.add(cb.dataset.liPick) : st.liSel.delete(cb.dataset.liPick); again(); });
+        body.querySelector('[data-li-clearsel]')?.addEventListener('click', () => { st.liSel.clear(); again(); });
+        body.querySelectorAll('[data-li-open]').forEach(b => b.onclick = () => { st.liOpen = b.dataset.liOpen; again(); });
+        body.querySelector('[data-li-file]').onchange = async (e) => {
+            const files = Array.from(e.target.files || []);
+            if (!files.length)
+                return;
+            const sp = (own0()?.spaceIds) || ['SPACE.COMPANY'];
+            try {
+                const ids = [];
+                for (const f of files) {
+                    if (!/^image\//.test(f.type))
+                        continue;
+                    const fr = await core.files.importBlob(f, f.name, f.type, OWNER, sp, IC, { tags: ['kx:laser-import'] });
+                    ids.push(fr.id);
+                }
+                if (!ids.length) {
+                    say(TL('li.onlyImages', 'Only pictures can be imported here.'));
+                    return;
+                }
+                const im = await core.actions.invoke('ACTION.LASER.IMPORT.SAVE', { spaceIds: sp, data: { title: files[0].name.replace(/\.[a-z0-9]+$/i, ''), sourceFormat: 'IMAGE', sourceName: files.map(f => f.name).join(', ').slice(0, 200), targetKind: 'MIXED', status: 'PREVIEW', mappedEntityIds: [], warnings: [], fileIds: ids, layers: [], profileId: profs[0]?.id || '' } }, IC);
+                st.liOpen = im.id;
+                say(TL('li.created', 'Import created'));
+                again();
+            }
+            catch (err) {
+                say(String(err?.message || err));
+            }
+        };
+        function own0() { return all.find((x) => x.type === 'APP.LASER.MACHINE' && !x.archivedAt && x.data.origin !== 'DEMO'); }
+        const saveIm = async (im, patch) => core.actions.invoke('ACTION.LASER.IMPORT.SAVE', { id: im.id, expectedRevision: im.revision, spaceIds: im.spaceIds, data: { ...im.data, ...patch } }, IC);
+        /* conversion: project with layers / test session with steps; mapping recorded on the import */
+        const toProject = async (srcs, title) => {
+            const im0 = srcs[0];
+            const pf = byId(im0.data.profileId);
+            if (!pf)
+                throw new Error(TL('li.needProfile', 'Choose the laser / profile first.'));
+            const lens = pf.data.defaultLensId || all.find((x) => x.type === 'APP.LASER.LENS' && x.data.machineId === pf.data.machineId)?.id;
+            const pj = await core.actions.invoke('ACTION.LASER.PROJECT.SAVE', { spaceIds: im0.spaceIds, data: { title, machineId: pf.data.machineId, sourceModuleId: pf.data.sourceModuleId, profileId: pf.id, lensIds: [lens], defaultLensId: lens, status: 'DRAFT', material: im0.data.material || '', evidence: { fromImport: srcs.map((x) => x.data.recordCode).join(', ') } } }, IC);
+            let seq = 0;
+            for (const im of srcs)
+                for (const l of (im.data.layers || []))
+                    await core.actions.invoke('ACTION.LASER.OPERATION.SAVE', { spaceIds: im0.spaceIds, data: { projectId: pj.id, name: l.name || `${TL('lce.layer', 'Layer')} ${seq + 1}`, sequence: seq++, lensId: lens, parameters: structuredClone(l.parameters || {}), operationType: l.parameters?.extras?.mode || 'FILL' } }, IC);
+            return pj;
+        };
+        const toTest = async (srcs, title) => {
+            const im0 = srcs[0];
+            const pf = byId(im0.data.profileId);
+            if (!pf)
+                throw new Error(TL('li.needProfile', 'Choose the laser / profile first.'));
+            const lens = pf.data.defaultLensId || all.find((x) => x.type === 'APP.LASER.LENS' && x.data.machineId === pf.data.machineId)?.id;
+            const t = await core.actions.invoke('ACTION.LASER.TEST.SAVE', { spaceIds: im0.spaceIds, data: { title, kind: 'SESSION', machineId: pf.data.machineId, sourceModuleId: pf.data.sourceModuleId, profileId: pf.id, lensIds: [lens], status: 'RUNNING', material: im0.data.material || '' } }, IC);
+            let seq = 0;
+            for (const im of srcs)
+                for (const l of (im.data.layers || []))
+                    await core.actions.invoke('ACTION.LASER.TEST_RUN.SAVE', { spaceIds: im0.spaceIds, data: { testId: t.id, lensId: lens, sequence: seq++, parameters: structuredClone(l.parameters || {}), result: 'PENDING', notes: l.name || '' } }, IC);
+            return t;
+        };
+        const blocked = (srcs) => srcs.some((im) => worst(im) === 'danger');
+        body.querySelectorAll('[data-li-merge]').forEach(b => b.onclick = async () => {
+            const srcs = imps.filter((x) => st.liSel.has(x.id));
+            if (!srcs.length)
+                return;
+            if (!srcs.every((x) => x.data.profileId === srcs[0].data.profileId)) {
+                say(TL('li.mergeSame', 'Merged imports must have the same laser / profile.'));
+                return;
+            }
+            if (blocked(srcs) && !confirm(TL('li.dangerConfirm', 'Some layers are outside the source values (STOP). Convert anyway?')))
+                return;
+            try {
+                const title = `${srcs[0].data.title} (+${srcs.length - 1})`;
+                const r = b.dataset.liMerge === 'PROJECT' ? await toProject(srcs, title) : await toTest(srcs, title);
+                for (const im of srcs)
+                    await saveIm(byId(im.id), { status: 'IMPORTED', targetKind: b.dataset.liMerge, mappedEntityIds: [r.id], consider: false });
+                st.liSel.clear();
+                say(TL('li.converted', 'Converted') + ': ' + (r.data?.recordCode || ''));
+                again();
+            }
+            catch (e) {
+                say(String(e?.message || e));
+            }
+        });
+        if (!cur)
+            return;
+        /* detail */
+        const det = body.querySelector('[data-li-detail]');
+        const urls = [];
+        for (const fid of (cur.data.fileIds || [])) {
+            try {
+                const bl = await core.files.getBlob(fid);
+                if (bl)
+                    urls.push(URL.createObjectURL(bl));
+            }
+            catch { }
+        }
+        const L = cur.data.layers || [];
+        const ro = cur.data.status !== 'PREVIEW';
+        det.innerHTML = `<section class="kx-lcard open" data-li-cur="${esc(cur.id)}"><header class="kx-lcard-h"><b>${esc(cur.data.recordCode || '')} · ${esc(cur.data.title)}</b><small class="muted">${esc(stLab(cur))}</small><button class="icon-btn" data-li-close title="${esc(TL('lts.close', 'Close'))}">×</button></header>
+      <div class="kx-li-pics">${urls.map(u => `<img src="${esc(u)}" alt="" data-li-zoom>`).join('') || `<small class="muted">${esc(TL('li.noPics', 'no pictures'))}</small>`}</div>
+      <div class="kx-li-meta"><label class="kx-lf"><span>${esc(TL('li.col.title', 'Name'))}</span><input data-li-title value="${esc(cur.data.title)}" ${ro ? 'disabled' : ''}></label><label class="kx-lf"><span>${esc(TL('li.col.profile', 'Laser / profile'))}</span><select data-li-profile ${ro ? 'disabled' : ''}><option value="">—</option>${profs.map((pf) => `<option value="${esc(pf.id)}" ${cur.data.profileId === pf.id ? 'selected' : ''}>${esc((byId(pf.data.machineId)?.data.name || '') + ' · ' + pf.data.name)}</option>`).join('')}</select></label><label class="kx-lf"><span>${esc(TL('lc.material', 'Material'))}</span><input data-li-material value="${esc(cur.data.material || '')}" ${ro ? 'disabled' : ''}></label></div>
+      <h5>${esc(TL('li.layers', 'Layers from the picture'))} ${badge(worst(cur))}</h5>
+      ${L.length ? `<table class="kx-calc-table"><tr><th>#</th><th>${esc(TL('lc.layerName', 'Layer'))}</th>${['speed', 'power', 'frequency', 'pulseWidth', 'lineInterval', 'mode'].map(k => `<th>${esc(TL('lc.' + k, k))}</th>`).join('')}<th>${esc(TL('lce.col.guard', 'Protection'))}</th><th></th></tr>${L.map((l, i) => { const F = lcsFlat(l.parameters); return `<tr data-li-layer="${i}"><td>${i + 1}</td><td>${esc(l.name || '')}</td>${['speed', 'power', 'frequency', 'pulseWidth', 'lineInterval', 'mode'].map(k => `<td>${esc(lcsVal(k, F[k]))}</td>`).join('')}<td>${badge(layerStatus(cur, l.parameters))}</td><td>${ro ? '' : `<button class="icon-btn" data-li-ledit="${i}" title="${esc(TL('lce.edit', 'Layer settings'))}">⚙</button><button class="icon-btn" data-li-ldel="${i}" title="${esc(TL('li.ldel', 'Remove the layer'))}">🗑</button>`}</td></tr>`; }).join('')}</table>` : `<p class="muted">${esc(TL('li.noLayers', 'No layers yet – type the values from the picture.'))}</p>`}
+      ${ro ? `<p class="muted">${esc(TL('li.done', 'The import is closed.'))}${(cur.data.mappedEntityIds || []).length ? ' → ' + (cur.data.mappedEntityIds || []).map((id) => esc(byId(id)?.data.recordCode || id)).join(', ') : ''}</p>` : `<div class="kx-li-acts"><button class="btn" data-li-addl>✎ ${esc(TL('li.addLayer', 'Type values from the picture'))}</button><button class="btn ghost" data-li-ai title="${esc(TL('li.aiHint', 'AI reading of pictures – server phase'))}">🤖 ${esc(TL('li.ai', 'Read parameters (AI)'))}</button><span class="kx-li-sep"></span><button class="btn primary" data-li-to="PROJECT">→ ${esc(TL('li.toProject', 'Project'))}</button><button class="btn" data-li-to="TEST">→ ${esc(TL('li.toTest', 'Test'))}</button><button class="btn ghost" data-li-consider>${esc(cur.data.consider ? TL('li.unconsider', 'Not to consider') : TL('li.consider', 'To consider'))}</button><button class="btn ghost" data-li-ref>${esc(TL('li.reference', 'Reference'))}</button><button class="btn ghost danger" data-li-reject>${esc(TL('li.reject', 'Reject'))}</button></div>`}</section>`;
+        det.querySelector('[data-li-close]').onclick = () => { st.liOpen = ''; urls.forEach(u => URL.revokeObjectURL(u)); again(); };
+        det.querySelectorAll('[data-li-zoom]').forEach(im => im.onclick = () => im.classList.toggle('big'));
+        const meta = async () => { try {
+            await saveIm(cur, { title: det.querySelector('[data-li-title]').value.trim() || cur.data.title, profileId: det.querySelector('[data-li-profile]').value, material: det.querySelector('[data-li-material]').value.trim() });
+            again();
+        }
+        catch (e) {
+            say(String(e?.message || e));
+        } };
+        det.querySelectorAll('[data-li-title],[data-li-profile],[data-li-material]').forEach(el => el.onchange = meta);
+        const pjCtx = { id: cur.id, spaceIds: cur.spaceIds, data: { profileId: cur.data.profileId, title: cur.data.title, defaultLensId: undefined, lensIds: [] } };
+        const editLayer = (i) => { if (!cur.data.profileId) {
+            say(TL('li.needProfile', 'Choose the laser / profile first.'));
+            return;
+        } const l = i == null ? null : L[i]; void openLayerEditor(core, opts, { project: pjCtx, op: l ? { data: { name: l.name, parameters: l.parameters } } : undefined, layers: [], onSaved: again, PC: IC, images: urls, title: TL('li.layerTitle', 'Values from the picture'), saveStep: async (pr, name) => { const NL = [...L]; const v = { name: name || l?.name || `${TL('lce.layer', 'Layer')} ${NL.length + (l ? 0 : 1)}`, parameters: pr }; if (i == null)
+                NL.push(v);
+            else
+                NL[i] = v; await saveIm(cur, { layers: NL }); } }); };
+        det.querySelector('[data-li-addl]')?.addEventListener('click', () => editLayer(null));
+        det.querySelectorAll('[data-li-ledit]').forEach(b => b.onclick = () => editLayer(Number(b.dataset.liLedit)));
+        det.querySelectorAll('[data-li-ldel]').forEach(b => b.onclick = async () => { if (!confirm(TL('li.ldelConfirm', 'Remove this layer from the import?')))
+            return; const NL = L.filter((_, i) => i !== Number(b.dataset.liLdel)); try {
+            await saveIm(cur, { layers: NL });
+            again();
+        }
+        catch (e) {
+            say(String(e?.message || e));
+        } });
+        det.querySelector('[data-li-ai]')?.addEventListener('click', () => say(TL('li.aiInfo', 'Reading parameters from pictures needs the AI server (server phase). Until then type the values with “Type values from the picture”.')));
+        det.querySelectorAll('[data-li-to]').forEach(b => b.onclick = async () => {
+            if (!L.length) {
+                say(TL('li.noLayers', 'No layers yet – type the values from the picture.'));
+                return;
+            }
+            if (blocked([cur]) && !confirm(TL('li.dangerConfirm', 'Some layers are outside the source values (STOP). Convert anyway?')))
+                return;
+            try {
+                const r = b.dataset.liTo === 'PROJECT' ? await toProject([cur], cur.data.title) : await toTest([cur], cur.data.title);
+                await saveIm(cur, { status: 'IMPORTED', targetKind: b.dataset.liTo, mappedEntityIds: [r.id], consider: false });
+                say(TL('li.converted', 'Converted') + ': ' + (r.data?.recordCode || ''));
+                again();
+            }
+            catch (e) {
+                say(String(e?.message || e));
+            }
+        });
+        det.querySelector('[data-li-consider]')?.addEventListener('click', async () => { try {
+            await saveIm(cur, { consider: !cur.data.consider });
+            again();
+        }
+        catch (e) {
+            say(String(e?.message || e));
+        } });
+        det.querySelector('[data-li-ref]')?.addEventListener('click', async () => { try {
+            await saveIm(cur, { status: 'IMPORTED', targetKind: 'REFERENCE' });
+            again();
+        }
+        catch (e) {
+            say(String(e?.message || e));
+        } });
+        det.querySelector('[data-li-reject]')?.addEventListener('click', async () => { if (!confirm(TL('li.rejectConfirm', 'Reject this import? (it stays in the list as rejected)')))
+            return; try {
+            await saveIm(cur, { status: 'REJECTED' });
+            again();
+        }
+        catch (e) {
+            say(String(e?.message || e));
+        } });
+    }
     function lceMsg(f) { const T2 = (k, d) => TL('lce.m.' + k, d); switch (f.code) {
         case 'BELOW_CUTOFF': return T2('BELOW_CUTOFF', 'Below cut-off').replace('{p}', f.pulse).replace('{c}', f.cutoff) + (f.estimatedW != null ? ` · ≈ ${f.estimatedW} W` : '');
         case 'STOP_OVER_MAX': return T2('STOP_OVER_MAX', 'Over max').replace('{p}', f.pulse).replace('{m}', f.max);
@@ -1152,6 +1354,13 @@ var KXLaserHub;
             const tabsHtml = `<div class="kx-print3d-tabs">${TABS.map(([k, l]) => `<button class="chip ${st.tab === k ? 'active' : ''}" data-laser-tab="${k}">${esc(l)}</button>`).join('')}<button class="icon-btn" data-kx-manual="HUB:APP.KX.LASER" title="📖">📖</button></div>`;
             const bindTabs = () => root.querySelectorAll('[data-laser-tab]').forEach(b => b.onclick = () => { st.tab = String(b.dataset.laserTab); void KXLaserHub.mountHub(root, core, opts); });
             /* N2.4d: utilisation of every laser across all open orders (the same planner as SHOP); „Plánovat v SHOPu“ opens the SHOP orders */
+            if (st.tab === 'IMPORTS') {
+                const all = await core.laserDomain.list();
+                root.innerHTML = `<section class="kx-laser-imports" data-laser-imports>${tabsHtml}<div data-li-body></div></section>`;
+                bindTabs();
+                await renderImports(core, opts, root.querySelector('[data-li-body]'), all, st, () => void KXLaserHub.mountHub(root, core, opts));
+                return;
+            }
             if (st.tab === 'TESTS') {
                 const all = await core.laserDomain.list();
                 const tests = all.filter((x) => x.type === 'APP.LASER.TEST' && !x.archivedAt && (x.data.grid || x.data.kind === 'SESSION')); /* N2.6b+: grid tests AND sessions with steps */
