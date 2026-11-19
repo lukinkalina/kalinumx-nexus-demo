@@ -1433,13 +1433,62 @@ var KXLaserHub;
       ${!ax && a.kind !== 'SLIDE' && a.kind !== 'CONVEYOR' ? `<text x="110" y="148" text-anchor="middle" font-size="9" fill="#f5a524">${esc(TL('laser.acc.axisMissing', 'axis X / Y not set'))}</text>` : ''}</svg>`;
     }
     const PRJ_SCOPE = 'LASER.PROJECTS';
+    /* N2.6b+ (user: as compact as the original hub – many columns, add / remove): every layer parameter (values of the FIRST layer) + evidence fields as optional columns */
+    const LP_VISIBLE = new Set(['speed', 'power', 'frequency', 'pulseWidth']);
+    const EV_VISIBLE = new Set(['purpose', 'result']);
+    function lcPrjExtraFields() {
+        const out = [];
+        for (const g of LCAT) {
+            if (!LC_LAYER_GROUPS.includes(g.g))
+                continue;
+            for (const q of g.params) {
+                if (['layerName', 'layer'].includes(q.k))
+                    continue;
+                const lb = TL('lg2.h.' + q.k, '');
+                out.push({ key: 'lp_' + q.k, type: q.t === 'number' ? 'NUMBER' : 'TEXT', label: (lb && lb !== 'lg2.h.' + q.k ? lb : TL('lc.' + q.k, q.lb)) + (q.u && !(lb && lb !== 'lg2.h.' + q.k) ? ` (${q.u})` : ''), info: TL('lc.' + q.k + '.d', ''), width: q.t === 'number' ? 78 : 84, hidden: !LP_VISIBLE.has(q.k) });
+            }
+        }
+        const ev = LCAT.find((g) => g.g === 'evidence');
+        for (const q of (ev?.params || [])) {
+            if (['projectName', 'machine', 'preset', 'material', 'projectTags', 'time'].includes(q.k))
+                continue;
+            out.push({ key: 'ev_' + q.k, type: q.t === 'number' ? 'NUMBER' : 'TEXT', label: TL('lc.' + q.k, q.lb) + (q.u ? ` (${q.u})` : ''), info: TL('lc.' + q.k + '.d', ''), width: q.t === 'number' ? 80 : 130, hidden: !EV_VISIBLE.has(q.k) });
+        }
+        return out;
+    }
+    function lcCellText(q, v) { if (v == null || v === '')
+        return ''; if (q.t === 'checkbox')
+        return v ? '✓' : '✗'; if (q.t === 'select') {
+        const o = q.opts || [];
+        if (o.length <= 3 && o.some((c) => c === 'ANO' || c === 'NE'))
+            return ['ANO', 'ANO_M3_CONSTANT', 'YES', 'TRUE'].includes(String(v)) ? '✓' : '✗';
+        const t = TL('lc.o.' + q.k + '.' + v, '');
+        return t && t !== 'lc.o.' + q.k + '.' + v ? t : String(v);
+    } return v; }
+    function lcPrjValue(key, project, layers) {
+        if (key.startsWith('ev_')) {
+            const k = key.slice(3);
+            const q = LCAT.find((g) => g.g === 'evidence' || g.g === 'notes') && LCAT.flatMap((g) => g.params).find((x) => x.k === k);
+            return q ? lcCellText(q, project.data.evidence?.[k]) : '';
+        }
+        if (key.startsWith('lp_')) {
+            const k = key.slice(3);
+            const q = LCAT.flatMap((g) => g.params).find((x) => x.k === k);
+            const first = [...layers].filter((x) => !x.archivedAt && !x.data.parentId).sort((a, b) => (a.data.sequence || 0) - (b.data.sequence || 0))[0];
+            if (!q || !first)
+                return '';
+            const v = k === 'output' ? (first.data.parameters?.extras?.output ?? 'ANO') : lcValue(first, k, q.st);
+            return lcCellText(q, v);
+        }
+        return undefined;
+    }
     function registerProjects(core) {
         if (core.__laserPrjTable)
             return;
         core.__laserPrjTable = true;
         try {
             core.lists?.registerList('LASER.PRJSTATUS', { name: T('laser.list.prjStatus', 'Project state'), owner: OWNER, items: ['DRAFT', 'READY', 'RUNNING', 'DONE', 'ARCHIVED'].map(k => ({ key: k, label: T('laser.prjStatus.' + k, k) })) });
-            core.fields?.registerDefaults(PRJ_SCOPE, [{ key: 'recordCode', type: 'TEXT', label: T('laser.prj.code', 'Code'), width: 90 }, { key: 'title', type: 'TEXT', label: T('laser.prj.title', 'Title'), width: 240 }, { key: 'machine', type: 'TEXT', label: T('laser.prj.machine', 'Laser'), width: 200 }, { key: 'profile', type: 'TEXT', label: T('laser.prj.profile', 'Profile'), width: 150 }, { key: 'material', type: 'TEXT', label: T('laser.mat.name', 'Material'), width: 180 }, { key: 'status', type: 'SELECT', label: T('laser.prj.status', 'State'), listId: 'LASER.PRJSTATUS', width: 110 }, { key: 'layers', type: 'NUMBER', label: T('laser.prj.layersCol', 'Layers'), width: 70 }, { key: 'guard', type: 'TEXT', label: T('lce.col.guard', 'Protection'), info: T('lce.col.guardHelp', 'Source protection over all layers: STOP / caution / OK / switched off.'), width: 110 }]);
+            core.fields?.registerDefaults(PRJ_SCOPE, [{ key: 'recordCode', type: 'TEXT', label: T('laser.prj.code', 'Code'), width: 90 }, { key: 'title', type: 'TEXT', label: T('laser.prj.title', 'Title'), width: 240 }, { key: 'machine', type: 'TEXT', label: T('laser.prj.machine', 'Laser'), width: 200 }, { key: 'profile', type: 'TEXT', label: T('laser.prj.profile', 'Profile'), width: 150 }, { key: 'material', type: 'TEXT', label: T('laser.mat.name', 'Material'), width: 180 }, { key: 'status', type: 'SELECT', label: T('laser.prj.status', 'State'), listId: 'LASER.PRJSTATUS', width: 110 }, { key: 'layers', type: 'NUMBER', label: T('laser.prj.layersCol', 'Layers'), width: 70 }, { key: 'guard', type: 'TEXT', label: T('lce.col.guard', 'Protection'), info: T('lce.col.guardHelp', 'Source protection over all layers: STOP / caution / OK / switched off.'), width: 110 }, ...lcPrjExtraFields()]);
         }
         catch (e) {
             globalThis.KXBugs?.pushErr?.(e);
@@ -1805,7 +1854,10 @@ var KXLaserHub;
                         case 'status': return d.status;
                         case 'layers': return ops(r.id).length;
                         case 'guard': return lceProjectGuard(r, ops(r.id), byId);
-                        default: return f.custom ? (d.custom?.[f.key] ?? '') : '';
+                        default:
+                            if (String(f.key).startsWith('lp_') || String(f.key).startsWith('ev_'))
+                                return lcPrjValue(String(f.key), r, ops(r.id));
+                            return f.custom ? (d.custom?.[f.key] ?? '') : '';
                     } };
                     await globalThis.KXTable(ph, { scope: PRJ_SCOPE, rows: projs, rowId: (r) => r.id, value: pv, exportValue: pv, filterState: () => st.pfilter || {}, onFilter: (x) => { st.pfilter = x; }, density: st.pdensity || 'COMPACT', onDensity: (d) => { st.pdensity = d; }, selection: st.psel, sortState: () => st.psort, onSort: (x) => { st.psort = x; }, compare: true,
                         onOpen: (r) => { st.pOpen = r.id; void KXLaserHub.mountHub(root, core, opts); }, onChange: () => void KXLaserHub.mountHub(root, core, opts), rowMenu: () => [], isStale: () => false });
