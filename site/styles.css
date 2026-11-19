@@ -2013,3 +2013,5 @@ html[data-kx-scheme="light"] .kx-gold{filter:drop-shadow(0 0 .6px #3a2506) drop-
 .kx-fin-sumtab td.num,.kx-fin-sumtab th.num{text-align:right;font-variant-numeric:tabular-nums}.kx-fin-total td{border-top:2px solid color-mix(in srgb,var(--accent,#f2c869) 40%,transparent)}.kx-neg{color:#ff8a8d}.kx-pos{color:#7fe0a5}
 .kx-fin-cats{display:grid;gap:4px}.kx-fin-cats>div{display:grid;grid-template-columns:160px 110px 1fr;align-items:center;gap:8px;font-size:12.5px}.kx-fin-cats b{text-align:right;font-variant-numeric:tabular-nums}.kx-fin-cats i{display:block;height:8px;border-radius:4px;background:linear-gradient(90deg,#c9963c,#f6d585)}
 .kx-fin-sumtab td.kx-neg,.kx-fin-sumtab td.kx-neg b{color:#ff8a8d !important}.kx-fin-sumtab td.kx-pos,.kx-fin-sumtab td.kx-pos b{color:#7fe0a5 !important}
+
+.sg-tab input{width:110px}.sg-lbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}.sg-lbar textarea{flex:1 1 240px;min-height:34px}.sg-json{width:100%;font-family:ui-monospace,monospace;font-size:12px}

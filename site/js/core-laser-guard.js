@@ -61,18 +61,158 @@ var KXLaserGuard;
         const tableId = customTable ? null : (g?.tableId && TABLES[g.tableId] ? String(g.tableId) : null);
         if (!customTable && g?.tableId && !TABLES[g.tableId])
             throw new Error('LASER_GUARD_TABLE_UNKNOWN');
-        return { ranges: r, tableId, ...(customTable ? { customTable } : {}), source: String(g?.source || '').slice(0, 300), updatedAt: g?.updatedAt || null };
+        const hdr = normalizeHeader(g);
+        const rules = normalizeRules(g?.rules);
+        return { ranges: r, tableId, ...(customTable ? { customTable } : {}), ...hdr, ...(rules.length ? { rules } : {}), source: String(g?.source || '').slice(0, 300), updatedAt: g?.updatedAt || null };
     }
     /* suggestion by the source name / power – never applied as verified */
     function suggest(src) { const t = `${src?.name || ''} ${src?.sourceFamily || ''} ${src?.notes || ''}`; if (/JPT/i.test(t) && /M7/i.test(t) && (src?.nominalPowerW == null || Number(src.nominalPowerW) === 60))
         return { tableId: 'JPT_M7_60_1_5MJ', reason: 'JPT M7 60 W by the source name' }; return null; }
     /* effective guard: explicit (from the source) or suggested (flag) */
-    function effective(src) { const g = src?.guard ? normalize(src.guard) : null; if (g && (g.tableId || g.customTable || Object.keys(g.ranges).length))
+    function effective(src) { const g = src?.guard ? normalize(src.guard) : null; if (g && (g.tableId || g.customTable || Object.keys(g.ranges).length || (g.rules || []).length || g.enabled === false))
         return { ...g, suggested: false }; const s = suggest(src); return s ? { ranges: {}, tableId: s.tableId, source: s.reason, suggested: true } : null; }
+    /* ---------- N2.6b+ SOURCE GUARD 1:1 (original kxhub-guard-v1): enabled, mode info / warning / hard-stop, name, reference, notes, rules range / allowed / forbidden-range / warning-range / lookup-range with conditions ---------- */
+    const P2K = { speed: 'speedMmPerS', power: 'powerPercent', frequency: 'frequencyKHz', pulseWidth: 'qPulseNs', passes: 'passes', lineInterval: 'lineIntervalMm', dpi: 'dpi', scanAngle: 'hatchAngleDeg', wobbleSize: 'wobbleMm' };
+    const RULE_TYPES = ['range', 'allowed', 'forbidden-range', 'warning-range', 'lookup-range'];
+    const OPS = ['>', '>=', '<', '<=', '==', '!='];
+    const SEV = (x) => { const s2 = String(x || 'danger').toLowerCase(); return s2 === 'warning' || s2 === 'warn' ? 'warn' : s2 === 'info' ? 'info' : 'danger'; };
+    function normalizeHeader(g) { const mode = ['info', 'warning', 'hard-stop'].includes(String(g?.mode)) ? String(g.mode) : 'hard-stop'; return { enabled: g?.enabled !== false, mode, name: String(g?.name || '').trim().slice(0, 80), reference: String(g?.reference || '').trim().slice(0, 200), notes: String(g?.notes || '').trim().slice(0, 500) }; }
+    function normalizeCond(c, depth = 0) { if (c == null)
+        return null; if (depth > 3)
+        throw new Error('LASER_GUARD_RULE_COND'); if (Array.isArray(c.all))
+        return { all: c.all.map((x) => normalizeCond(x, depth + 1)) }; if (Array.isArray(c.any))
+        return { any: c.any.map((x) => normalizeCond(x, depth + 1)) }; const op = String(c.op || c.operator || '=='); if (!OPS.includes(op))
+        throw new Error('LASER_GUARD_RULE_COND'); const v = num(c.value); if (!String(c.parameter || '') || v == null || Number.isNaN(v))
+        throw new Error('LASER_GUARD_RULE_COND'); return { parameter: String(c.parameter), op, value: v }; }
+    function normalizeRules(rs) {
+        if (rs == null)
+            return [];
+        if (!Array.isArray(rs))
+            throw new Error('LASER_GUARD_RULES');
+        if (rs.length > 100)
+            throw new Error('LASER_GUARD_RULES_TOO_MANY');
+        const ids = new Set();
+        return rs.map((r, i) => {
+            const type = String(r?.type || 'range');
+            if (!RULE_TYPES.includes(type))
+                throw new Error('LASER_GUARD_RULE_TYPE:' + type);
+            const id = String(r?.id || `rule:${i + 1}`).slice(0, 80);
+            if (ids.has(id))
+                throw new Error('LASER_GUARD_RULE_DUP:' + id);
+            ids.add(id);
+            const parameter = String(r?.parameter || '');
+            if (!parameter)
+                throw new Error('LASER_GUARD_RULE_PARAM');
+            const nn = (x, k) => { if (x == null || x === '')
+                return null; const n = num(x); if (n == null || Number.isNaN(n))
+                throw new Error('LASER_GUARD_RULE_NUM:' + id + ':' + k); return n; };
+            const out = { id, type, parameter, severity: SEV(r?.severity), ...(r?.message ? { message: String(r.message).slice(0, 200) } : {}), ...(r?.condition ? { condition: normalizeCond(r.condition) } : {}) };
+            if (type === 'allowed') {
+                const a = (Array.isArray(r.allowedValues) ? r.allowedValues : String(r.allowedValues || '').split(/[;,\s]+/)).map((x) => num(x)).filter((x) => x != null && !Number.isNaN(x));
+                if (!a.length)
+                    throw new Error('LASER_GUARD_RULE_EMPTY:' + id);
+                out.allowedValues = [...new Set(a)].sort((x, y) => x - y);
+            }
+            else if (type === 'lookup-range') {
+                out.lookupParameter = String(r.lookupParameter || '');
+                if (!out.lookupParameter)
+                    throw new Error('LASER_GUARD_RULE_PARAM');
+                const rows = (Array.isArray(r.rows) ? r.rows : []).map((x) => ({ lookup: nn(x?.lookup ?? x?.value, 'lookup'), min: nn(x?.min, 'min'), max: nn(x?.max, 'max') }));
+                if (!rows.length || rows.length > 200)
+                    throw new Error('LASER_GUARD_RULE_ROWS:' + id);
+                const seen = new Set();
+                for (const x of rows) {
+                    if (x.lookup == null)
+                        throw new Error('LASER_GUARD_RULE_ROWS:' + id);
+                    if (seen.has(x.lookup))
+                        throw new Error('LASER_GUARD_TABLE_DUP');
+                    seen.add(x.lookup);
+                    if (x.min != null && x.max != null && x.min > x.max)
+                        throw new Error('LASER_GUARD_TABLE_ROW');
+                }
+                out.rows = rows.sort((x, y) => x.lookup - y.lookup);
+                out.belowSeverity = SEV(r.belowSeverity || 'warning');
+                out.aboveSeverity = SEV(r.aboveSeverity || 'danger');
+                out.noMatchSeverity = SEV(r.noMatchSeverity || 'warning');
+            }
+            else {
+                out.min = nn(r.min, 'min');
+                out.max = nn(r.max, 'max');
+                if (out.min == null && out.max == null)
+                    throw new Error('LASER_GUARD_RULE_EMPTY:' + id);
+                if (out.min != null && out.max != null && out.min > out.max)
+                    throw new Error('LASER_GUARD_RULE_NUM:' + id + ':range');
+                if (type === 'warning-range' && !r.severity)
+                    out.severity = 'warn';
+            }
+            return out;
+        });
+    }
+    function pval(p, k) { const ck = P2K[k]; const v = ck ? p?.[ck] : undefined; return num(v != null ? v : p?.extras?.[k]); }
+    function condOk(c, p) { if (!c)
+        return true; if (c.all)
+        return c.all.every((x) => condOk(x, p)); if (c.any)
+        return c.any.some((x) => condOk(x, p)); const v = pval(p, c.parameter); if (v == null || Number.isNaN(v))
+        return false; switch (c.op) {
+        case '>': return v > c.value;
+        case '>=': return v >= c.value;
+        case '<': return v < c.value;
+        case '<=': return v <= c.value;
+        case '!=': return v !== c.value;
+        default: return v === c.value;
+    } }
+    function evalRules(rules, p, F) {
+        for (const r of rules || []) {
+            if (!condOk(r.condition, p))
+                continue;
+            const field = P2K[r.parameter] || r.parameter;
+            const v = pval(p, r.parameter);
+            if (r.type === 'lookup-range') {
+                const lv = pval(p, r.lookupParameter);
+                if (lv == null || v == null)
+                    continue;
+                const row = r.rows.find((x) => x.lookup === lv);
+                if (!row) {
+                    F.push({ field: P2K[r.lookupParameter] || r.lookupParameter, status: r.noMatchSeverity, code: 'RULE_LOOKUP_MISSING', rule: r.id, lookup: lv, options: [...r.rows].sort((a, b) => Math.abs(a.lookup - lv) - Math.abs(b.lookup - lv)).slice(0, 3).map((x) => x.lookup), message: r.message });
+                    continue;
+                }
+                if (row.min != null && v < row.min)
+                    F.push({ field, status: r.belowSeverity, code: 'RULE_LOOKUP_BELOW', rule: r.id, lookup: lv, value: v, min: row.min, max: row.max, message: r.message, fix: { field, value: row.min } });
+                else if (row.max != null && v > row.max)
+                    F.push({ field, status: r.aboveSeverity, code: 'RULE_LOOKUP_ABOVE', rule: r.id, lookup: lv, value: v, min: row.min, max: row.max, message: r.message, fix: { field, value: row.max } });
+                continue;
+            }
+            if (v == null)
+                continue;
+            if (r.type === 'allowed') {
+                if (!r.allowedValues.includes(v)) {
+                    const near = [...r.allowedValues].sort((a, b) => Math.abs(a - v) - Math.abs(b - v)).slice(0, 3);
+                    F.push({ field, status: r.severity, code: 'RULE_ALLOWED', rule: r.id, value: v, options: near, message: r.message, fix: { field, value: near[0] } });
+                }
+                continue;
+            }
+            const inR = (r.min == null || v >= r.min) && (r.max == null || v <= r.max);
+            if (r.type === 'range' && !inR)
+                F.push({ field, status: r.severity, code: 'RULE_RANGE', rule: r.id, value: v, min: r.min, max: r.max, message: r.message, fix: { field, value: Math.min(r.max ?? v, Math.max(r.min ?? v, v)) } });
+            else if (r.type === 'forbidden-range' && inR)
+                F.push({ field, status: r.severity, code: 'RULE_FORBIDDEN', rule: r.id, value: v, min: r.min, max: r.max, message: r.message });
+            else if (r.type === 'warning-range' && inR)
+                F.push({ field, status: r.severity === 'danger' ? 'warn' : r.severity, code: 'RULE_WARNING', rule: r.id, value: v, min: r.min, max: r.max, message: r.message });
+        }
+    }
+    /* JPT M7 template exactly like the original kx587JptGuard */
+    function jptTemplate() {
+        const rows = TABLES.JPT_M7_60_1_5MJ.rows.map((x) => ({ lookup: x.pulse, min: x.cutoff, max: x.max }));
+        const pulsed = { parameter: 'pulseWidth', op: '>', value: 0 };
+        return { enabled: true, name: 'JPT M7 Cut-off Guard', mode: 'warning', reference: 'YDFLP-E-60-M7-M-R · manufacturer cut-off table', notes: '0 ns = CW marker (not checked). Below cut-off = warning; above the row maximum = danger; a pulse without a table row = warning (unknown), never an invented danger.',
+            rules: [{ id: 'simple:power:range', type: 'range', parameter: 'power', min: 0, max: 100, severity: 'danger' }, { id: 'simple:frequency:range', type: 'range', parameter: 'frequency', min: 1, max: 4000, severity: 'danger' }, { id: 'simple:pulseWidth:range', type: 'range', parameter: 'pulseWidth', min: 2, max: 500, severity: 'danger', condition: pulsed }, { id: 'simple:pulseWidth:allowed', type: 'allowed', parameter: 'pulseWidth', allowedValues: rows.map((r) => r.lookup), severity: 'warning', condition: pulsed }, { id: 'builtin:jpt:lookup', type: 'lookup-range', lookupParameter: 'pulseWidth', parameter: 'frequency', rows, belowSeverity: 'warning', aboveSeverity: 'danger', noMatchSeverity: 'warning', condition: pulsed }] };
+    }
     /* evaluate parameters → findings (danger / warn / info) with one-click fixes; overall status: danger > warn > safe; na = no guard */
     function evaluate(guard, p) {
         if (!guard)
             return { status: 'na', findings: [] };
+        if (guard.enabled === false)
+            return { status: 'na', findings: [], disabled: true, mode: guard.mode, name: guard.name || '' };
         const F = [];
         const ct = guard.customTable;
         const t = ct ? { id: 'CUSTOM', name: ct.name, nominalPowerW: ct.nominalPowerW ?? null, frequencyMinKHz: ct.frequencyMinKHz, frequencyMaxKHz: ct.frequencyMaxKHz, pulseMinNs: ct.pulseMinNs ?? (ct.rows[0]?.pulse), pulseMaxNs: ct.pulseMaxNs ?? (ct.rows[ct.rows.length - 1]?.pulse), rows: ct.rows, origin: 'Own table of the source', originKey: 'lg.origin.CUSTOM' } : (guard.tableId ? TABLES[guard.tableId] : null);
@@ -114,8 +254,17 @@ var KXLaserGuard;
                 }
             }
         }
+        evalRules(guard.rules || [], p, F);
+        const mode = guard.mode || 'hard-stop';
+        if (mode === 'info')
+            for (const x of F) {
+                if (x.status !== 'info') {
+                    x.severityOriginal = x.status;
+                    x.status = 'info';
+                }
+            }
         const status = F.some(x => x.status === 'danger') ? 'danger' : F.some(x => x.status === 'warn') ? 'warn' : 'safe';
-        return { status, findings: F, table: t ? { id: t.id, name: t.name, origin: String(globalThis.KXI18n?.UI?.[t.originKey]?.cs || t.origin) } : null, suggested: !!guard.suggested };
+        return { status, mode, blocking: mode === 'hard-stop' && status === 'danger', name: guard.name || '', reference: guard.reference || '', findings: F, table: t ? { id: t.id, name: t.name, origin: String(globalThis.KXI18n?.UI?.[t.originKey]?.cs || t.origin) } : null, suggested: !!guard.suggested };
     }
     function install(core) {
         if (core.laserGuard)
@@ -240,6 +389,8 @@ var KXLaserGuard;
             core.actions.register({ code, ownerApp: OWNER, risk, handler: fn });
         }
         catch { } };
+        reg('ACTION.LASER.GUARD.TEMPLATE', 'READ', (p) => { if (String(p?.template || 'JPT_M7') !== 'JPT_M7')
+            throw new Error('LASER_GUARD_TEMPLATE_UNKNOWN'); return normalize(jptTemplate()); });
         reg('ACTION.LASER.CAPS.FOR', 'READ', (p) => svc.capsFor(p));
         reg('ACTION.LASER.CAPS.SET', 'SAFE_WRITE', (p, c) => svc.setCaps(p, c));
         reg('ACTION.LASER.CAPS.TEMPLATES', 'READ', () => ({ keys: [...CAP_KEYS], technologies: TECH_CAPS, presets: PRESET_CAPS }));
@@ -248,6 +399,6 @@ var KXLaserGuard;
     }
     const install0 = install;
     function installAll(core) { const g = install0(core); installCaps(core); return g; }
-    KXLaserGuard = { TABLES, normalize, suggest, effective, evaluate, install: installAll, installCaps, normalizeCaps, capsOf, TECH_CAPS, PRESET_CAPS, CAP_KEYS };
+    KXLaserGuard = { TABLES, normalize, suggest, effective, evaluate, jptTemplate, install: installAll, installCaps, normalizeCaps, capsOf, TECH_CAPS, PRESET_CAPS, CAP_KEYS };
     globalThis.KXLaserGuard = KXLaserGuard;
 })();

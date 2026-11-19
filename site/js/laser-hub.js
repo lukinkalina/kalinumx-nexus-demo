@@ -584,7 +584,7 @@ var KXLaserHub;
                     }
                 }
             const g = await runGuard();
-            if (g?.status === 'danger' && !ovr && !confirm(TL('lce.saveDanger', 'The guard reports a dangerous combination. Save anyway (marked ⚠)?')))
+            if (g?.status === 'danger' && (g?.mode ?? 'hard-stop') === 'hard-stop' && !ovr && !confirm(TL('lce.saveDanger', 'The guard reports a dangerous combination. Save anyway (marked ⚠)?')))
                 return;
             const pr = { ...(op?.data?.parameters || {}) };
             const ex = { ...(pr.extras || {}) };
@@ -1270,18 +1270,214 @@ var KXLaserHub;
         }
         quick();
     }
-    function lceMsg(f) { const T2 = (k, d) => TL('lce.m.' + k, d); switch (f.code) {
-        case 'BELOW_CUTOFF': return T2('BELOW_CUTOFF', 'Below cut-off').replace('{p}', f.pulse).replace('{c}', f.cutoff) + (f.estimatedW != null ? ` · ≈ ${f.estimatedW} W` : '');
-        case 'STOP_OVER_MAX': return T2('STOP_OVER_MAX', 'Over max').replace('{p}', f.pulse).replace('{m}', f.max);
-        case 'IN_RANGE': return T2('IN_RANGE', 'In range').replace('{p}', f.pulse).replace('{c}', f.cutoff).replace('{m}', f.max);
-        case 'PULSE_NOT_ALLOWED': return T2('PULSE_NOT_ALLOWED', 'Pulse not allowed').replace('{o}', (f.options || []).join(', '));
-        case 'PULSE_RANGE':
-        case 'FREQ_RANGE': return T2('RANGE', 'Out of range').replace('{a}', f.min ?? '−∞').replace('{b}', f.max ?? '∞');
-        case 'SPEED_OVER': return T2('SPEED_OVER', 'Over max speed').replace('{m}', f.max);
-        case 'PASSES_OVER': return T2('PASSES_OVER', 'Too many passes').replace('{m}', f.max);
-        case 'POWER_INVALID': return T2('POWER_INVALID', 'Power 0–100 %');
-        default: return f.code;
-    } }
+    /* ---------- N2.6b+ SOURCE GUARD EDITOR 1:1 (original kx587GuardEditorHTML): ON/OFF, name, mode, reference, notes, ranges, allowed pulses, lookup table (CSV), advanced rules (JSON), copy from another source, JPT template, export / import ---------- */
+    async function openGuardEditor(core, opts, sourceId, again) {
+        const RC = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['LASER.READ', 'LASER.CONFIG.EDIT'], confirmed: true };
+        const all = await core.laserDomain.list();
+        const src = all.find((x) => x.id === sourceId);
+        if (!src)
+            return;
+        const others = all.filter((x) => x.type === 'APP.LASER.SOURCE_MODULE' && !x.archivedAt && x.id !== sourceId);
+        const G = globalThis.KXLaserGuard;
+        /* existing guard → editor state (old ranges / tables are migrated into rules) */
+        const toState = (g) => {
+            const st = { enabled: g?.enabled !== false, name: g?.name || '', mode: g?.mode || 'hard-stop', reference: g?.reference || g?.source || '', notes: g?.notes || '', ranges: {}, allowed: '', lookup: [], below: 'warn', above: 'danger', nomatch: 'warn', pulsedOnly: true, adv: [] };
+            for (const r of (g?.rules || [])) {
+                const m = String(r.id || '').match(/^simple:(\w+):(range|allowed)$/);
+                if (m && m[2] === 'range')
+                    st.ranges[m[1]] = { min: r.min ?? '', max: r.max ?? '' };
+                else if (m && m[2] === 'allowed')
+                    st.allowed = (r.allowedValues || []).join(', ');
+                else if (r.type === 'lookup-range' && r.parameter === 'frequency' && r.lookupParameter === 'pulseWidth' && !st.lookup.length) {
+                    st.lookup = r.rows.map((x) => ({ p: x.lookup, mn: x.min ?? '', mx: x.max ?? '' }));
+                    st.below = r.belowSeverity;
+                    st.above = r.aboveSeverity;
+                    st.nomatch = r.noMatchSeverity;
+                    st.pulsedOnly = !!r.condition;
+                }
+                else
+                    st.adv.push(r);
+            }
+            const R2 = g?.ranges || {};
+            if (R2.speedMaxMmS != null)
+                st.ranges.speed = { ...(st.ranges.speed || { min: '' }), max: R2.speedMaxMmS };
+            if (R2.frequencyMinKHz != null || R2.frequencyMaxKHz != null)
+                st.ranges.frequency = { min: R2.frequencyMinKHz ?? '', max: R2.frequencyMaxKHz ?? '' };
+            if (R2.pulseMinNs != null || R2.pulseMaxNs != null)
+                st.ranges.pulseWidth = { min: R2.pulseMinNs ?? '', max: R2.pulseMaxNs ?? '' };
+            if (R2.pulseValues && !st.allowed)
+                st.allowed = (R2.pulseValues || []).join(', ');
+            const tb = g?.customTable || (g?.tableId ? G?.TABLES?.[g.tableId] : null);
+            if (tb && !st.lookup.length) {
+                st.lookup = (tb.rows || []).map((x) => ({ p: x.pulse, mn: x.cutoff, mx: x.max ?? '' }));
+                if (!st.name)
+                    st.name = tb.name || '';
+            }
+            return st;
+        };
+        let S = toState(src.data.guard || null);
+        const w = document.createElement('div');
+        w.className = 'lce-wrap';
+        w.setAttribute('data-keep-open', '');
+        w.setAttribute('data-guard-editor', '');
+        document.body.appendChild(w);
+        ['click', 'pointerdown', 'mousedown', 'touchstart'].forEach(ev => w.addEventListener(ev, (e) => e.stopPropagation()));
+        const RG = [['speed', 'Speed (mm/s)'], ['power', 'Power %'], ['frequency', 'Frequency kHz'], ['pulseWidth', 'Q-Pulse ns']];
+        const sevSel = (k, v) => `<select data-sg="${k}" data-keep-select>${['info', 'warn', 'danger'].map(x => `<option value="${x}" ${v === x ? 'selected' : ''}>${esc(TL('sg.sev.' + x, x))}</option>`).join('')}</select>`;
+        const draw = () => {
+            w.innerHTML = `<div class="lce" role="dialog" aria-modal="true"><div class="lce-head"><div><b>🛡 ${esc(TL('sg.title', 'Source protection'))} <span class="kx-badge ${S.enabled ? 'kx-badge-ok' : 'kx-badge-off'}">${S.enabled ? 'ON' : 'OFF'}</span></b><small>${esc(src.data.name)}${src.data.nominalPowerW ? ` · ${src.data.nominalPowerW} W` : ''}${src.data.wavelengthNm ? ` · ${src.data.wavelengthNm} nm` : ''}</small></div><button type="button" class="icon-btn" data-sg-close title="${esc(TL('vault.cancel', 'Cancel'))}">✕</button></div>
+      <div class="lce-body"><div class="lce-grid">
+        <label class="lce-f"><span class="lce-l">${esc(TL('sg.enabled', 'Protection on'))}</span><input type="checkbox" data-sg="enabled" ${S.enabled ? 'checked' : ''}></label>
+        <label class="lce-f"><span class="lce-l">${esc(TL('sg.name', 'Name'))}</span><input data-sg="name" value="${esc(S.name)}" placeholder="JPT M7 Cut-off Guard"></label>
+        <label class="lce-f"><span class="lce-l">${esc(TL('sg.mode', 'Mode'))} <i class="lce-i" title="${esc(TL('sg.modeHelp', 'Info – only shows; Warning – shows red, never blocks; Hard STOP – a dangerous combination must be confirmed or switched off'))}">ⓘ</i></span><select data-sg="mode" data-keep-select>${['info', 'warning', 'hard-stop'].map(x => `<option value="${x}" ${S.mode === x ? 'selected' : ''}>${esc(TL('sg.mode.' + x, x))}</option>`).join('')}</select></label>
+        <label class="lce-f"><span class="lce-l">${esc(TL('sg.reference', 'Data source (manual, model)'))}</span><input data-sg="reference" value="${esc(S.reference)}"></label>
+        <label class="lce-f" style="grid-column:span 2"><span class="lce-l">${esc(TL('sg.notes', 'Notes'))}</span><input data-sg="notes" value="${esc(S.notes)}"></label></div>
+        <details class="lce-g" open><summary>${esc(TL('sg.ranges', 'Ranges'))}</summary><table class="kx-calc-table sg-tab"><tr><th></th><th>${esc(TL('sg.min', 'Min'))}</th><th>${esc(TL('sg.max', 'Max'))}</th></tr>${RG.map(([k, l]) => `<tr><td>${esc(TL('sg.p.' + k, l))}</td><td><input type="number" step="any" data-sg-r="${k}:min" value="${esc(S.ranges[k]?.min ?? '')}"></td><td><input type="number" step="any" data-sg-r="${k}:max" value="${esc(S.ranges[k]?.max ?? '')}"></td></tr>`).join('')}</table>
+          <label class="lce-f"><span class="lce-l">${esc(TL('sg.allowed', 'Allowed pulse widths (ns)'))}</span><input data-sg="allowed" value="${esc(S.allowed)}" placeholder="2, 4, 6, 9, 13 …"></label></details>
+        <details class="lce-g" open><summary>${esc(TL('sg.lookup', 'Table pulse → frequency (cut-off / max)'))} · ${S.lookup.length}</summary>
+          <div class="sg-lbar"><label>${esc(TL('sg.below', 'Below min'))} ${sevSel('below', S.below)}</label><label>${esc(TL('sg.above', 'Above max'))} ${sevSel('above', S.above)}</label><label>${esc(TL('sg.nomatch', 'Pulse not in table'))} ${sevSel('nomatch', S.nomatch)}</label><label><input type="checkbox" data-sg="pulsedOnly" ${S.pulsedOnly ? 'checked' : ''}> ${esc(TL('sg.pulsedOnly', 'only when pulse > 0 (0 ns = CW)'))}</label></div>
+          <table class="kx-calc-table sg-tab"><tr><th>${esc(TL('sg.p.pulseWidth', 'Q-Pulse ns'))}</th><th>${esc(TL('sg.cutoff', 'Cut-off (min) kHz'))}</th><th>${esc(TL('sg.fmax', 'Max kHz'))}</th><th></th></tr>${S.lookup.map((r, i) => `<tr><td><input type="number" step="any" data-sg-l="${i}:p" value="${esc(r.p)}"></td><td><input type="number" step="any" data-sg-l="${i}:mn" value="${esc(r.mn)}"></td><td><input type="number" step="any" data-sg-l="${i}:mx" value="${esc(r.mx)}"></td><td><button type="button" class="icon-btn" data-sg-ldel="${i}" title="${esc(TL('sg.ldel', 'Remove the row'))}">🗑</button></td></tr>`).join('')}</table>
+          <div class="sg-lbar"><button type="button" class="btn compact" data-sg-ladd>＋ ${esc(TL('sg.ladd', 'Row'))}</button><textarea data-sg-csv rows="2" placeholder="${esc(TL('sg.csvPh', 'paste CSV: pulse;cut-off;max per line'))}"></textarea><button type="button" class="btn compact" data-sg-csvgo>${esc(TL('sg.csv', 'Insert CSV'))}</button></div></details>
+        <details class="lce-g"><summary>${esc(TL('sg.adv', 'Advanced rules (JSON)'))} · ${S.adv.length}</summary><textarea data-sg-adv rows="7" class="sg-json">${esc(JSON.stringify(S.adv, null, 2))}</textarea><small class="muted">${esc(TL('sg.advHelp', 'Types: range, allowed, forbidden-range, warning-range, lookup-range; condition {all|any:[{parameter,op,value}]}; parameters speed, power, frequency, pulseWidth, passes, lineInterval…'))}</small></details>
+        <div class="sg-lbar"><label>${esc(TL('sg.copyFrom', 'Copy from another source'))} <select data-sg-copysrc data-keep-select><option value="">—</option>${others.map((o) => `<option value="${esc(o.id)}">${esc(o.data.name)}</option>`).join('')}</select></label><button type="button" class="btn compact" data-sg-copy>${esc(TL('sg.copy', 'Copy'))}</button><button type="button" class="btn compact" data-sg-jpt>${esc(TL('sg.jpt', 'JPT M7 template'))}</button><button type="button" class="btn compact" data-sg-export>⇩ ${esc(TL('sg.export', 'Export'))}</button><label class="btn compact">⇧ ${esc(TL('sg.import', 'Import'))}<input type="file" accept="application/json,.json" data-sg-import hidden></label></div>
+      </div><div class="lce-foot"><small class="muted">kxhub-guard-v1</small><span class="lce-err" data-sg-err></span><button type="button" class="btn ghost danger" data-sg-clear>${esc(TL('sg.clear', 'Remove protection'))}</button><button type="button" class="btn ghost" data-sg-close>${esc(TL('vault.cancel', 'Cancel'))}</button><button type="button" class="btn primary" data-sg-save>✓ ${esc(TL('cv.save', 'Save'))}</button></div></div>`;
+            bind();
+        };
+        const read = () => {
+            const q = (k) => w.querySelector(`[data-sg="${k}"]`);
+            S.enabled = !!q('enabled')?.checked;
+            S.name = q('name').value.trim();
+            S.mode = q('mode').value;
+            S.reference = q('reference').value.trim();
+            S.notes = q('notes').value.trim();
+            S.allowed = q('allowed').value.trim();
+            S.below = q('below').value;
+            S.above = q('above').value;
+            S.nomatch = q('nomatch').value;
+            S.pulsedOnly = !!q('pulsedOnly').checked;
+            w.querySelectorAll('[data-sg-r]').forEach(i => { const [k, part] = String(i.dataset.sgR).split(':'); S.ranges[k] = S.ranges[k] || { min: '', max: '' }; S.ranges[k][part] = i.value.trim(); });
+            w.querySelectorAll('[data-sg-l]').forEach(i => { const [ix, part] = String(i.dataset.sgL).split(':'); S.lookup[Number(ix)][part] = i.value.trim(); });
+            const t = w.querySelector('[data-sg-adv]').value.trim();
+            try {
+                S.adv = t ? JSON.parse(t) : [];
+                if (!Array.isArray(S.adv))
+                    throw new Error('array');
+                return true;
+            }
+            catch {
+                w.querySelector('[data-sg-err]').textContent = TL('sg.advBad', 'Advanced rules are not valid JSON (an array of rules).');
+                return false;
+            }
+        };
+        const toGuard = () => {
+            const rules = [];
+            const pulsed = { parameter: 'pulseWidth', op: '>', value: 0 };
+            for (const [k] of RG) {
+                const r = S.ranges[k];
+                if (r && (r.min !== '' || r.max !== ''))
+                    rules.push({ id: `simple:${k}:range`, type: 'range', parameter: k, min: r.min === '' ? null : Number(r.min), max: r.max === '' ? null : Number(r.max), severity: 'danger', ...(k === 'pulseWidth' && S.pulsedOnly ? { condition: pulsed } : {}) });
+            }
+            if (S.allowed)
+                rules.push({ id: 'simple:pulseWidth:allowed', type: 'allowed', parameter: 'pulseWidth', allowedValues: S.allowed, severity: 'warning', ...(S.pulsedOnly ? { condition: pulsed } : {}) });
+            const rows = S.lookup.filter((r) => String(r.p) !== '').map((r) => ({ lookup: Number(r.p), min: r.mn === '' ? null : Number(r.mn), max: r.mx === '' ? null : Number(r.mx) }));
+            if (rows.length)
+                rules.push({ id: 'builtin:lookup', type: 'lookup-range', lookupParameter: 'pulseWidth', parameter: 'frequency', rows, belowSeverity: S.below, aboveSeverity: S.above, noMatchSeverity: S.nomatch, ...(S.pulsedOnly ? { condition: pulsed } : {}) });
+            return { enabled: S.enabled, name: S.name, mode: S.mode, reference: S.reference, notes: S.notes, rules: [...rules, ...S.adv], ranges: {}, tableId: null, source: S.reference };
+        };
+        const err = (m) => { const e = w.querySelector('[data-sg-err]'); if (e)
+            e.textContent = m; };
+        const errText = (e) => { const m = String(e?.message || e); const k = m.split(':')[0]; const t = TL('sg.err.' + k, ''); return t && t !== 'sg.err.' + k ? t + (m.includes(':') ? ` (${m.split(':').slice(1).join(':')})` : '') : m; };
+        function bind() {
+            w.querySelectorAll('[data-sg-close]').forEach(b => b.onclick = () => w.remove());
+            w.addEventListener('keydown', (e) => { if (e.key === 'Escape') {
+                e.stopPropagation();
+                w.remove();
+            } });
+            w.querySelector('[data-sg-ladd]').onclick = () => { if (!read())
+                return; S.lookup.push({ p: '', mn: '', mx: '' }); draw(); };
+            w.querySelectorAll('[data-sg-ldel]').forEach(b => b.onclick = () => { if (!read())
+                return; S.lookup.splice(Number(b.dataset.sgLdel), 1); draw(); });
+            w.querySelector('[data-sg-csvgo]').onclick = () => { if (!read())
+                return; const t = w.querySelector('[data-sg-csv]').value; let n = 0; for (const line of t.split(/\r?\n/)) {
+                const c = line.split(/[;,\t]/).map(x => x.trim().replace(',', '.'));
+                if (c.length < 2 || !/^\d/.test(c[0]))
+                    continue;
+                S.lookup.push({ p: c[0], mn: c[1] || '', mx: c[2] || '' });
+                n++;
+            } draw(); err(n ? `${n} ${TL('sg.csvRows', 'rows inserted')}` : TL('sg.csvNone', 'No rows recognised (pulse;cut-off;max).')); };
+            w.querySelector('[data-sg-jpt]').onclick = async () => { try {
+                const t = await core.actions.invoke('ACTION.LASER.GUARD.TEMPLATE', { template: 'JPT_M7' }, RC);
+                S = toState(t);
+                draw();
+                err(TL('sg.jptDone', 'JPT M7 template loaded – check and save.'));
+            }
+            catch (e) {
+                err(errText(e));
+            } };
+            w.querySelector('[data-sg-copy]').onclick = () => { const id = w.querySelector('[data-sg-copysrc]').value; const o = others.find((x) => x.id === id); if (!o) {
+                err(TL('sg.copyPick', 'Choose a source.'));
+                return;
+            } S = toState(o.data.guard || null); draw(); err(TL('sg.copied', 'Copied – check and save.')); };
+            w.querySelector('[data-sg-export]').onclick = () => { if (!read())
+                return; const blob = new Blob([JSON.stringify({ schema: 'kxhub-guard-v1', source: src.data.name, guard: toGuard() }, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `guard-${String(src.data.name).replace(/[^\w.-]+/g, '_')}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+            w.querySelector('[data-sg-import]').onchange = async (e) => { const f = e.target.files?.[0]; if (!f)
+                return; try {
+                const j = JSON.parse(await f.text());
+                const g = j.guard || j;
+                G.normalize(g);
+                S = toState(g);
+                draw();
+                err(TL('sg.imported', 'Imported – check and save.'));
+            }
+            catch (er) {
+                err(errText(er));
+            } };
+            w.querySelector('[data-sg-clear]').onclick = async () => { if (!confirm(TL('sg.clearConfirm', 'Remove the protection of this source? (the name suggestion may apply again)')))
+                return; try {
+                await core.actions.invoke('ACTION.LASER.GUARD.SET', { sourceModuleId: sourceId, guard: null }, RC);
+                w.remove();
+                opts.onToast?.(TL('sg.saved', 'Protection saved'));
+                again();
+            }
+            catch (e) {
+                err(errText(e));
+            } };
+            w.querySelector('[data-sg-save]').onclick = async () => { if (!read())
+                return; try {
+                await core.actions.invoke('ACTION.LASER.GUARD.SET', { sourceModuleId: sourceId, guard: toGuard() }, RC);
+                w.remove();
+                opts.onToast?.(TL('sg.saved', 'Protection saved'));
+                again();
+            }
+            catch (e) {
+                err(errText(e));
+            } };
+            w.querySelectorAll('[data-sg="enabled"]').forEach(i => i.onchange = () => { read(); draw(); });
+        }
+        draw();
+    }
+    function lceMsg(f) {
+        const T2 = (k, d) => TL('lce.m.' + k, d);
+        switch (f.code) {
+            case 'BELOW_CUTOFF': return T2('BELOW_CUTOFF', 'Below cut-off').replace('{p}', f.pulse).replace('{c}', f.cutoff) + (f.estimatedW != null ? ` · ≈ ${f.estimatedW} W` : '');
+            case 'STOP_OVER_MAX': return T2('STOP_OVER_MAX', 'Over max').replace('{p}', f.pulse).replace('{m}', f.max);
+            case 'IN_RANGE': return T2('IN_RANGE', 'In range').replace('{p}', f.pulse).replace('{c}', f.cutoff).replace('{m}', f.max);
+            case 'PULSE_NOT_ALLOWED': return T2('PULSE_NOT_ALLOWED', 'Pulse not allowed').replace('{o}', (f.options || []).join(', '));
+            case 'PULSE_RANGE':
+            case 'FREQ_RANGE': return T2('RANGE', 'Out of range').replace('{a}', f.min ?? '−∞').replace('{b}', f.max ?? '∞');
+            case 'SPEED_OVER': return T2('SPEED_OVER', 'Over max speed').replace('{m}', f.max);
+            case 'PASSES_OVER': return T2('PASSES_OVER', 'Too many passes').replace('{m}', f.max);
+            case 'POWER_INVALID': return T2('POWER_INVALID', 'Power 0–100 %');
+            case 'RULE_RANGE': return f.message || T2('RULE_RANGE', 'Outside {a}–{b}').replace('{a}', f.min ?? '−∞').replace('{b}', f.max ?? '∞');
+            case 'RULE_ALLOWED': return f.message || T2('RULE_ALLOWED', 'Not an allowed value – nearest: {o}').replace('{o}', (f.options || []).join(', '));
+            case 'RULE_FORBIDDEN': return f.message || T2('RULE_FORBIDDEN', 'Forbidden range {a}–{b}').replace('{a}', f.min ?? '−∞').replace('{b}', f.max ?? '∞');
+            case 'RULE_WARNING': return f.message || T2('RULE_WARNING', 'Caution range {a}–{b}').replace('{a}', f.min ?? '−∞').replace('{b}', f.max ?? '∞');
+            case 'RULE_LOOKUP_BELOW': return f.message || T2('RULE_LOOKUP_BELOW', 'Below the table value {m} (for {l})').replace('{m}', f.min).replace('{l}', f.lookup);
+            case 'RULE_LOOKUP_ABOVE': return f.message || T2('RULE_LOOKUP_ABOVE', 'STOP: above the table maximum {m} (for {l})').replace('{m}', f.max).replace('{l}', f.lookup);
+            case 'RULE_LOOKUP_MISSING': return f.message || T2('RULE_LOOKUP_MISSING', '{l} is not in the table – unknown; nearest: {o}').replace('{l}', f.lookup).replace('{o}', (f.options || []).join(', '));
+            default: return f.code;
+        }
+    }
     const paramsFor = (d) => { const t = new Set(d?.technologyCodes || []); return PARAMS.filter(p => !p.need || (p.need === 'GALVO' && t.has('GALVO')) || (p.need === 'NOGALVO' && !t.has('GALVO')) || t.has(p.need)); };
     /* N2.5s: section „Source protection“ on the laser card – per source: state (confirmed / suggested / unknown), manufacturer table, ranges */
     function guardSection(srcs) {
@@ -1294,7 +1490,7 @@ var KXLaserHub;
             const eff = G.effective(x.data);
             const st2 = own && (own.tableId || Object.keys(own.ranges).length) ? 'OK' : eff?.suggested ? 'SUGGESTED' : 'NONE';
             const R = own?.ranges || {};
-            return `<div class="kx-lgs" data-lgs-box="${esc(x.id)}"><b>${esc(x.data.name)}</b> <small class="muted">${esc(String(x.data.wavelengthNm || '?'))} nm${x.data.nominalPowerW ? ` · ${x.data.nominalPowerW} W` : ''}</small> <span class="kx-badge ${st2 === 'OK' ? '' : 'kx-badge-warn'}" data-lgs-state="${st2}">${esc(TL('lg.state.' + st2, ''))}</span>
+            return `<div class="kx-lgs" data-lgs-box="${esc(x.id)}"><b>${esc(x.data.name)}</b> <button type="button" class="btn compact" data-lgs-edit="${esc(x.id)}" title="${esc(TL('sg.open', 'Edit the source protection (rules)'))}">🛡 ${esc(TL('sg.btn', 'Edit protection'))}</button> <small class="muted">${esc(String(x.data.wavelengthNm || '?'))} nm${x.data.nominalPowerW ? ` · ${x.data.nominalPowerW} W` : ''}</small> <span class="kx-badge ${st2 === 'OK' ? '' : 'kx-badge-warn'}" data-lgs-state="${st2}">${esc(TL('lg.state.' + st2, ''))}</span>
          <div class="kx-lgrid"><label><small>${esc(TL('lg.table', ''))}</small><select data-lgs-table data-keep-select><option value="">—</option>${Object.values(G.TABLES).map((t) => `<option value="${esc(t.id)}" ${(own?.tableId || (st2 === 'SUGGESTED' ? eff.tableId : '')) === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>
          ${RF.map(([k, u]) => `<label><small>${esc(TL('lg.r.' + k, ''))} (${u})</small><input data-lgs-r="${k}" value="${esc(Array.isArray(R[k]) ? R[k].join(', ') : (R[k] ?? ''))}" inputmode="decimal"></label>`).join('')}
          <label class="kx-lgs-src"><small>${esc(TL('lg.source', ''))}</small><input data-lgs-source value="${esc(own?.source || '')}" placeholder="${esc(TL('lg.sourcePh', ''))}"></label></div>
@@ -2249,6 +2445,7 @@ var KXLaserHub;
                     ranges[String(i.dataset.lgsR)] = i.dataset.lgsR === 'pulseValues' ? i.value : i.value.replace(',', '.'); });
                 return { tableId: box.querySelector('[data-lgs-table]').value || null, ranges, source: box.querySelector('[data-lgs-source]').value };
             };
+            root.querySelectorAll('[data-lgs-edit]').forEach(bt => bt.onclick = (e) => { e.preventDefault(); e.stopPropagation(); void openGuardEditor(core, opts, String(bt.dataset.lgsEdit), again); });
             const lgsDo = async (id, guard) => { try {
                 await core.actions.invoke('ACTION.LASER.GUARD.SET', { sourceModuleId: id, guard }, lgsCtx);
                 opts.onToast?.(TL('lg.saved', ''));
