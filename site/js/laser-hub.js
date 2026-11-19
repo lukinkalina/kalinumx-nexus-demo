@@ -1030,6 +1030,186 @@ var KXLaserHub;
             say(String(e?.message || e));
         } });
     }
+    /* ---------- N2.6b+ COMPACT LAYER GRID (user: like LightBurn “Cuts / Layers” + the original hub table – many columns at once, ✓ / ✗, choose columns per laser, quick panel) ---------- */
+    const LB_COLORS = ['#000000', '#0000ff', '#ff0000', '#00e000', '#d0d000', '#ff8000', '#00e0e0', '#ff00ff', '#b4b4b4', '#0000a0', '#a00000', '#00a000', '#a0a000', '#c08000', '#00a0ff', '#a000a0', '#808080', '#7d87b9', '#bb7784', '#4a6fe3', '#d33f6a', '#8cd78c', '#f0b98d', '#f6c4e1', '#fa9ed4', '#500a78', '#b45a00', '#004754', '#86fa88', '#ffdb66'];
+    const LG_DEFAULT = ['mode', 'speed', 'power', 'frequency', 'pulseWidth', 'lineInterval', 'passes', 'scanAngle', 'bidirectional', 'crossHatch', 'output'];
+    const LG_YES = new Set(['ANO', 'ANO_M3_CONSTANT', 'YES', 'TRUE']);
+    function lgColorIdx(o, i) { const m = String(o.data.layerName || o.data.parameters?.extras?.layer || '').match(/(\d{1,2})/) || String(o.data.name || '').match(/^\s*[CT](\d{1,2})\b/i); const n = m ? Number(m[1]) : i; return Math.max(0, Math.min(29, n)); }
+    async function renderLayerGrid(core, opts, host, cur, layers, again, PC) {
+        const RC = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['LASER.READ'], confirmed: true };
+        let caps = null, guardFor = null;
+        try {
+            caps = (await core.actions.invoke('ACTION.LASER.CAPS.FOR', { profileId: cur.data.profileId }, RC))?.caps;
+        }
+        catch { }
+        try {
+            guardFor = await core.actions.invoke('ACTION.LASER.GUARD.FOR', { profileId: cur.data.profileId }, RC);
+        }
+        catch { }
+        const CAPMAP = { qpulse: 'pulse', galvoTimings: 'timings', airAssist: 'air', sliced3d: 'threeD' };
+        const capOk = (c) => { if (!c || !caps)
+            return true; const k = CAPMAP[c] || c; return k in caps ? caps[k] === true : false; };
+        const defs = LCAT.filter((g) => LC_LAYER_GROUPS.includes(g.g) && capOk(g.cap)).flatMap((g) => g.params.filter((q) => capOk(q.cap) && !['layerName', 'layer', 'mode'].includes(q.k) || q.k === 'mode'));
+        const all = [...defs.filter((q) => q.k === 'mode'), ...defs.filter((q) => q.k !== 'mode' && q.k !== 'output'), { k: 'output', lb: 'Output', t: 'select', opts: ['ANO', 'NE'], st: 'extras' }];
+        const key = 'kx.laser.layercols.' + String(cur.data.machineId || '');
+        let cols = [];
+        try {
+            cols = JSON.parse(localStorage.getItem(key) || 'null') || LG_DEFAULT;
+        }
+        catch {
+            cols = LG_DEFAULT;
+        }
+        cols = cols.filter(k => all.some((q) => q.k === k));
+        const G = globalThis.KXLaserGuard;
+        const src = null;
+        const guard = guardFor?.guard && G ? guardFor.guard : null;
+        const locked = !!cur.data.evidence?.projectLocked;
+        const order = [];
+        const kids = (pid) => layers.filter((x) => (x.data.parentId || null) === pid).sort((a, b) => (a.data.sequence || 0) - (b.data.sequence || 0));
+        const walk = (pid, d) => { for (const o of kids(pid)) {
+            order.push({ o, d });
+            walk(o.id, d + 1);
+        } };
+        walk(null, 0);
+        const val = (o, q) => { if (q.k === 'output')
+            return o.data.parameters?.extras?.output ?? 'ANO'; return lcValue(o, q.k, q.st); };
+        const cell = (o, q) => {
+            const v = val(o, q);
+            if (q.t === 'select' && (q.opts || []).length <= 3 && (q.opts || []).some((c) => LG_YES.has(c) || c === 'NE')) {
+                const on = LG_YES.has(String(v));
+                return `<td class="lg-b ${on ? 'on' : ''}" data-lg-tog="${q.k}" title="${esc(TL('lc.' + q.k, q.lb))}">${on ? '✓' : '✗'}</td>`;
+            }
+            if (q.k === 'mode')
+                return `<td><select class="lg-mode" data-lg-mode data-keep-select ${locked ? 'disabled' : ''}>${['LINE', 'FILL', 'OFFSET_FILL', 'IMAGE'].map(c => `<option value="${c}" ${String(v || 'FILL') === c ? 'selected' : ''}>${esc(TL('lc.o.mode.' + c, c))}</option>`).join('')}</select></td>`;
+            if (q.t === 'number')
+                return `<td class="lg-n" data-lg-num="${q.k}">${v == null || v === '' ? '<span class="muted">—</span>' : esc(v)}</td>`;
+            return `<td>${esc(v == null || v === '' ? '—' : (typeof v === 'string' && /^[A-Z0-9_]+$/.test(v) ? TL('lc.o.' + q.k + '.' + v, v) : v))}</td>`;
+        };
+        const status = (o) => { if (!guard || !G)
+            return ''; const r = G.evaluate(guard, o.data.parameters || {}); if (o.data.parameters?.extras?.guardOverride && r.status === 'danger')
+            return '<span class="kx-badge kx-badge-off">🛡</span>'; return r.status === 'danger' ? '<span class="kx-badge kx-badge-bad">⛔</span>' : r.status === 'warn' ? '<span class="kx-badge kx-badge-warn">⚠</span>' : '<span class="kx-badge kx-badge-ok">✓</span>'; };
+        const C = cols.map(k => all.find((q) => q.k === k)).filter(Boolean);
+        const sel = host.__lgSel || order[0]?.o.id || '';
+        host.innerHTML = `<div class="lg-wrap"><div class="lg-bar"><b>${esc(TL('lg2.title', 'Layers – overview'))}</b><small class="muted">${order.length} · ${esc(TL('lg2.hint', 'click ✓ / ✗ to switch, double-click a number to edit'))}</small><details class="lg-cols"><summary class="btn compact">⚙ ${esc(TL('lg2.cols', 'Columns'))} (${C.length})</summary><div class="lg-colpick"><div class="lg-colbtns"><button type="button" class="btn compact" data-lg-cdef>${esc(TL('lg2.colDefault', 'Default'))}</button><button type="button" class="btn compact" data-lg-call>${esc(TL('lg2.colAll', 'All'))}</button></div>${[...C, ...all.filter((q) => !cols.includes(q.k))].map((q) => `<div class="lg-colrow"><label><input type="checkbox" data-lg-col="${q.k}" ${cols.includes(q.k) ? 'checked' : ''}> ${esc(TL('lc.' + q.k, q.lb))}</label>${cols.includes(q.k) ? `<span><button type="button" class="icon-btn" data-lg-mv="${q.k}" data-dir="-1" title="${esc(TL('lg2.left', 'Move left'))}">◀</button><button type="button" class="icon-btn" data-lg-mv="${q.k}" data-dir="1" title="${esc(TL('lg2.right', 'Move right'))}">▶</button></span>` : ''}</div>`).join('')}</div></details></div>
+      ${order.length ? `<div class="lg-scroll"><table class="lg-table"><thead><tr><th>#</th><th>${esc(TL('lc.layerName', 'Layer'))}</th>${C.map((q) => `<th title="${esc(TL('lc.' + q.k + '.d', ''))}">${esc(TL('lg2.h.' + q.k, '') !== 'lg2.h.' + q.k && TL('lg2.h.' + q.k, '') ? TL('lg2.h.' + q.k, '') : TL('lc.' + q.k, q.lb))}</th>`).join('')}<th>${esc(TL('lce.col.guard', 'Protection'))}</th><th></th></tr></thead><tbody>
+      ${order.map(({ o, d }, i) => { const ci = lgColorIdx(o, i); return `<tr data-lg-row="${esc(o.id)}" class="${o.id === sel ? 'sel' : ''}"><td><span class="lg-chip" style="background:${LB_COLORS[ci]}">${String(ci).padStart(2, '0')}</span></td><td class="lg-name">${d ? '<span class="muted">' + '↳ '.repeat(d) + '</span>' : ''}${esc(o.data.name || '')}</td>${C.map((q) => cell(o, q)).join('')}<td>${status(o)}</td><td><button type="button" class="icon-btn" data-lg-adv title="${esc(TL('lce.edit', 'Layer settings'))}">⚙</button></td></tr>`; }).join('')}</tbody></table></div>` : `<p class="muted">${esc(TL('li.noLayers', 'No layers yet'))}</p>`}
+      <div class="lg-quick" data-lg-quick></div></div>`;
+        const rowOf = (el) => layers.find((x) => x.id === el.closest('[data-lg-row]')?.dataset.lgRow);
+        const save = async (o, mut, patchData = {}) => {
+            if (locked) {
+                opts.onToast?.(TL('lce.locked', 'Parameters are locked'));
+                return;
+            }
+            const pr = structuredClone(o.data.parameters || {});
+            pr.extras = { ...(pr.extras || {}) };
+            mut(pr);
+            if (guard && G) {
+                const r = G.evaluate(guard, pr);
+                if (r.status === 'danger' && !pr.extras.guardOverride) {
+                    if (!confirm(TL('lce.saveDanger', 'The guard reports a dangerous combination. Save anyway (marked ⚠)?')))
+                        return;
+                }
+                if (r.status === 'danger' || r.status === 'warn')
+                    pr.extras.guardWarning = r.status;
+                else
+                    delete pr.extras.guardWarning;
+            }
+            try {
+                await core.actions.invoke('ACTION.LASER.OPERATION.SAVE', { id: o.id, expectedRevision: o.revision, spaceIds: o.spaceIds, data: { ...o.data, ...patchData, parameters: pr } }, PC);
+                host.__lgSel = o.id;
+                again();
+            }
+            catch (e) {
+                opts.onToast?.(String(e?.message || e));
+            }
+        };
+        const setP = (pr, k, v) => { if (LC_CORE[k]) {
+            if (v === '' || v == null)
+                delete pr[LC_CORE[k]];
+            else
+                pr[LC_CORE[k]] = v;
+        }
+        else {
+            if (v === '' || v == null)
+                delete pr.extras[k];
+            else
+                pr.extras[k] = v;
+        } };
+        host.querySelectorAll('[data-lg-row]').forEach(tr => tr.addEventListener('click', (e) => { if (e.target.closest('[data-lg-tog],[data-lg-num],select,button'))
+            return; host.__lgSel = tr.dataset.lgRow; host.querySelectorAll('[data-lg-row]').forEach(r => r.classList.toggle('sel', r === tr)); quick(); }));
+        host.querySelectorAll('[data-lg-tog]').forEach(td => td.onclick = () => { const o = rowOf(td); if (!o)
+            return; const k = String(td.dataset.lgTog); const on = td.classList.contains('on'); void save(o, pr => { if (k === 'output')
+            pr.extras.output = on ? 'NE' : 'ANO';
+        else
+            setP(pr, k, on ? 'NE' : 'ANO'); }); });
+        host.querySelectorAll('[data-lg-mode]').forEach(sl => sl.onchange = () => { const o = rowOf(sl); if (o)
+            void save(o, pr => { pr.extras.mode = sl.value; }); });
+        host.querySelectorAll('[data-lg-num]').forEach(td => td.ondblclick = () => {
+            if (locked)
+                return;
+            const o = rowOf(td);
+            if (!o)
+                return;
+            const k = String(td.dataset.lgNum);
+            const q = all.find((x) => x.k === k);
+            const v = val(o, q);
+            td.innerHTML = `<input type="number" step="any" class="lg-in" value="${esc(v ?? '')}">`;
+            const inp = td.querySelector('input');
+            inp.focus();
+            inp.select();
+            const done = (ok) => { if (!ok) {
+                again();
+                return;
+            } const t = inp.value.trim(); const n = t === '' ? '' : Number(t.replace(',', '.')); if (t !== '' && !Number.isFinite(n)) {
+                inp.classList.add('bad');
+                return;
+            } void save(o, pr => setP(pr, k, n)); };
+            inp.onkeydown = (e) => { if (e.key === 'Enter')
+                done(true); if (e.key === 'Escape')
+                done(false); };
+            inp.onblur = () => done(true);
+        });
+        host.querySelectorAll('[data-lg-adv]').forEach(b => b.onclick = () => { const o = rowOf(b); if (o)
+            void openLayerEditor(core, opts, { project: cur, op: o, layers, onSaved: again, PC }); });
+        const saveCols = (c) => { try {
+            localStorage.setItem(key, JSON.stringify(c));
+        }
+        catch { } host.__lgSel = sel; void renderLayerGrid(core, opts, host, cur, layers, again, PC).then(() => { host.querySelector('.lg-cols').open = true; }); };
+        const curCols = () => { try {
+            return (JSON.parse(localStorage.getItem(key) || 'null') || cols);
+        }
+        catch {
+            return cols;
+        } };
+        host.querySelectorAll('[data-lg-col]').forEach(cb => cb.onchange = () => { const k = String(cb.dataset.lgCol); const c0 = curCols().filter(x => x !== k); saveCols(cb.checked ? [...c0, k] : c0); /* new columns at the end, the user order stays */ });
+        host.querySelectorAll('[data-lg-mv]').forEach(b => b.onclick = (e) => { e.preventDefault(); const k = String(b.dataset.lgMv); const c0 = curCols(); const i = c0.indexOf(k); const j = i + (b.dataset.dir === '-1' ? -1 : 1); if (i < 0 || j < 0 || j >= c0.length)
+            return; [c0[i], c0[j]] = [c0[j], c0[i]]; saveCols(c0); });
+        host.querySelector('[data-lg-cdef]')?.addEventListener('click', () => saveCols(LG_DEFAULT));
+        host.querySelector('[data-lg-call]')?.addEventListener('click', () => saveCols(all.map((q) => q.k)));
+        /* quick panel of the selected layer (LightBurn bottom panel) */
+        function quick() {
+            const box = host.querySelector('[data-lg-quick]');
+            const o = layers.find((x) => x.id === host.__lgSel) || order[0]?.o;
+            if (!box || !o) {
+                if (box)
+                    box.innerHTML = '';
+                return;
+            }
+            const ci = lgColorIdx(o, order.findIndex(x => x.o === o));
+            const Q = ['passes', 'speed', 'lineInterval', 'power', 'pulseWidth', 'frequency'].map(k => all.find((q) => q.k === k)).filter(Boolean);
+            box.innerHTML = `<div class="lg-qhead"><b>${esc(o.data.name || '')}</b><label>${esc(TL('lg2.color', 'Layer colour'))} <select data-lg-color data-keep-select ${locked ? 'disabled' : ''}>${LB_COLORS.map((c, i) => `<option value="${i}" ${i === ci ? 'selected' : ''} style="background:${c}">C${String(i).padStart(2, '0')}</option>`).join('')}</select></label><span class="lg-chip" style="background:${LB_COLORS[ci]}">${String(ci).padStart(2, '0')}</span><span data-lg-qguard></span></div>
+        <div class="lg-qgrid">${Q.map((q) => `<label><span>${esc(TL('lc.' + q.k, q.lb))}${q.u ? ` <small>(${esc(q.u)})</small>` : ''}</span><input type="number" step="any" data-lg-q="${q.k}" value="${esc(val(o, q) ?? '')}" ${locked ? 'disabled' : ''}></label>`).join('')}</div>`;
+            const qg = box.querySelector('[data-lg-qguard]');
+            const live = () => { if (!guard || !G) {
+                qg.innerHTML = '';
+                return;
+            } const pr = structuredClone(o.data.parameters || {}); pr.extras = { ...(pr.extras || {}) }; box.querySelectorAll('[data-lg-q]').forEach(i => { const t = i.value.trim(); setP(pr, String(i.dataset.lgQ), t === '' ? '' : Number(t.replace(',', '.'))); }); const r = G.evaluate(guard, pr); const f = (r.findings || []).find((x) => x.status !== 'info'); qg.className = 'lg-qg lce-guard-' + r.status; qg.textContent = (r.status === 'danger' ? '⛔ ' : r.status === 'warn' ? '⚠ ' : '✓ ') + (f ? lceMsg(f) : TL('lce.guard.safe', 'OK')); box.querySelectorAll('[data-lg-q]').forEach(i => i.classList.toggle('bad', !!(r.findings || []).some((x) => x.status !== 'info' && LC_GUARD_FIELD[x.field] === i.dataset.lgQ))); };
+            box.querySelectorAll('[data-lg-q]').forEach(i => { i.oninput = live; i.onchange = () => { const t = i.value.trim(); void save(o, pr => setP(pr, String(i.dataset.lgQ), t === '' ? '' : Number(t.replace(',', '.')))); }; });
+            box.querySelector('[data-lg-color]').onchange = (e) => { const n = String(e.target.value).padStart(2, '0'); void save(o, pr => { pr.extras.layer = 'C' + n; }, { layerName: 'C' + n }); };
+            live();
+        }
+        quick();
+    }
     function lceMsg(f) { const T2 = (k, d) => TL('lce.m.' + k, d); switch (f.code) {
         case 'BELOW_CUTOFF': return T2('BELOW_CUTOFF', 'Below cut-off').replace('{p}', f.pulse).replace('{c}', f.cutoff) + (f.estimatedW != null ? ` · ≈ ${f.estimatedW} W` : '');
         case 'STOP_OVER_MAX': return T2('STOP_OVER_MAX', 'Over max').replace('{p}', f.pulse).replace('{m}', f.max);
@@ -1591,7 +1771,7 @@ var KXLaserHub;
             <td class="kx-layer-act"><button class="icon-btn" data-lh-adv="${esc(o.id)}" title="${esc(TL('lce.edit', 'Layer settings'))}">⚙</button><button class="icon-btn" data-lh-edit="${esc(o.id)}" title="✎">✎</button><button class="icon-btn" data-lh-sub="${esc(o.id)}" title="${esc(TL('laser.prj.addSub', 'add a sublayer'))}">＋↳</button><button class="icon-btn" data-lh-del="${esc(o.id)}" title="🗑">🗑</button></td></tr>` + kids(o.id).map((k) => row(k, depth + 1)).join('');
                     const form = (prefix) => `<tr data-lh-layer-form="${esc(prefix)}"><td><input data-ln="name" maxlength="80" placeholder="${esc(TL('laser.prj.layerPh', 'e.g. Fill logo'))}"></td>${pf.map(p => `<td><input data-lp="${p.k}" inputmode="decimal" style="width:68px"><span class="kx-lf-help" data-lp-help="${p.k}"></span></td>`).join('')}${isLp4 ? LDS.map(p => `<td>${p.opts ? `<select data-lds="${p.k}"><option value="">—</option>${p.opts.map(x => `<option>${x}</option>`).join('')}</select>` : `<input data-lds="${p.k}" inputmode="decimal" style="width:60px">`}</td>`).join('') : ''}<td><button class="btn compact" data-ln-add>✓</button></td></tr>`;
                     det.innerHTML = `<section class="kx-lcard open" data-lh-project="${esc(cur.id)}"><header class="kx-lcard-h"><b>${esc(cur.data.recordCode)} · ${esc(cur.data.title)}</b><small class="muted">${esc(mc?.data.name || '')} · ${esc(byId(cur.data.profileId)?.data.name || '')}${cur.data.material ? ` · ${esc(cur.data.material)}` : ''}</small><button class="btn compact" data-lh-evid title="${esc(TL('lce.ev.title', 'Project evidence'))}">✎ ${esc(TL('lce.ev.btn', 'Evidence'))}</button>${cur.data.evidence?.projectFavorite ? '<span class="kx-badge">★</span>' : ''}${cur.data.evidence?.projectLocked ? `<span class="kx-badge" title="${esc(TL('lce.locked', 'Parameters are locked'))}">🔒</span>` : ''}<button class="icon-btn" data-lh-pclose>×</button></header>
-            <div class="kx-lh-layerbar"><h5>${esc(TL('laser.prj.layers', 'Layers (LightBurn order)'))}</h5><button type="button" class="btn compact" data-lh-advnew="" title="${esc(TL('lce.new', 'New layer'))}">＋ ⚙ ${esc(TL('lce.new', 'New layer'))}</button></div>${isLp4 ? `<p class="muted kx-acc-help">${esc(TL('laser.prj.lp4dual', 'LaserPecker LP4: LightBurn and Design Space side by side – values are NOT converted (Design Space uses Depth, LightBurn speed).'))}</p>` : ''}
+            <div class="kx-lh-layerbar"><h5>${esc(TL('laser.prj.layers', 'Layers (LightBurn order)'))}</h5><button type="button" class="btn compact" data-lh-advnew="" title="${esc(TL('lce.new', 'New layer'))}">＋ ⚙ ${esc(TL('lce.new', 'New layer'))}</button></div><div data-lg-grid></div>${isLp4 ? `<p class="muted kx-acc-help">${esc(TL('laser.prj.lp4dual', 'LaserPecker LP4: LightBurn and Design Space side by side – values are NOT converted (Design Space uses Depth, LightBurn speed).'))}</p>` : ''}
             <table class="kx-calc-table" data-lh-layers><tr><th>${esc(TL('laser.prj.layerName', 'Name'))}</th>${pf.map(p => `<th title="${esc(TL('laser.param.help.' + p.k, ''))}">${isLp4 ? 'LB · ' : ''}${esc(TL('laser.param.' + p.k, p.k))} <small>${esc(p.u)}</small></th>`).join('')}${isLp4 ? LDS.map(p => `<th class="kx-lds" title="${esc(TL('laser.param.help.lds.' + p.k, ''))}">DS · ${esc(TL('laser.param.lds.' + p.k, p.k))} <small>${esc(p.u)}</small></th>`).join('') : ''}<th></th></tr>
             ${kids(null).map((o) => row(o, 0)).join('')}${form(st.pForm || '')}</table>
             <small class="muted" data-lh-form-ctx>${esc(st.pEdit ? TL('laser.prj.editing', 'Editing') + ': ' + (layers.find((x) => x.id === st.pEdit)?.data.name || '') : st.pForm ? TL('laser.prj.newSub', 'New sublayer of') + ': ' + (layers.find((x) => x.id === st.pForm)?.data.name || '') : TL('laser.prj.newTop', 'New layer'))}</small> <span class="kx-lf-help" data-ln-err></span><div class="kx-lguard" data-ln-guard></div><label class="kx-lguard-ack" data-ln-ack hidden><input type="checkbox" data-ln-guard-ack> ${esc(TL('lg.ack', ''))}</label></section>`;
@@ -1643,6 +1823,11 @@ var KXLaserHub;
                     void lgRun();
                     det.querySelectorAll('[data-lh-edit]').forEach(b => b.onclick = () => { st.pEdit = b.dataset.lhEdit; st.pForm = ''; again2(); });
                     det.querySelector('[data-lh-evid]')?.addEventListener('click', () => void openProjectEvidence(core, opts, { project: cur, onSaved: again2, PC }));
+                    {
+                        const gh = det.querySelector('[data-lg-grid]');
+                        if (gh)
+                            void renderLayerGrid(core, opts, gh, cur, layers, again2, PC);
+                    }
                     det.querySelectorAll('[data-lh-adv]').forEach(b => b.onclick = () => { const o = layers.find((x) => x.id === b.dataset.lhAdv); if (o)
                         void openLayerEditor(core, opts, { project: cur, op: o, layers, onSaved: again2, PC }); });
                     det.querySelectorAll('[data-lh-advnew]').forEach(b => b.onclick = () => void openLayerEditor(core, opts, { project: cur, layers, onSaved: again2, PC, parentId: b.dataset.lhAdvnew || null }));
