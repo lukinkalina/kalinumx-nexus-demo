@@ -552,9 +552,24 @@ var KXFinanceHub;
         if (!st.view)
             st.view = 'MOVEMENTS';
         const C = { actorId: opts.actorId, appCode: K.OWNER, deviceId: opts.deviceId, permissions: [], confirmed: true };
-        const spaces = (await core.propagate.spaces(opts.actorId)).filter((s) => ['PERSONAL', 'FAMILY', 'COMPANY'].includes(s.kind));
+        /* N2.6b+ (user): Finance follows the Work / Home / All switch – Home = personal + family (household), Work = company, All = every space */
+        let navCtx = 'ALL';
+        try {
+            const nc = await core.actions.invoke('ACTION.CORE.NAVIGATION.CONTEXT.READ', { userId: opts.actorId }, { ...C, permissions: ['CORE.SETTING.READ'] });
+            navCtx = String(nc?.activeContext || nc?.state?.activeContext || 'ALL');
+        }
+        catch { }
+        const kindsFor = (c) => c === 'WORK' ? ['COMPANY'] : c === 'HOME' ? ['PERSONAL', 'FAMILY'] : ['PERSONAL', 'FAMILY', 'COMPANY'];
+        const allSpaces = (await core.propagate.spaces(opts.actorId)).filter((s) => ['PERSONAL', 'FAMILY', 'COMPANY'].includes(s.kind));
+        let spaces = allSpaces.filter((s) => kindsFor(navCtx).includes(s.kind));
+        if (!spaces.length)
+            spaces = allSpaces;
+        if (st.navCtx !== navCtx) {
+            st.navCtx = navCtx;
+            st.space = '';
+        } /* the context changed – choose its default space again */
         if (!st.space || !spaces.some((s) => s.id === st.space))
-            st.space = spaces[0]?.id || '';
+            st.space = (navCtx === 'HOME' ? spaces.find((s) => s.kind === 'FAMILY') : navCtx === 'WORK' ? spaces.find((s) => s.kind === 'COMPANY') : null)?.id || spaces[0]?.id || '';
         const sp = spaces.find((s) => s.id === st.space);
         /* N2.5p: goals of this space for the movement form */ let goalsForForm = [];
         try {

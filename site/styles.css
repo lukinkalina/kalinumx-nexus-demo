@@ -2006,3 +2006,5 @@ html[data-kx-scheme="light"] .kx-gold{filter:drop-shadow(0 0 .6px #3a2506) drop-
 .lg-mode{min-width:96px}
 .lg-table select.lg-mode{height:24px !important;min-height:24px !important;padding:0 22px 0 8px !important;font-size:12px !important;border-radius:7px !important;background-position:right 6px center !important}
 .lg-table td{height:28px}.lg-table .kx-badge{padding:0 5px;font-size:11px}
+
+.lce-sub{display:flex;align-items:center;gap:10px;justify-content:space-between;margin:6px 16px 0}.kx-seg-mini{display:inline-flex;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 35%,transparent);border-radius:999px;overflow:hidden}.kx-seg-mini button{background:none;border:0;color:var(--muted);padding:3px 10px;font-size:12px;cursor:pointer}.kx-seg-mini button.on{background:linear-gradient(180deg,#f6d585,#c9963c);color:#14100a;font-weight:700}

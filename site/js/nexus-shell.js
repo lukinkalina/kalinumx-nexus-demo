@@ -11607,7 +11607,14 @@ var KXAPP;
             return;
         e.preventDefault();
         void runtime.actions.invoke('ACTION.CORE.NAVIGATION.CONTEXT.SWITCH', { scopeType: 'USER', scopeId: CURRENT_USER_ID, userId: CURRENT_USER_ID, workspaceId: activeWorkspace.id, context: b.dataset.treeContext }, hubNavActionContext()).then(() => { void hydrateTree(); if (state.activeSection === 'apps')
-            void hydrateApps(); }).catch((er) => toast(String(er?.message || er)));
+            void hydrateApps(); /* N2.6b+ (user): the open hub follows the Work / Home / All switch (Finance: household vs company) */ /* N2.6b+ (user): the open hub follows the Work / Home / All switch (Finance: household vs company) */ const openHub = document.querySelector('#inspector.open [data-hub-head]')?.dataset.hubHead; if (openHub)
+            void openHubAt(openHub); try {
+            const c = String(b.dataset.treeContext || 'ALL');
+            agUi.scope = c === 'WORK' ? 'COMPANY' : c === 'HOME' ? 'FAMILY' : 'ALL';
+            if (document.querySelector('[data-ag-scope]'))
+                kxAgSync();
+        }
+        catch { } /* My day overview follows the switch too */ }).catch((er) => toast(String(er?.message || er)));
     }, true);
     // ---------------- N2.3p: profile menu on the name (top right): language, health names (small), Profil a zařízení…, Nastavení, Koš ----------------
     async function profileMenu() {
