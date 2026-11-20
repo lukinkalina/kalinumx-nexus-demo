@@ -1582,13 +1582,18 @@ var KXLaserHub;
         const sel = root.querySelector('[data-lh2-machine]');
         if (!sel)
             return;
-        const go = (id) => { try {
+        const go = async (id) => { try {
             localStorage.setItem('kx.laser.active', id);
         }
-        catch { } void KXLaserHub.mountHub(root, core, opts); };
-        sel.onchange = () => go(sel.value);
+        catch { } const vn = localStorage.getItem('kx.laser.view.' + id); if (vn) {
+            try {
+                await core.actions.invoke('ACTION.CORE.FIELDS.VIEW_APPLY', { scope: 'LASER.PROJECTS', name: vn }, { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: [], confirmed: true });
+            }
+            catch { }
+        } /* the laser’s own default view of the Projects table */ /* the laser’s own default view of the Projects table */ void KXLaserHub.mountHub(root, core, opts); };
+        sel.onchange = () => void go(sel.value);
         const ids = Array.from(sel.options).map(o => o.value);
-        const step = (d) => { const i = ids.indexOf(sel.value); go(ids[(i + d + ids.length) % ids.length]); };
+        const step = (d) => { const i = ids.indexOf(sel.value); void go(ids[(i + d + ids.length) % ids.length]); };
         root.querySelector('[data-lh2-prev]').onclick = () => step(-1);
         root.querySelector('[data-lh2-next]').onclick = () => step(1);
         root.querySelector('[data-lh2-wizard]')?.addEventListener('click', () => void openLaserWizard(core, opts, (id) => { try {
@@ -2307,7 +2312,28 @@ var KXLaserHub;
             const groups = [['PERSONAL', list.filter((r) => r.data.origin === 'PERSONAL')], ['USER', list.filter((r) => !r.data.origin || r.data.origin === 'USER')], ['DEMO', list.filter((r) => r.data.origin === 'DEMO')]];
             const lhTop = await lhTopHtml(core, st, list);
             const tabsHtml = lhTop + `<div class="kx-print3d-tabs">${TABS.map(([k, l]) => `<button class="chip ${st.tab === k ? 'active' : ''}" data-laser-tab="${k}">${esc(l)}</button>`).join('')}<button class="icon-btn" data-kx-manual="HUB:APP.KX.LASER" title="📖">📖</button></div>`;
-            const bindTabs = () => { root.querySelectorAll('[data-laser-tab]').forEach(b => b.onclick = () => { st.tab = String(b.dataset.laserTab); st.favOnly = false; void KXLaserHub.mountHub(root, core, opts); }); lhTopBind(root, core, opts, st, list); root.querySelector('[data-lh2-favoff]')?.addEventListener('click', () => { st.favOnly = false; void KXLaserHub.mountHub(root, core, opts); }); };
+            const bindTabs = () => {
+                root.querySelectorAll('[data-laser-tab]').forEach(b => b.onclick = () => { st.tab = String(b.dataset.laserTab); st.favOnly = false; void KXLaserHub.mountHub(root, core, opts); });
+                lhTopBind(root, core, opts, st, list);
+                root.querySelector('[data-lhv-save]')?.addEventListener('click', async () => { const act = localStorage.getItem('kx.laser.active') || ''; const mn = String(list.find((m) => m.id === act)?.data?.name || act); const vn = ('🔧 ' + mn).slice(0, 60); try {
+                    await core.actions.invoke('ACTION.CORE.FIELDS.VIEW_SAVE', { scope: 'LASER.PROJECTS', name: vn }, { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: [], confirmed: true });
+                    localStorage.setItem('kx.laser.view.' + act, vn);
+                    opts.onToast?.(TL('lhv.saved', 'Columns saved for') + ' ' + mn);
+                    void KXLaserHub.mountHub(root, core, opts);
+                }
+                catch (e) {
+                    opts.onToast?.(String(e?.message || e));
+                } });
+                root.querySelector('[data-lhv-apply]')?.addEventListener('click', async () => { const act = localStorage.getItem('kx.laser.active') || ''; const vn = localStorage.getItem('kx.laser.view.' + act); if (!vn)
+                    return; try {
+                    await core.actions.invoke('ACTION.CORE.FIELDS.VIEW_APPLY', { scope: 'LASER.PROJECTS', name: vn }, { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: [], confirmed: true });
+                    void KXLaserHub.mountHub(root, core, opts);
+                }
+                catch (e) {
+                    opts.onToast?.(String(e?.message || e));
+                } });
+                root.querySelector('[data-lh2-favoff]')?.addEventListener('click', () => { st.favOnly = false; void KXLaserHub.mountHub(root, core, opts); });
+            };
             /* N2.4d: utilisation of every laser across all open orders (the same planner as SHOP); „Plánovat v SHOPu“ opens the SHOP orders */
             if (st.tab === 'IMPORTS') {
                 const all = await core.laserDomain.list();
@@ -2458,7 +2484,7 @@ var KXLaserHub;
                 const ops = (pid) => all.filter((x) => x.type === 'APP.LASER.OPERATION' && x.data.projectId === pid && !x.archivedAt).sort((a, b) => a.data.sequence - b.data.sequence);
                 const PC = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['LASER.PROJECT.EDIT', 'LASER.CONFIG.EDIT'], confirmed: true };
                 const cur = st.pOpen ? projs.find((x) => x.id === st.pOpen) : null;
-                root.innerHTML = `<div data-laser-hub class="kx-laser" data-laser-projects>${tabsHtml}${st.favOnly ? `<div class="lh2-filter"><span class="kx-badge">★ ${esc(TL('lh2.favOnly', 'only favourites'))}</span><button type="button" class="btn compact" data-lh2-favoff title="${esc(TL('lh2.favOff', 'Show all projects'))}">✕ ${esc(TL('lh2.favOff', 'Show all projects'))}</button></div>` : ''}
+                root.innerHTML = `<div data-laser-hub class="kx-laser" data-laser-projects>${tabsHtml}${(() => { const act = localStorage.getItem('kx.laser.active') || ''; const mn = list.find((m) => m.id === act)?.data?.name || ''; const has = !!localStorage.getItem('kx.laser.view.' + act); return act ? `<div class="lh2-filter lh2-view"><small class="muted">▦ ${esc(TL('lhv.label', 'Columns view for'))} <b>${esc(mn)}</b>${has ? ' · ' + esc(TL('lhv.has', 'saved')) : ''}</small><button type="button" class="btn compact" data-lhv-save title="${esc(TL('lhv.saveHelp', 'Remember the visible columns, their order and sorting for this laser; switching the laser applies them'))}">💾 ${esc(TL('lhv.save', 'Save as default for this laser'))}</button>${has ? `<button type="button" class="btn ghost compact" data-lhv-apply title="${esc(TL('lhv.apply', 'Apply the laser view'))}">↺ ${esc(TL('lhv.apply', 'Apply the laser view'))}</button>` : ''}</div>` : ''; })()}${st.favOnly ? `<div class="lh2-filter"><span class="kx-badge">★ ${esc(TL('lh2.favOnly', 'only favourites'))}</span><button type="button" class="btn compact" data-lh2-favoff title="${esc(TL('lh2.favOff', 'Show all projects'))}">✕ ${esc(TL('lh2.favOff', 'Show all projects'))}</button></div>` : ''}
           <details class="kx-lcols" data-lh-pnew ${projs.length ? '' : 'open'}><summary>＋ ${esc(TL('laser.prj.new', 'New project'))}</summary><div class="kx-calc-grid">
             <label class="kx-lf"><span>${esc(TL('laser.prj.title', 'Title'))}*</span><span class="kx-lf-in"><input data-pn="title" maxlength="160"></span></label>
             <label class="kx-lf"><span>${esc(TL('laser.prj.machine', 'Laser'))}</span><select data-pn="machine">${own.map((m) => `<option value="${esc(m.id)}">${esc(m.data.name)}</option>`).join('')}</select></label>
