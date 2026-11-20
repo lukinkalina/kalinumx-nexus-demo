@@ -775,7 +775,15 @@ var KXLaserHub;
         const src = byId(cur.data.sourceModuleId);
         const guard = src && G ? G.effective(src.data) : null;
         const recKey = 'kx.laser.rec.' + cur.id;
-        const recAt = Number(localStorage.getItem(recKey) || 0);
+        const recRaw = localStorage.getItem(recKey) || '';
+        let recInfo = {};
+        try {
+            recInfo = recRaw.startsWith('{') ? JSON.parse(recRaw) : { at: Number(recRaw || 0) };
+        }
+        catch {
+            recInfo = { at: 0 };
+        }
+        const recAt = Number(recInfo.at || 0);
         const fmtMs = (ms) => { const s2 = Math.round(ms / 1000); return `${Math.floor(s2 / 3600)}:${String(Math.floor(s2 % 3600 / 60)).padStart(2, '0')}:${String(s2 % 60).padStart(2, '0')}`; };
         const RS = { PENDING: '⏳', PASS: '✓', FAIL: '✗', MIXED: '≈' };
         const KEY = ['speed', 'power', 'frequency', 'pulseWidth', 'lineInterval', 'passes', 'mode'];
@@ -801,19 +809,45 @@ var KXLaserHub;
         const editStep = (start, base, title) => void openLayerEditor(core, opts, { project: pj, op: start ? { data: { name: '', parameters: start } } : undefined, layers: [], onSaved: again, PC: TC, title: title || TL('lts.stepTitle', 'Test step'), saveStep: async (pr) => { await saveRun(pr, base); } });
         det.querySelector('[data-lt-close]').onclick = () => { globalThis.__kxLtsClose?.(); det.innerHTML = ''; };
         det.querySelector('[data-lts-next]').onclick = () => editStep(runs.length ? structuredClone(runs[runs.length - 1].data.parameters) : null, undefined, runs.length ? `${TL('lts.stepTitle', 'Test step')} ${runs.length + 1}` : TL('lts.baselineTitle', 'Baseline'));
-        det.querySelector('[data-lts-rec]').onclick = async () => { if (!recAt) {
-            localStorage.setItem(recKey, String(Date.now()));
+        det.querySelector('[data-lts-rec]').onclick = async () => {
+            const TMC = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: [], confirmed: true };
+            const last = runs[runs.length - 1];
+            if (!recAt) {
+                let timer = '';
+                try {
+                    const tm = await core.actions.invoke('ACTION.CORE.TIMER.START', { target: { kind: 'ENTITY', id: last?.id || cur.id }, label: `${cur.data.title} · ${TL('lts.stepTitle', 'Test step')} ${runs.length || 1}`, ownerApp: OWNER }, TMC);
+                    timer = String(tm?.id || '');
+                }
+                catch (e) {
+                    globalThis.KXBugs?.pushErr?.(e);
+                }
+                localStorage.setItem(recKey, JSON.stringify({ at: Date.now(), timer }));
+                again();
+                return;
+            }
+            localStorage.removeItem(recKey);
+            let ms = Date.now() - recAt;
+            if (recInfo.timer) {
+                try {
+                    const v = await core.actions.invoke('ACTION.CORE.TIMER.STOP', { id: recInfo.timer }, TMC);
+                    if (Number(v?.elapsedMs) > 0)
+                        ms = Number(v.elapsedMs);
+                }
+                catch (e) {
+                    globalThis.KXBugs?.pushErr?.(e);
+                }
+            }
+            if (last) {
+                try {
+                    await saveRun(last.data.parameters, last, { durationMs: (Number(last.data.durationMs) || 0) + ms });
+                    opts.onToast?.(TL('lts.recSaved', 'Time added to the last step'));
+                }
+                catch (e) {
+                    opts.onToast?.(String(e?.message || e));
+                }
+            }
             again();
-            return;
-        } localStorage.removeItem(recKey); const last = runs[runs.length - 1]; if (last) {
-            try {
-                await saveRun(last.data.parameters, last, { durationMs: (Number(last.data.durationMs) || 0) + (Date.now() - recAt) });
-                opts.onToast?.(TL('lts.recSaved', 'Time added to the last step'));
-            }
-            catch (e) {
-                opts.onToast?.(String(e?.message || e));
-            }
-        } again(); };
+        };
         det.querySelector('[data-lts-done]')?.addEventListener('click', async () => { try {
             await core.actions.invoke('ACTION.LASER.TEST.SAVE', { id: cur.id, expectedRevision: cur.revision, spaceIds: cur.spaceIds, data: { ...cur.data, status: 'DONE' } }, TC);
             again();
@@ -1498,7 +1532,10 @@ var KXLaserHub;
             const lastP = prj[0];
             const lastT = tst[0];
             const fav = prj.filter((x) => x.data.evidence?.projectFavorite).length;
-            const rec = Object.keys(localStorage).filter(k => k.startsWith('kx.laser.rec.')).map(k => ({ id: k.slice(13), at: Number(localStorage.getItem(k) || 0) })).find(x => x.at);
+            const rec = Object.keys(localStorage).filter(k => k.startsWith('kx.laser.rec.')).map(k => { const v = localStorage.getItem(k) || ''; let at = 0; try {
+                at = v.startsWith('{') ? Number(JSON.parse(v).at || 0) : Number(v || 0);
+            }
+            catch { } return { id: k.slice(13), at }; }).find(x => x.at);
             const recT = rec && all.find((x) => x.id === rec.id);
             const d = (x) => x?.updatedAt ? new Date(x.updatedAt).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric' }) : '';
             const RS = { PENDING: '⏳', PASS: '✓', FAIL: '✗', MIXED: '≈' };
