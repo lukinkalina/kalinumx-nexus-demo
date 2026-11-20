@@ -791,7 +791,7 @@ var KXLaserHub;
             return ''; const r = G.evaluate(guard, pr || {}); if (pr?.extras?.guardOverride && r.status === 'danger')
             return `<span class="kx-badge kx-badge-off">🛡</span>`; return r.status === 'danger' ? '<span class="kx-badge kx-badge-bad">⛔</span>' : r.status === 'warn' ? '<span class="kx-badge kx-badge-warn">⚠</span>' : '<span class="kx-badge kx-badge-ok">✓</span>'; };
         det.innerHTML = `<section class="kx-lcard open" data-lt-test="${esc(cur.id)}" data-lts-session><header class="kx-lcard-h"><b>${esc(cur.data.recordCode)} · ${esc(cur.data.title)}</b><small class="muted">${esc(byId(cur.data.machineId)?.data.name || '')} · ${esc(byId(cur.data.profileId)?.data.name || '')}${cur.data.material ? ' · ' + esc(cur.data.material) : ''} · ${esc(TL('lts.status.' + cur.data.status, cur.data.status))}</small><button class="icon-btn" data-lt-close title="${esc(TL('lts.close', 'Close the session'))}">×</button></header>
-      <div class="kx-lts-bar"><button class="btn primary" data-lts-next>＋ ${esc(TL('lts.next', 'Next step'))}</button><button class="btn ${recAt ? 'kx-rec-on' : ''}" data-lts-rec>${recAt ? '■ ' + esc(TL('lts.recStop', 'Stop')) + ' <b data-lts-recclock>' + fmtMs(Date.now() - recAt) + '</b>' : '● ' + esc(TL('lts.rec', 'REC'))}</button>${cur.data.status !== 'DONE' ? `<button class="btn" data-lts-done>✓ ${esc(TL('lts.finish', 'Finish the session'))}</button>` : ''}<small class="muted">${esc(TL('lts.hint', 'Each step remembers all parameters; changes against the previous step are highlighted.'))}</small></div>
+      <div class="kx-lts-bar"><button class="btn" data-lts-qr title="${esc(TL('lq.title', 'QR identity'))}">▦ QR</button><button class="btn primary" data-lts-next>＋ ${esc(TL('lts.next', 'Next step'))}</button><button class="btn ${recAt ? 'kx-rec-on' : ''}" data-lts-rec>${recAt ? '■ ' + esc(TL('lts.recStop', 'Stop')) + ' <b data-lts-recclock>' + fmtMs(Date.now() - recAt) + '</b>' : '● ' + esc(TL('lts.rec', 'REC'))}</button>${cur.data.status !== 'DONE' ? `<button class="btn" data-lts-done>✓ ${esc(TL('lts.finish', 'Finish the session'))}</button>` : ''}<small class="muted">${esc(TL('lts.hint', 'Each step remembers all parameters; changes against the previous step are highlighted.'))}</small></div>
       ${runs.length ? `<table class="kx-calc-table kx-lts-table"><thead><tr><th>#</th><th>${esc(TL('lts.changed', 'What changed'))}</th>${KEY.map(k => `<th>${esc(lcsName(k))}</th>`).join('')}<th>${esc(TL('lce.col.guard', 'Protection'))}</th><th>${esc(TL('lts.result', 'Result'))}</th><th>${esc(TL('lts.note', 'Note'))}</th><th>${esc(TL('lts.time', 'Time'))}</th><th></th></tr></thead><tbody>
       ${runs.map((r, i) => {
             const pr = r.data.parameters || {};
@@ -808,6 +808,7 @@ var KXLaserHub;
         const saveRun = async (pr, base, patch = {}) => core.actions.invoke('ACTION.LASER.TEST_RUN.SAVE', base ? { id: base.id, expectedRevision: base.revision, spaceIds: base.spaceIds, data: { ...base.data, parameters: pr, ...patch } } : { spaceIds: cur.spaceIds, data: { testId: cur.id, lensId: cur.data.lensIds?.[0], sequence: runs.length ? Math.max(...runs.map((x) => Number(x.data.sequence) || 0)) + 1 : 0, parameters: pr, result: 'PENDING', ...patch } }, TC);
         const editStep = (start, base, title) => void openLayerEditor(core, opts, { project: pj, op: start ? { data: { name: '', parameters: start } } : undefined, layers: [], onSaved: again, PC: TC, title: title || TL('lts.stepTitle', 'Test step'), saveStep: async (pr) => { await saveRun(pr, base); } });
         det.querySelector('[data-lt-close]').onclick = () => { globalThis.__kxLtsClose?.(); det.innerHTML = ''; };
+        det.querySelector('[data-lts-qr]').onclick = () => openLaserQr(core, opts, cur, 'TEST');
         det.querySelector('[data-lts-next]').onclick = () => editStep(runs.length ? structuredClone(runs[runs.length - 1].data.parameters) : null, undefined, runs.length ? `${TL('lts.stepTitle', 'Test step')} ${runs.length + 1}` : TL('lts.baselineTitle', 'Baseline'));
         det.querySelector('[data-lts-rec]').onclick = async () => {
             const TMC = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: [], confirmed: true };
@@ -1788,6 +1789,68 @@ var KXLaserHub;
         }
         draw();
     }
+    /* ---------- N2.6b+ QR IDENTITY of a project / test (original: QR identity, follow, copy id) – the link opens the record: ?kxopen=APP.KX.LASER:PROJECT|TEST:CODE ---------- */
+    function lqLink(kind, code) { return `${location.origin}${location.pathname}?kxopen=${encodeURIComponent(`APP.KX.LASER:${kind}:${code}`)}`; }
+    function openLaserQr(core, opts, rec, kind) {
+        const code = String(rec.data.recordCode || '');
+        const url = lqLink(kind, code);
+        const svg = globalThis.KXHandoff?.qrSvg?.(url, { utf8: true }) || '';
+        const w = document.createElement('div');
+        w.className = 'lce-wrap';
+        w.setAttribute('data-keep-open', '');
+        w.setAttribute('data-laser-qr', '');
+        ['click', 'pointerdown', 'mousedown', 'touchstart'].forEach(ev => w.addEventListener(ev, (e) => e.stopPropagation()));
+        w.innerHTML = `<div class="lce lq" role="dialog" aria-modal="true"><div class="lce-head"><div><b>▦ ${esc(TL('lq.title', 'QR identity'))}</b><small>${esc(code)} · ${esc(rec.data.title || '')}</small></div><button type="button" class="icon-btn" data-lq-close title="${esc(TL('lts.close', 'Close'))}">✕</button></div>
+      <div class="lce-body lq-body"><div class="lq-code" data-lq-svg>${svg}</div><div><b class="lq-id">${esc(code)}</b><p class="muted">${esc(TL('lq.help', 'Scan with the phone – NEXUS opens this record directly. Stick the label on the test piece or the job.'))}</p><input class="lq-url" readonly value="${esc(url)}"><div class="sg-lbar"><button type="button" class="btn compact" data-lq-copy>⧉ ${esc(TL('lq.copy', 'Copy the link'))}</button><button type="button" class="btn compact" data-lq-copyid>⧉ ${esc(TL('lq.copyId', 'Copy the code'))}</button><button type="button" class="btn compact" data-lq-print>🖨 ${esc(TL('lq.print', 'Print the label'))}</button><button type="button" class="btn compact" data-lq-save>＋ ${esc(TL('lq.save', 'Save to QR centre'))}</button></div><small class="muted" data-lq-msg></small></div></div></div>`;
+        document.body.appendChild(w);
+        const msg = (m) => { w.querySelector('[data-lq-msg]').textContent = m; };
+        const close = () => w.remove();
+        w.querySelector('[data-lq-close]').onclick = close;
+        w.addEventListener('keydown', (e) => { if (e.key === 'Escape')
+            close(); });
+        const cp = async (t) => { try {
+            await navigator.clipboard.writeText(t);
+            msg(TL('lq.copied', 'Copied'));
+        }
+        catch {
+            msg(t);
+        } };
+        w.querySelector('[data-lq-copy]').onclick = () => void cp(url);
+        w.querySelector('[data-lq-copyid]').onclick = () => void cp(code);
+        w.querySelector('[data-lq-print]').onclick = () => { const pw = window.open('', '_blank', 'width=420,height=520'); if (!pw) {
+            msg(TL('lq.popup', 'The browser blocked the print window.'));
+            return;
+        } pw.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(code)}</title><body style="font-family:sans-serif;text-align:center;margin:12px"><div style="width:52mm;margin:auto">${svg}</div><div style="font:700 14pt monospace">${esc(code)}</div><div style="font-size:10pt">${esc(rec.data.title || '')}</div><script>setTimeout(()=>{print();},300)<\/script></body>`); pw.document.close(); };
+        w.querySelector('[data-lq-save]').onclick = async () => { try {
+            await core.actions.invoke('ACTION.QR.CODE.SAVE', { spaceId: (rec.spaceIds || [])[0], data: { name: `Laser · ${code} · ${String(rec.data.title || '').slice(0, 60)}`, kind: 'WEB', fields: { url } } }, { actorId: opts.actorId, appCode: 'APP.KX.QR', deviceId: opts.deviceId, permissions: [], confirmed: true });
+            msg(TL('lq.saved', 'Saved to the QR centre'));
+        }
+        catch (e) {
+            msg(String(e?.message || e));
+        } };
+    }
+    /* the QR link opens the record once the app is ready (no change of the shell needed) */
+    try {
+        const q = new URLSearchParams(location.search).get('kxopen');
+        const m2 = q && q.match(/^APP\.KX\.LASER:(PROJECT|TEST):([A-Z0-9-]+)$/);
+        if (m2) {
+            let tries = 0;
+            const tm = setInterval(() => { tries++; const item = document.querySelector('.sidebar [data-tree-hub="APP.KX.LASER"]:not([data-tree-tab])'); const ready = item && (!document.getElementById('startup') || document.getElementById('startup').classList.contains('hide')); if (ready || tries > 120) {
+                clearInterval(tm);
+                if (!ready)
+                    return;
+                globalThis.KXLaserOpen = { kind: m2[1], code: m2[2] };
+                try {
+                    const u = new URL(location.href);
+                    u.searchParams.delete('kxopen');
+                    history.replaceState(null, '', u.toString());
+                }
+                catch { }
+                item.click();
+            } }, 500);
+        }
+    }
+    catch { }
     function lceMsg(f) {
         const T2 = (k, d) => TL('lce.m.' + k, d);
         switch (f.code) {
@@ -2046,6 +2109,35 @@ var KXLaserHub;
         install() { return null; },
         async mountHub(root, core, opts) {
             const st = root.__lh || (root.__lh = { open: '', tab: 'MACHINES' });
+            {
+                const lo = globalThis.KXLaserOpen;
+                if (lo) {
+                    delete globalThis.KXLaserOpen;
+                    try {
+                        const all0 = await core.laserDomain.list();
+                        const rec = all0.find((x) => !x.archivedAt && x.data.recordCode === lo.code && (x.type === (lo.kind === 'TEST' ? 'APP.LASER.TEST' : 'APP.LASER.PROJECT')));
+                        if (rec) {
+                            if (lo.kind === 'TEST') {
+                                st.tab = 'TESTS';
+                                st.tOpen = rec.id;
+                            }
+                            else {
+                                st.tab = 'PROJECTS';
+                                st.pOpen = rec.id;
+                            }
+                            if (rec.data.machineId) {
+                                try {
+                                    localStorage.setItem('kx.laser.active', rec.data.machineId);
+                                }
+                                catch { }
+                            }
+                        }
+                        else
+                            opts.onToast?.(TL('lq.notFound', 'Record from the QR code not found') + ': ' + lo.code);
+                    }
+                    catch { }
+                }
+            }
             const tabReq = globalThis.KXHubTabRequest?.[OWNER];
             if (tabReq && TABS.some(([k]) => k === tabReq)) {
                 st.tab = tabReq;
@@ -2411,7 +2503,7 @@ var KXLaserHub;
                     const row = (o, depth) => `<tr data-lh-layer="${esc(o.id)}" class="${o.data.parentId ? 'kx-sublayer' : ''}"><td style="padding-left:${6 + depth * 16}px">${depth ? '↳ ' : ''}${esc(o.data.name)}${o.data.parameters?.extras?.guardOverride ? ` <span class="kx-badge kx-badge-off" data-lg-override title="${esc(TL('lce.guard.off', 'Protection switched off for this layer'))}">🛡 ${esc(TL('lce.guard.offShort', 'protection off'))}</span>` : ''}${o.data.parameters?.extras?.guardWarning ? ` <span class="kx-badge kx-badge-warn" data-lg-warnrec title="${esc(TL('lg.warnRecHelp', ''))}">⚠ ${esc(TL('lg.warnRec', ''))}</span>` : ''}</td>${pf.map(p => cell(o, 'lb', p.k)).join('')}${isLp4 ? LDS.map(p => cell(o, 'lds', p.k)).join('') : ''}
             <td class="kx-layer-act"><button class="icon-btn" data-lh-adv="${esc(o.id)}" title="${esc(TL('lce.edit', 'Layer settings'))}">⚙</button><button class="icon-btn" data-lh-edit="${esc(o.id)}" title="✎">✎</button><button class="icon-btn" data-lh-sub="${esc(o.id)}" title="${esc(TL('laser.prj.addSub', 'add a sublayer'))}">＋↳</button><button class="icon-btn" data-lh-del="${esc(o.id)}" title="🗑">🗑</button></td></tr>` + kids(o.id).map((k) => row(k, depth + 1)).join('');
                     const form = (prefix) => `<tr data-lh-layer-form="${esc(prefix)}"><td><input data-ln="name" maxlength="80" placeholder="${esc(TL('laser.prj.layerPh', 'e.g. Fill logo'))}"></td>${pf.map(p => `<td><input data-lp="${p.k}" inputmode="decimal" style="width:68px"><span class="kx-lf-help" data-lp-help="${p.k}"></span></td>`).join('')}${isLp4 ? LDS.map(p => `<td>${p.opts ? `<select data-lds="${p.k}"><option value="">—</option>${p.opts.map(x => `<option>${x}</option>`).join('')}</select>` : `<input data-lds="${p.k}" inputmode="decimal" style="width:60px">`}</td>`).join('') : ''}<td><button class="btn compact" data-ln-add>✓</button></td></tr>`;
-                    det.innerHTML = `<section class="kx-lcard open" data-lh-project="${esc(cur.id)}"><header class="kx-lcard-h"><b>${esc(cur.data.recordCode)} · ${esc(cur.data.title)}</b><small class="muted">${esc(mc?.data.name || '')} · ${esc(byId(cur.data.profileId)?.data.name || '')}${cur.data.material ? ` · ${esc(cur.data.material)}` : ''}</small><button class="btn compact" data-lh-evid title="${esc(TL('lce.ev.title', 'Project evidence'))}">✎ ${esc(TL('lce.ev.btn', 'Evidence'))}</button>${cur.data.evidence?.projectFavorite ? '<span class="kx-badge">★</span>' : ''}${cur.data.evidence?.projectLocked ? `<span class="kx-badge" title="${esc(TL('lce.locked', 'Parameters are locked'))}">🔒</span>` : ''}<button class="icon-btn" data-lh-pclose>×</button></header>
+                    det.innerHTML = `<section class="kx-lcard open" data-lh-project="${esc(cur.id)}"><header class="kx-lcard-h"><b>${esc(cur.data.recordCode)} · ${esc(cur.data.title)}</b><small class="muted">${esc(mc?.data.name || '')} · ${esc(byId(cur.data.profileId)?.data.name || '')}${cur.data.material ? ` · ${esc(cur.data.material)}` : ''}</small><button class="btn compact" data-lh-qr title="${esc(TL('lq.title', 'QR identity'))}">▦ QR</button><button class="btn compact" data-lh-evid title="${esc(TL('lce.ev.title', 'Project evidence'))}">✎ ${esc(TL('lce.ev.btn', 'Evidence'))}</button>${cur.data.evidence?.projectFavorite ? '<span class="kx-badge">★</span>' : ''}${cur.data.evidence?.projectLocked ? `<span class="kx-badge" title="${esc(TL('lce.locked', 'Parameters are locked'))}">🔒</span>` : ''}<button class="icon-btn" data-lh-pclose>×</button></header>
             <div class="kx-lh-layerbar"><h5>${esc(TL('laser.prj.layers', 'Layers (LightBurn order)'))}</h5><button type="button" class="btn compact" data-lh-advnew="" title="${esc(TL('lce.new', 'New layer'))}">＋ ⚙ ${esc(TL('lce.new', 'New layer'))}</button></div><div data-lg-grid></div><div data-lh-gal></div>${isLp4 ? `<p class="muted kx-acc-help">${esc(TL('laser.prj.lp4dual', 'LaserPecker LP4: LightBurn and Design Space side by side – values are NOT converted (Design Space uses Depth, LightBurn speed).'))}</p>` : ''}
             <table class="kx-calc-table" data-lh-layers><tr><th>${esc(TL('laser.prj.layerName', 'Name'))}</th>${pf.map(p => `<th title="${esc(TL('laser.param.help.' + p.k, ''))}">${isLp4 ? 'LB · ' : ''}${esc(TL('laser.param.' + p.k, p.k))} <small>${esc(p.u)}</small></th>`).join('')}${isLp4 ? LDS.map(p => `<th class="kx-lds" title="${esc(TL('laser.param.help.lds.' + p.k, ''))}">DS · ${esc(TL('laser.param.lds.' + p.k, p.k))} <small>${esc(p.u)}</small></th>`).join('') : ''}<th></th></tr>
             ${kids(null).map((o) => row(o, 0)).join('')}${form(st.pForm || '')}</table>
@@ -2463,6 +2555,7 @@ var KXLaserHub;
                     fRow.querySelectorAll('[data-lp]').forEach(x => x.oninput = () => { const g = guardParam(String(x.dataset.lp), x.value); const c = x.closest('td'); c.style.boxShadow = g ? '0 0 0 2px #e5484d inset' : ''; c.querySelector('[data-lp-help]').textContent = g ? g.msg : ''; clearTimeout(lgT); lgT = setTimeout(() => void lgRun(), 250); });
                     void lgRun();
                     det.querySelectorAll('[data-lh-edit]').forEach(b => b.onclick = () => { st.pEdit = b.dataset.lhEdit; st.pForm = ''; again2(); });
+                    det.querySelector('[data-lh-qr]')?.addEventListener('click', () => openLaserQr(core, opts, cur, 'PROJECT'));
                     det.querySelector('[data-lh-evid]')?.addEventListener('click', () => void openProjectEvidence(core, opts, { project: cur, onSaved: again2, PC }));
                     {
                         const gh = det.querySelector('[data-lg-grid]');
