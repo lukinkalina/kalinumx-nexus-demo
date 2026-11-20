@@ -2037,3 +2037,5 @@ html[data-kx-scheme="light"] .kx-gold{filter:drop-shadow(0 0 .6px #3a2506) drop-
 .lts-plan{display:inline-flex;align-items:center;gap:4px}.lts-plan input{height:28px}
 /* N2.6b+ (strict, intermittent “mobile overflow” of various hubs): no size / position animation of the hub window and its workspace on phones – the layout switches immediately */
 @media (max-width:680px){#inspector,#inspector #hubWorkspace,#inspector .hub-workspace{transition:none !important}}
+
+.li-aiset{display:inline-block;position:relative}.li-aiset>summary{list-style:none}.li-aiset[open]>label,.li-aiset[open]>small{display:block;min-width:280px}

@@ -1086,8 +1086,8 @@ var KXLaserHub;
       <div class="kx-li-pics">${urls.map(u => `<img src="${esc(u)}" alt="" data-li-zoom>`).join('') || `<small class="muted">${esc(TL('li.noPics', 'no pictures'))}</small>`}</div>
       <div class="kx-li-meta"><label class="kx-lf"><span>${esc(TL('li.col.title', 'Name'))}</span><input data-li-title value="${esc(cur.data.title)}" ${ro ? 'disabled' : ''}></label><label class="kx-lf"><span>${esc(TL('li.col.profile', 'Laser / profile'))}</span><select data-li-profile ${ro ? 'disabled' : ''}><option value="">—</option>${profs.map((pf) => `<option value="${esc(pf.id)}" ${cur.data.profileId === pf.id ? 'selected' : ''}>${esc((byId(pf.data.machineId)?.data.name || '') + ' · ' + pf.data.name)}</option>`).join('')}</select></label><label class="kx-lf"><span>${esc(TL('lc.material', 'Material'))}</span><input data-li-material value="${esc(cur.data.material || '')}" ${ro ? 'disabled' : ''}></label></div>
       <h5>${esc(TL('li.layers', 'Layers from the picture'))} ${badge(worst(cur))}</h5>
-      ${L.length ? `<table class="kx-calc-table"><tr><th>#</th><th>${esc(TL('lc.layerName', 'Layer'))}</th>${['speed', 'power', 'frequency', 'pulseWidth', 'lineInterval', 'mode'].map(k => `<th>${esc(TL('lc.' + k, k))}</th>`).join('')}<th>${esc(TL('lce.col.guard', 'Protection'))}</th><th></th></tr>${L.map((l, i) => { const F = lcsFlat(l.parameters); return `<tr data-li-layer="${i}"><td>${i + 1}</td><td>${esc(l.name || '')}</td>${['speed', 'power', 'frequency', 'pulseWidth', 'lineInterval', 'mode'].map(k => `<td>${esc(lcsVal(k, F[k]))}</td>`).join('')}<td>${badge(layerStatus(cur, l.parameters))}</td><td>${ro ? '' : `<button class="icon-btn" data-li-ledit="${i}" title="${esc(TL('lce.edit', 'Layer settings'))}">⚙</button><button class="icon-btn" data-li-ldel="${i}" title="${esc(TL('li.ldel', 'Remove the layer'))}">🗑</button>`}</td></tr>`; }).join('')}</table>` : `<p class="muted">${esc(TL('li.noLayers', 'No layers yet – type the values from the picture.'))}</p>`}
-      ${ro ? `<p class="muted">${esc(TL('li.done', 'The import is closed.'))}${(cur.data.mappedEntityIds || []).length ? ' → ' + (cur.data.mappedEntityIds || []).map((id) => esc(byId(id)?.data.recordCode || id)).join(', ') : ''}</p>` : `<div class="kx-li-acts"><button class="btn" data-li-addl>✎ ${esc(TL('li.addLayer', 'Type values from the picture'))}</button><button class="btn ghost" data-li-ai title="${esc(TL('li.aiHint', 'AI reading of pictures – server phase'))}">🤖 ${esc(TL('li.ai', 'Read parameters (AI)'))}</button><span class="kx-li-sep"></span><button class="btn primary" data-li-to="PROJECT">→ ${esc(TL('li.toProject', 'Project'))}</button><button class="btn" data-li-to="TEST">→ ${esc(TL('li.toTest', 'Test'))}</button><button class="btn ghost" data-li-consider>${esc(cur.data.consider ? TL('li.unconsider', 'Not to consider') : TL('li.consider', 'To consider'))}</button><button class="btn ghost" data-li-ref>${esc(TL('li.reference', 'Reference'))}</button><button class="btn ghost danger" data-li-reject>${esc(TL('li.reject', 'Reject'))}</button></div>`}</section>`;
+      ${L.length ? `<table class="kx-calc-table"><tr><th>#</th><th>${esc(TL('lc.layerName', 'Layer'))}</th>${['speed', 'power', 'frequency', 'pulseWidth', 'lineInterval', 'mode'].map(k => `<th>${esc(TL('lc.' + k, k))}</th>`).join('')}<th>${esc(TL('lce.col.guard', 'Protection'))}</th><th></th></tr>${L.map((l, i) => { const F = lcsFlat(l.parameters); return `<tr data-li-layer="${i}"><td>${i + 1}</td><td>${esc(l.name || '')}</td>${['speed', 'power', 'frequency', 'pulseWidth', 'lineInterval', 'mode'].map(k => `<td>${esc(lcsVal(k, F[k]))}</td>`).join('')}<td>${badge(layerStatus(cur, l.parameters))}${l.parameters?.extras?.aiProposed ? ` <span class="kx-badge ${Number(l.parameters.extras.aiConfidence) < 0.7 ? 'kx-badge-warn' : ''}" title="${esc(TL('li.aiBadge', 'Proposed by AI – check'))}">🤖${l.parameters.extras.aiConfidence != null ? ' ' + Math.round(Number(l.parameters.extras.aiConfidence) * 100) + ' %' : ''}</span>` : ''}</td><td>${ro ? '' : `<button class="icon-btn" data-li-ledit="${i}" title="${esc(TL('lce.edit', 'Layer settings'))}">⚙</button><button class="icon-btn" data-li-ldel="${i}" title="${esc(TL('li.ldel', 'Remove the layer'))}">🗑</button>`}</td></tr>`; }).join('')}</table>` : `<p class="muted">${esc(TL('li.noLayers', 'No layers yet – type the values from the picture.'))}</p>`}
+      ${ro ? `<p class="muted">${esc(TL('li.done', 'The import is closed.'))}${(cur.data.mappedEntityIds || []).length ? ' → ' + (cur.data.mappedEntityIds || []).map((id) => esc(byId(id)?.data.recordCode || id)).join(', ') : ''}</p>` : `<div class="kx-li-acts"><button class="btn" data-li-addl>✎ ${esc(TL('li.addLayer', 'Type values from the picture'))}</button><button class="btn ghost" data-li-ai title="${esc(TL('li.aiHint', 'AI reading of pictures – server phase'))}">🤖 ${esc(TL('li.ai', 'Read parameters (AI)'))}</button><details class="li-aiset"><summary class="btn ghost compact" title="${esc(TL('li.aiSet', 'AI server (server phase)'))}">⚙</summary><label class="kx-lf"><span>${esc(TL('li.aiSet', 'AI server (server phase)'))}</span><input data-li-aiurl placeholder="https://nexus.example.cz" value="${esc(localStorage.getItem('kx.laser.aiUrl') || '')}"></label><small class="muted">${esc(TL('li.aiSetHelp', 'No password here – sign-in via the NEXUS server. Contract: docs/server/LASER_IMPORT_AI_API.md'))}</small></details><span class="kx-li-sep"></span><button class="btn primary" data-li-to="PROJECT">→ ${esc(TL('li.toProject', 'Project'))}</button><button class="btn" data-li-to="TEST">→ ${esc(TL('li.toTest', 'Test'))}</button><button class="btn ghost" data-li-consider>${esc(cur.data.consider ? TL('li.unconsider', 'Not to consider') : TL('li.consider', 'To consider'))}</button><button class="btn ghost" data-li-ref>${esc(TL('li.reference', 'Reference'))}</button><button class="btn ghost danger" data-li-reject>${esc(TL('li.reject', 'Reject'))}</button></div>`}</section>`;
         det.querySelector('[data-li-close]').onclick = () => { st.liOpen = ''; urls.forEach(u => URL.revokeObjectURL(u)); again(); };
         det.querySelectorAll('[data-li-zoom]').forEach(im => im.onclick = () => im.classList.toggle('big'));
         const meta = async () => { try {
@@ -1116,7 +1116,41 @@ var KXLaserHub;
         catch (e) {
             say(String(e?.message || e));
         } });
-        det.querySelector('[data-li-ai]')?.addEventListener('click', () => say(TL('li.aiInfo', 'Reading parameters from pictures needs the AI server (server phase). Until then type the values with “Type values from the picture”.')));
+        det.querySelector('[data-li-ai]')?.addEventListener('click', async () => {
+            if (!localStorage.getItem('kx.laser.aiUrl')) {
+                say(TL('li.aiInfo', 'Reading parameters from pictures needs the AI server (server phase). Until then type the values with “Type values from the picture”.'));
+                return;
+            }
+            if (!cur.data.profileId) {
+                say(TL('li.needProfile', 'Choose the laser / profile first.'));
+                return;
+            }
+            say(TL('li.aiReading', 'AI is reading the pictures…'));
+            try {
+                const r = await lhAiRead(core, cur, byId);
+                if (!r.layers.length) {
+                    say(TL('li.aiNone', 'AI found no layer parameters in the pictures.'));
+                    return;
+                }
+                const evd = {};
+                if (r.evidence?.material && !cur.data.material)
+                    evd.material = String(r.evidence.material);
+                await saveIm(cur, { layers: [...L, ...r.layers], ...evd, aiWarnings: r.warnings, aiUnmapped: r.unmapped });
+                st.liMsg = TL('li.aiDone', 'AI proposed {n} layers – check them (🤖) before converting.').replace('{n}', String(r.layers.length)) + (r.warnings.length ? ' · ' + r.warnings.join(' · ') : '');
+                again();
+            }
+            catch (err) {
+                const m = String(err?.message || err);
+                say(m === 'NO_IMAGES' ? TL('li.noPics', 'no pictures') : TL('li.aiFail', 'The AI server did not answer') + ': ' + m);
+            }
+        });
+        det.querySelector('[data-li-aiurl]')?.addEventListener('change', (ev2) => { const v = String(ev2.target.value || '').trim(); try {
+            if (v)
+                localStorage.setItem('kx.laser.aiUrl', v);
+            else
+                localStorage.removeItem('kx.laser.aiUrl');
+        }
+        catch { } say(v ? TL('li.aiUrlSaved', 'AI server saved') : TL('li.aiUrlRemoved', 'AI server removed')); });
         det.querySelectorAll('[data-li-to]').forEach(b => b.onclick = async () => {
             if (!L.length) {
                 say(TL('li.noLayers', 'No layers yet – type the values from the picture.'));
@@ -1901,6 +1935,148 @@ var KXLaserHub;
         const r = await core.actions.invoke('ACTION.CORE.TASK.SAVE', old ? { id: old.id, expectedRevision: old.revision, title, ownerApp: OWNER, spaceIds: rec.spaceIds, dueAt, description: lqLink(kind, String(rec.data.recordCode || '')) } : { title, ownerApp: OWNER, spaceIds: rec.spaceIds, dueAt, description: lqLink(kind, String(rec.data.recordCode || '')) }, TC);
         return String(r?.id || taskId || '');
     }
+    /* ---------- N2.6b+ CSV PER LAYER (one row per layer incl. sublayers; project info first; only filled parameters; codes → text; decimal comma; ; separator; UTF-8 BOM) ---------- */
+    function lhCsvText(projects, all) {
+        const byId = (id) => all.find((x) => x.id === id);
+        const P = LCAT.filter((g) => LC_LAYER_GROUPS.includes(g.g)).flatMap((g) => g.params).filter((q) => !['layerName', 'layer'].includes(q.k));
+        const rows = [];
+        for (const pj of projects) {
+            const L = all.filter((x) => x.type === 'APP.LASER.OPERATION' && !x.archivedAt && x.data.projectId === pj.id);
+            const order = [];
+            const kids = (pid) => L.filter((x) => (x.data.parentId || null) === pid).sort((a, b) => (a.data.sequence || 0) - (b.data.sequence || 0));
+            const walk = (pid, d) => { for (const o of kids(pid)) {
+                order.push({ o, d });
+                walk(o.id, d + 1);
+            } };
+            walk(null, 0);
+            if (!order.length)
+                rows.push({ pj, o: null, i: 0, d: 0 });
+            order.forEach(({ o, d }, i) => rows.push({ pj, o, i, d }));
+        }
+        const val = (o, q) => { if (!o)
+            return ''; const v = q.k === 'output' ? (o.data.parameters?.extras?.output ?? '') : lcValue(o, q.k, q.st); if (v == null || v === '')
+            return ''; if (q.t === 'select') {
+            const o2 = q.opts || [];
+            if (o2.length <= 3 && o2.some((c) => c === 'ANO' || c === 'NE'))
+                return ['ANO', 'ANO_M3_CONSTANT', 'YES', 'TRUE'].includes(String(v)) ? TL('csv.yes', 'yes') : TL('csv.no', 'no');
+            const t = TL('lc.o.' + q.k + '.' + v, '');
+            return t && t !== 'lc.o.' + q.k + '.' + v ? t : String(v);
+        } return typeof v === 'number' ? String(v).replace('.', ',') : String(v); };
+        const used = P.filter((q) => rows.some(r => val(r.o, q) !== ''));
+        const ev = (pj, k) => { const v = pj.data.evidence?.[k]; if (v == null || v === '')
+            return ''; const t = TL('lc.o.' + k + '.' + v, ''); return t && t !== 'lc.o.' + k + '.' + v ? t : String(v); };
+        const head = [TL('li.col.code', 'Code'), TL('lc.projectName', 'Project'), TL('lc.machine', 'Laser'), TL('lc.preset', 'Profile'), TL('lc.material', 'Material'), TL('lc.purpose', 'Purpose'), TL('lc.result', 'Result'), '#', TL('lc.layerName', 'Layer'), TL('lg2.color', 'Colour'), ...used.map((q) => TL('lc.' + q.k, q.lb) + (q.u ? ` [${q.u}]` : ''))];
+        const q2 = (x) => { const t = String(x ?? ''); return /[;"\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+        const lines = [head.map(q2).join(';'), ...rows.map(r => [r.pj.data.recordCode || '', r.pj.data.title || '', byId(r.pj.data.machineId)?.data.name || '', byId(r.pj.data.profileId)?.data.name || '', r.pj.data.material || '', ev(r.pj, 'purpose'), ev(r.pj, 'result'), r.o ? String(r.i + 1) : '', r.o ? ('↳ '.repeat(r.d) + (r.o.data.name || '')) : '', r.o ? 'C' + String(lgColorIdx(r.o, r.i)).padStart(2, '0') : '', ...used.map((q) => val(r.o, q))].map(q2).join(';'))];
+        return '\ufeff' + lines.join('\r\n');
+    }
+    function lhDownload(name, text, mime = 'text/csv;charset=utf-8') { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: mime })); a.download = name; a.style.display = 'none'; a.addEventListener('click', (e) => e.stopPropagation()); /* the page-level outside-click rule must not close the hub window */ /* the page-level outside-click rule must not close the hub window */ document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
+    /* ---------- N2.6b+ PDF PRODUCTION CARD (A4 via print → save as PDF) ---------- */
+    function lhPdfHtml(project, all, photo) {
+        const byId = (id) => all.find((x) => x.id === id);
+        const ev = project.data.evidence || {};
+        const m = byId(project.data.machineId), pf = byId(project.data.profileId), src = byId(project.data.sourceModuleId) || (pf && byId(pf.data.sourceModuleId));
+        const L = all.filter((x) => x.type === 'APP.LASER.OPERATION' && !x.archivedAt && x.data.projectId === project.id);
+        const order = [];
+        const kids = (pid) => L.filter((x) => (x.data.parentId || null) === pid).sort((a, b) => (a.data.sequence || 0) - (b.data.sequence || 0));
+        const walk = (pid, d) => { for (const o of kids(pid)) {
+            order.push({ o, d });
+            walk(o.id, d + 1);
+        } };
+        walk(null, 0);
+        const qr = globalThis.KXHandoff?.qrSvg?.(lqLink('PROJECT', String(project.data.recordCode || '')), { utf8: true }) || '';
+        const G = globalThis.KXLaserGuard;
+        const guard = src && G ? G.effective(src.data) : null;
+        const evT = (k) => { const v = ev[k]; if (v == null || v === '' || v === false)
+            return ''; const t = TL('lc.o.' + k + '.' + v, ''); return t && t !== 'lc.o.' + k + '.' + v ? t : String(v); };
+        const KEY = ['mode', 'speed', 'power', 'frequency', 'pulseWidth', 'lineInterval', 'passes', 'scanAngle', 'bidirectional', 'crossHatch'];
+        const P = LCAT.flatMap((g) => g.params);
+        const qOf = (k) => P.find((x) => x.k === k);
+        const cellV = (o, k) => { const q = qOf(k); if (!q)
+            return ''; return String(lcCellText(q, lcValue(o, k, q.st)) ?? ''); };
+        const extra = (o) => { const out = []; for (const g of LCAT) {
+            if (!LC_LAYER_GROUPS.includes(g.g))
+                continue;
+            for (const q of g.params) {
+                if ([...KEY, 'layerName', 'layer', 'output'].includes(q.k))
+                    continue;
+                const v = lcValue(o, q.k, q.st);
+                if (v == null || v === '' || v === false)
+                    continue;
+                out.push(`${TL('lc.' + q.k, q.lb)}: ${lcCellText(q, v)}${q.u && q.t === 'number' ? ' ' + q.u : ''}`);
+            }
+        } return out.join(' · '); };
+        const st = (o) => { if (!guard)
+            return ''; const r = G.evaluate(guard, o.data.parameters || {}); return o.data.parameters?.extras?.guardOverride && r.status === 'danger' ? '🛡' : r.status === 'danger' ? '⛔' : r.status === 'warn' ? '⚠' : '✓'; };
+        const info = [[TL('lc.machine', 'Laser'), m?.data.name || ''], [TL('lc.preset', 'Profile'), pf?.data.name || ''], [TL('lce.ctx.src', 'source'), src ? `${src.data.wavelengthNm || ''} nm · ${src.data.nominalPowerW || ''} W` : ''], ['Focus', pf?.data.focusMm ? pf.data.focusMm + ' mm' : ''], [TL('lc.material', 'Material'), project.data.material || ''], [TL('lc.thickness', 'Thickness'), ev.thickness ? ev.thickness + ' mm' : ''], [TL('lc.surface', 'Surface'), evT('surface')], [TL('lc.purpose', 'Purpose'), evT('purpose')], [TL('lc.result', 'Result'), evT('result')], [TL('lc.projectSoftware', 'Program'), evT('projectSoftware') + (ev.projectSoftwareVersion ? ' ' + ev.projectSoftwareVersion : '')], [TL('lc.quantity', 'Pieces'), ev.quantity ? String(ev.quantity) : ''], [TL('lhd.deadline', 'Deadline'), ev.deadline ? new Date(ev.deadline).toLocaleDateString('cs-CZ') : ''], [TL('sg.title', 'Protection'), guard ? (guard.enabled === false ? 'OFF' : `${guard.name || ''} · ${TL('sg.mode.' + (guard.mode || 'hard-stop'), '')}`) : '—']];
+        return `<!doctype html><html lang="cs"><meta charset="utf-8"><title>${esc(project.data.recordCode || '')} · ${esc(project.data.title || '')}</title><style>@page{size:A4;margin:12mm}body{font-family:system-ui,Segoe UI,Arial,sans-serif;font-size:10pt;color:#111}h1{font-size:16pt;margin:0}.top{display:grid;grid-template-columns:1fr 32mm;gap:8mm;align-items:start;border-bottom:2px solid #c9963c;padding-bottom:4mm}.code{font:700 12pt ui-monospace,monospace;color:#7a5a17}.qr svg{width:32mm;height:32mm}.grid{display:grid;grid-template-columns:${photo ? '1fr 55mm' : '1fr'};gap:6mm;margin:4mm 0}dl{display:grid;grid-template-columns:32mm 1fr;gap:1mm 4mm;margin:0}dt{color:#666}dd{margin:0;font-weight:600}img.ph{width:55mm;max-height:60mm;object-fit:cover;border-radius:2mm;border:1px solid #ccc}table{width:100%;border-collapse:collapse;margin-top:3mm}th,td{border:1px solid #bbb;padding:1.2mm 1.6mm;text-align:left;vertical-align:top;font-variant-numeric:tabular-nums}th{background:#f3ead7;font-size:8.5pt}td.ex{font-size:8pt;color:#333}.chip{display:inline-block;min-width:7mm;text-align:center;color:#fff;font-weight:700;border-radius:1mm;font-size:8pt;text-shadow:0 0 1px #000}.notes{margin-top:4mm;display:grid;grid-template-columns:1fr 1fr;gap:6mm}.box{border:1px solid #ddd;border-radius:2mm;padding:2mm;min-height:14mm;white-space:pre-wrap}footer{margin-top:5mm;color:#777;font-size:8pt;display:flex;justify-content:space-between}</style>
+      <div class="top"><div><div class="code">${esc(project.data.recordCode || '')}${ev.projectLocked ? ' · 🔒' : ''}${ev.projectFavorite ? ' · ★' : ''}</div><h1>${esc(project.data.title || '')}</h1><div>KalinumX NEXUS · ${esc(TL('lpdf.card', 'Laser production card'))}</div></div><div class="qr">${qr}</div></div>
+      <div class="grid"><dl>${info.filter(([, v]) => v).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>${photo ? `<img class="ph" src="${photo}" alt="">` : ''}</div>
+      <table data-pdf-layers><thead><tr><th>#</th><th>${esc(TL('lc.layerName', 'Layer'))}</th>${KEY.map(k => { const h = TL('lg2.h.' + k, ''); return `<th>${esc(h && h !== 'lg2.h.' + k ? h : TL('lc.' + k, k))}</th>`; }).join('')}<th>🛡</th></tr></thead><tbody>${order.map(({ o, d }, i) => `<tr><td><span class="chip" style="background:${LB_COLORS[lgColorIdx(o, i)]}">${String(lgColorIdx(o, i)).padStart(2, '0')}</span></td><td>${'↳ '.repeat(d)}${esc(o.data.name || '')}</td>${KEY.map(k => `<td>${esc(cellV(o, k))}</td>`).join('')}<td>${st(o)}</td></tr>${extra(o) ? `<tr><td></td><td class="ex" colspan="${KEY.length + 2}">${esc(extra(o))}</td></tr>` : ''}`).join('') || `<tr><td colspan="${KEY.length + 3}">${esc(TL('li.noLayers', 'No layers'))}</td></tr>`}</tbody></table>
+      <div class="notes"><div><b>${esc(TL('lc.preparation', 'Preparation'))}</b><div class="box">${esc(ev.preparation || '')}</div></div><div><b>${esc(TL('lc.notes', 'Notes'))}</b><div class="box">${esc(ev.notes || '')}</div></div></div>
+      <footer><span>${esc(TL('lpdf.printed', 'Printed'))} ${new Date().toLocaleString('cs-CZ')}</span><span>${esc(m?.data.name || '')}</span></footer><script>setTimeout(()=>print(),350)<\/script></html>`;
+    }
+    async function lhPdfCard(core, project, all) {
+        let photo = '';
+        const ph = (project.data.evidence?.photos || [])[0];
+        if (ph) {
+            try {
+                const b = await core.files.getBlob(ph);
+                if (b)
+                    photo = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(String(fr.result)); fr.readAsDataURL(b); });
+            }
+            catch { }
+        }
+        const html = lhPdfHtml(project, all, photo);
+        globalThis.__kxLastPdfCard = html;
+        const w = window.open('', '_blank', 'width=900,height=1100');
+        if (!w)
+            return false;
+        w.document.write(html);
+        w.document.close();
+        return true;
+    }
+    /* ---------- N2.6b+ AI READING OF PICTURES (server phase, docs/server/LASER_IMPORT_AI_API.md) – proposals only ---------- */
+    async function lhAiRead(core, imp, byId) {
+        const base = String(localStorage.getItem('kx.laser.aiUrl') || '').trim().replace(/\/+$/, '');
+        if (!base)
+            throw new Error('NO_SERVER');
+        const images = [];
+        for (const fid of (imp.data.fileIds || [])) {
+            const b = await core.files.getBlob(fid).catch(() => null);
+            if (!b)
+                continue;
+            const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(',')[1] || ''); fr.readAsDataURL(b); });
+            images.push({ name: fid, mime: b.type || 'image/png', data });
+        }
+        if (!images.length)
+            throw new Error('NO_IMAGES');
+        const pf = byId(imp.data.profileId);
+        const body = JSON.stringify({ images, hint: { machine: byId(pf?.data?.machineId)?.data?.name || '', profile: pf?.data?.name || '', lang: 'cs' } });
+        const call = async (cred) => fetch(base + '/api/laser/import/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, credentials: cred });
+        let r = await call('omit');
+        if (r.status === 401 || r.status === 403)
+            r = await call('include');
+        if (!r.ok)
+            throw new Error('HTTP ' + r.status);
+        const d = await r.json();
+        const layers = (Array.isArray(d?.layers) ? d.layers : []).map((l, i) => { const pr = { extras: { aiProposed: true, aiConfidence: l.confidence != null ? Number(l.confidence) : null } }; for (const [k, v] of Object.entries(l.params || {})) {
+            if (v == null || v === '')
+                continue;
+            if (k === 'mode') {
+                pr.extras.mode = String(v).toUpperCase().replace(/\s+/g, '_');
+                continue;
+            }
+            if (LC_CORE[k]) {
+                const n = Number(String(v).replace(',', '.'));
+                if (Number.isFinite(n))
+                    pr[LC_CORE[k]] = n;
+            }
+            else
+                pr.extras[k] = typeof v === 'boolean' ? (v ? 'ANO' : 'NE') : v;
+        } return { name: String(l.name || `AI ${i + 1}`), parameters: pr }; });
+        return { layers, evidence: d?.evidence || {}, warnings: Array.isArray(d?.warnings) ? d.warnings : [], unmapped: Array.isArray(d?.unmapped) ? d.unmapped : [] };
+    }
     function lceMsg(f) {
         const T2 = (k, d) => TL('lce.m.' + k, d);
         switch (f.code) {
@@ -2315,6 +2491,7 @@ var KXLaserHub;
             const bindTabs = () => {
                 root.querySelectorAll('[data-laser-tab]').forEach(b => b.onclick = () => { st.tab = String(b.dataset.laserTab); st.favOnly = false; void KXLaserHub.mountHub(root, core, opts); });
                 lhTopBind(root, core, opts, st, list);
+                root.querySelector('[data-lh-csvall]')?.addEventListener('click', async () => { const all2 = await core.laserDomain.list(); const pr = all2.filter((x) => x.type === 'APP.LASER.PROJECT' && !x.archivedAt && (!st.favOnly || x.data.evidence?.projectFavorite)); lhDownload(`laser-projekty-vrstvy-${new Date().toISOString().slice(0, 10)}.csv`, lhCsvText(pr, all2)); });
                 root.querySelector('[data-lhv-save]')?.addEventListener('click', async () => { const act = localStorage.getItem('kx.laser.active') || ''; const mn = String(list.find((m) => m.id === act)?.data?.name || act); const vn = ('🔧 ' + mn).slice(0, 60); try {
                     await core.actions.invoke('ACTION.CORE.FIELDS.VIEW_SAVE', { scope: 'LASER.PROJECTS', name: vn }, { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: [], confirmed: true });
                     localStorage.setItem('kx.laser.view.' + act, vn);
@@ -2484,7 +2661,7 @@ var KXLaserHub;
                 const ops = (pid) => all.filter((x) => x.type === 'APP.LASER.OPERATION' && x.data.projectId === pid && !x.archivedAt).sort((a, b) => a.data.sequence - b.data.sequence);
                 const PC = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['LASER.PROJECT.EDIT', 'LASER.CONFIG.EDIT'], confirmed: true };
                 const cur = st.pOpen ? projs.find((x) => x.id === st.pOpen) : null;
-                root.innerHTML = `<div data-laser-hub class="kx-laser" data-laser-projects>${tabsHtml}${(() => { const act = localStorage.getItem('kx.laser.active') || ''; const mn = list.find((m) => m.id === act)?.data?.name || ''; const has = !!localStorage.getItem('kx.laser.view.' + act); return act ? `<div class="lh2-filter lh2-view"><small class="muted">▦ ${esc(TL('lhv.label', 'Columns view for'))} <b>${esc(mn)}</b>${has ? ' · ' + esc(TL('lhv.has', 'saved')) : ''}</small><button type="button" class="btn compact" data-lhv-save title="${esc(TL('lhv.saveHelp', 'Remember the visible columns, their order and sorting for this laser; switching the laser applies them'))}">💾 ${esc(TL('lhv.save', 'Save as default for this laser'))}</button>${has ? `<button type="button" class="btn ghost compact" data-lhv-apply title="${esc(TL('lhv.apply', 'Apply the laser view'))}">↺ ${esc(TL('lhv.apply', 'Apply the laser view'))}</button>` : ''}</div>` : ''; })()}${st.favOnly ? `<div class="lh2-filter"><span class="kx-badge">★ ${esc(TL('lh2.favOnly', 'only favourites'))}</span><button type="button" class="btn compact" data-lh2-favoff title="${esc(TL('lh2.favOff', 'Show all projects'))}">✕ ${esc(TL('lh2.favOff', 'Show all projects'))}</button></div>` : ''}
+                root.innerHTML = `<div data-laser-hub class="kx-laser" data-laser-projects>${tabsHtml}${(() => { const act = localStorage.getItem('kx.laser.active') || ''; const mn = list.find((m) => m.id === act)?.data?.name || ''; const has = !!localStorage.getItem('kx.laser.view.' + act); return act ? `<div class="lh2-filter lh2-view"><small class="muted">▦ ${esc(TL('lhv.label', 'Columns view for'))} <b>${esc(mn)}</b>${has ? ' · ' + esc(TL('lhv.has', 'saved')) : ''}</small><button type="button" class="btn compact" data-lh-csvall title="${esc(TL('lcsv.allHelp', 'CSV of the shown projects – one row per layer'))}">⇩ ${esc(TL('lcsv.all', 'CSV of layers'))}</button><button type="button" class="btn compact" data-lhv-save title="${esc(TL('lhv.saveHelp', 'Remember the visible columns, their order and sorting for this laser; switching the laser applies them'))}">💾 ${esc(TL('lhv.save', 'Save as default for this laser'))}</button>${has ? `<button type="button" class="btn ghost compact" data-lhv-apply title="${esc(TL('lhv.apply', 'Apply the laser view'))}">↺ ${esc(TL('lhv.apply', 'Apply the laser view'))}</button>` : ''}</div>` : ''; })()}${st.favOnly ? `<div class="lh2-filter"><span class="kx-badge">★ ${esc(TL('lh2.favOnly', 'only favourites'))}</span><button type="button" class="btn compact" data-lh2-favoff title="${esc(TL('lh2.favOff', 'Show all projects'))}">✕ ${esc(TL('lh2.favOff', 'Show all projects'))}</button></div>` : ''}
           <details class="kx-lcols" data-lh-pnew ${projs.length ? '' : 'open'}><summary>＋ ${esc(TL('laser.prj.new', 'New project'))}</summary><div class="kx-calc-grid">
             <label class="kx-lf"><span>${esc(TL('laser.prj.title', 'Title'))}*</span><span class="kx-lf-in"><input data-pn="title" maxlength="160"></span></label>
             <label class="kx-lf"><span>${esc(TL('laser.prj.machine', 'Laser'))}</span><select data-pn="machine">${own.map((m) => `<option value="${esc(m.id)}">${esc(m.data.name)}</option>`).join('')}</select></label>
@@ -2574,7 +2751,7 @@ var KXLaserHub;
                     const row = (o, depth) => `<tr data-lh-layer="${esc(o.id)}" class="${o.data.parentId ? 'kx-sublayer' : ''}"><td style="padding-left:${6 + depth * 16}px">${depth ? '↳ ' : ''}${esc(o.data.name)}${o.data.parameters?.extras?.guardOverride ? ` <span class="kx-badge kx-badge-off" data-lg-override title="${esc(TL('lce.guard.off', 'Protection switched off for this layer'))}">🛡 ${esc(TL('lce.guard.offShort', 'protection off'))}</span>` : ''}${o.data.parameters?.extras?.guardWarning ? ` <span class="kx-badge kx-badge-warn" data-lg-warnrec title="${esc(TL('lg.warnRecHelp', ''))}">⚠ ${esc(TL('lg.warnRec', ''))}</span>` : ''}</td>${pf.map(p => cell(o, 'lb', p.k)).join('')}${isLp4 ? LDS.map(p => cell(o, 'lds', p.k)).join('') : ''}
             <td class="kx-layer-act"><button class="icon-btn" data-lh-adv="${esc(o.id)}" title="${esc(TL('lce.edit', 'Layer settings'))}">⚙</button><button class="icon-btn" data-lh-edit="${esc(o.id)}" title="✎">✎</button><button class="icon-btn" data-lh-sub="${esc(o.id)}" title="${esc(TL('laser.prj.addSub', 'add a sublayer'))}">＋↳</button><button class="icon-btn" data-lh-del="${esc(o.id)}" title="🗑">🗑</button></td></tr>` + kids(o.id).map((k) => row(k, depth + 1)).join('');
                     const form = (prefix) => `<tr data-lh-layer-form="${esc(prefix)}"><td><input data-ln="name" maxlength="80" placeholder="${esc(TL('laser.prj.layerPh', 'e.g. Fill logo'))}"></td>${pf.map(p => `<td><input data-lp="${p.k}" inputmode="decimal" style="width:68px"><span class="kx-lf-help" data-lp-help="${p.k}"></span></td>`).join('')}${isLp4 ? LDS.map(p => `<td>${p.opts ? `<select data-lds="${p.k}"><option value="">—</option>${p.opts.map(x => `<option>${x}</option>`).join('')}</select>` : `<input data-lds="${p.k}" inputmode="decimal" style="width:60px">`}</td>`).join('') : ''}<td><button class="btn compact" data-ln-add>✓</button></td></tr>`;
-                    det.innerHTML = `<section class="kx-lcard open" data-lh-project="${esc(cur.id)}"><header class="kx-lcard-h"><b>${esc(cur.data.recordCode)} · ${esc(cur.data.title)}</b><small class="muted">${esc(mc?.data.name || '')} · ${esc(byId(cur.data.profileId)?.data.name || '')}${cur.data.material ? ` · ${esc(cur.data.material)}` : ''}</small><button class="btn compact" data-lh-qr title="${esc(TL('lq.title', 'QR identity'))}">▦ QR</button><button class="btn compact" data-lh-evid title="${esc(TL('lce.ev.title', 'Project evidence'))}">✎ ${esc(TL('lce.ev.btn', 'Evidence'))}</button>${cur.data.evidence?.projectFavorite ? '<span class="kx-badge">★</span>' : ''}${cur.data.evidence?.projectLocked ? `<span class="kx-badge" title="${esc(TL('lce.locked', 'Parameters are locked'))}">🔒</span>` : ''}<button class="icon-btn" data-lh-pclose>×</button></header>
+                    det.innerHTML = `<section class="kx-lcard open" data-lh-project="${esc(cur.id)}"><header class="kx-lcard-h"><b>${esc(cur.data.recordCode)} · ${esc(cur.data.title)}</b><small class="muted">${esc(mc?.data.name || '')} · ${esc(byId(cur.data.profileId)?.data.name || '')}${cur.data.material ? ` · ${esc(cur.data.material)}` : ''}</small><button class="btn compact" data-lh-csv title="${esc(TL('lcsv.help', 'CSV – one row per layer'))}">⇩ CSV</button><button class="btn compact" data-lh-pdf title="${esc(TL('lpdf.help', 'Production card A4 – print or save as PDF'))}">🖨 PDF</button><button class="btn compact" data-lh-qr title="${esc(TL('lq.title', 'QR identity'))}">▦ QR</button><button class="btn compact" data-lh-evid title="${esc(TL('lce.ev.title', 'Project evidence'))}">✎ ${esc(TL('lce.ev.btn', 'Evidence'))}</button>${cur.data.evidence?.projectFavorite ? '<span class="kx-badge">★</span>' : ''}${cur.data.evidence?.projectLocked ? `<span class="kx-badge" title="${esc(TL('lce.locked', 'Parameters are locked'))}">🔒</span>` : ''}<button class="icon-btn" data-lh-pclose>×</button></header>
             <div class="kx-lh-layerbar"><h5>${esc(TL('laser.prj.layers', 'Layers (LightBurn order)'))}</h5><button type="button" class="btn compact" data-lh-advnew="" title="${esc(TL('lce.new', 'New layer'))}">＋ ⚙ ${esc(TL('lce.new', 'New layer'))}</button></div><div data-lg-grid></div><div data-lh-gal></div>${isLp4 ? `<p class="muted kx-acc-help">${esc(TL('laser.prj.lp4dual', 'LaserPecker LP4: LightBurn and Design Space side by side – values are NOT converted (Design Space uses Depth, LightBurn speed).'))}</p>` : ''}
             <table class="kx-calc-table" data-lh-layers><tr><th>${esc(TL('laser.prj.layerName', 'Name'))}</th>${pf.map(p => `<th title="${esc(TL('laser.param.help.' + p.k, ''))}">${isLp4 ? 'LB · ' : ''}${esc(TL('laser.param.' + p.k, p.k))} <small>${esc(p.u)}</small></th>`).join('')}${isLp4 ? LDS.map(p => `<th class="kx-lds" title="${esc(TL('laser.param.help.lds.' + p.k, ''))}">DS · ${esc(TL('laser.param.lds.' + p.k, p.k))} <small>${esc(p.u)}</small></th>`).join('') : ''}<th></th></tr>
             ${kids(null).map((o) => row(o, 0)).join('')}${form(st.pForm || '')}</table>
@@ -2627,6 +2804,9 @@ var KXLaserHub;
                     void lgRun();
                     det.querySelectorAll('[data-lh-edit]').forEach(b => b.onclick = () => { st.pEdit = b.dataset.lhEdit; st.pForm = ''; again2(); });
                     det.querySelector('[data-lh-qr]')?.addEventListener('click', () => openLaserQr(core, opts, cur, 'PROJECT'));
+                    det.querySelector('[data-lh-csv]')?.addEventListener('click', async () => { const all2 = await core.laserDomain.list(); lhDownload(`laser-${cur.data.recordCode || 'projekt'}-vrstvy.csv`, lhCsvText([cur], all2)); });
+                    det.querySelector('[data-lh-pdf]')?.addEventListener('click', async () => { const all2 = await core.laserDomain.list(); if (!(await lhPdfCard(core, cur, all2)))
+                        opts.onToast?.(TL('lq.popup', 'The browser blocked the print window.')); });
                     det.querySelector('[data-lh-evid]')?.addEventListener('click', () => void openProjectEvidence(core, opts, { project: cur, onSaved: again2, PC }));
                     {
                         const gh = det.querySelector('[data-lg-grid]');
