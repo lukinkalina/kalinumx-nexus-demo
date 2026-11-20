@@ -1349,6 +1349,124 @@ var KXAPP;
         const all = sib.find(b => /^\s*(Vše|Všechny|All)/.test((b.textContent || '').trim()));
         (all || sib[0])?.click();
     }
+    /* N2.6b+ search results: gold app icons instead of 📍 / plain rows; technical action codes hidden unless the query asks for them */
+    function kxSearchSweep() {
+        const box = document.getElementById('searchResults');
+        if (!box)
+            return;
+        const q = String(document.getElementById('globalSearch')?.value || '').toLowerCase();
+        const showTech = /action|akce/.test(q);
+        const gold = kxIconsMode() === 'GOLD';
+        box.querySelectorAll('button[data-search-link^="kx://action/"]').forEach(b => { b.hidden = !showTech; });
+        box.querySelectorAll('button[data-search-place]:not([data-kx-sgi]),button[data-search-link]:not([data-kx-sgi])').forEach(b => {
+            b.dataset.kxSgi = '1';
+            if (!gold)
+                return;
+            const t = b.querySelector('b');
+            if (!t)
+                return;
+            let code = '';
+            const link = String(b.dataset.searchLink || '');
+            const m = link.match(/[?&]app=(APP\.KX\.[A-Z0-9_]+)/);
+            if (m)
+                code = m[1];
+            if (!code && b.hasAttribute('data-search-place')) {
+                const name = String(t.textContent || '').replace(/^📍\s*/, '').trim();
+                const item = Array.from(document.querySelectorAll('.sidebar [data-tree-hub]:not([data-tree-tab])')).find(x => (x.querySelector('.kx-tree-label')?.textContent || '').trim() === name);
+                code = String(item?.dataset.treeHub || '');
+            }
+            const svg = code ? kxGold(code, 20) : '';
+            if (!svg)
+                return;
+            t.innerHTML = t.innerHTML.replace(/^📍\s*/, '');
+            t.insertAdjacentHTML('afterbegin', `<span class="kx-sr-gold" aria-hidden="true">${svg}</span>`);
+        });
+    }
+    /* ---------- N2.6b+ MODERATE MY DAY (approved design): reorder blocks (⠿ drag / ▲▼), size Auto / S / M / L / full, hide / show, default; saved per device (computer / phone separately) ---------- */
+    const KXH_BLOCKS = [['ag-hero', 'hero'], ['ag-bar', 'bar'], ['ag-kpis', 'kpis'], ['ag-row', 'money'], ['ag-cal', 'cal'], ['ag-row2', 'plan']];
+    let kxHomeEdit = false;
+    function kxHomeKey() { return 'kx.home.layout.' + (window.innerWidth <= 760 ? 'phone' : 'pc'); }
+    function kxHomeLoad() { try {
+        return JSON.parse(localStorage.getItem(kxHomeKey()) || '[]') || [];
+    }
+    catch {
+        return [];
+    } }
+    function kxHomeSave(v) { try {
+        localStorage.setItem(kxHomeKey(), JSON.stringify(v));
+    }
+    catch { } }
+    function kxHomeId(el) { const c = String(el.className || ''); for (const [cls, id] of KXH_BLOCKS) {
+        if (c.split(/\s+/).includes(cls))
+            return id;
+    } return ''; }
+    function kxHomeSweep() {
+        const dash = document.querySelector('.content [data-ag-dash]');
+        if (!dash)
+            return;
+        const kids = Array.from(dash.children);
+        const blocks = kids.filter(k => kxHomeId(k));
+        if (blocks.length < 3)
+            return;
+        const sig = blocks.map(b => kxHomeId(b)).join(',') + '|' + localStorage.getItem(kxHomeKey()) + '|' + kxHomeEdit;
+        if (dash.dataset.kxHome === sig)
+            return;
+        dash.dataset.kxHome = sig;
+        const lay = kxHomeLoad();
+        const known = lay.map(x => x.id);
+        const order = [...lay.filter(x => blocks.some(b => kxHomeId(b) === x.id)), ...blocks.filter(b => !known.includes(kxHomeId(b))).map(b => ({ id: kxHomeId(b), size: 'auto', hidden: false }))];
+        dash.classList.add('kxh-grid');
+        dash.classList.toggle('kxh-edit', kxHomeEdit);
+        for (const it of order) {
+            const b = blocks.find(x => kxHomeId(x) === it.id);
+            if (!b)
+                continue;
+            dash.appendChild(b);
+            b.dataset.kxhId = it.id;
+            b.dataset.kxhSize = it.size || 'auto';
+            b.hidden = !!it.hidden && !kxHomeEdit;
+            b.classList.toggle('kxh-off', !!it.hidden);
+            b.querySelector(':scope > .kxh-tools')?.remove();
+            if (kxHomeEdit) {
+                b.insertAdjacentHTML('afterbegin', `<div class="kxh-tools" data-keep-open><span class="kxh-drag" draggable="true" title="${esc(TL('kxh.drag'))}">⠿</span><button type="button" class="icon-btn" data-kxh-up title="${esc(TL('kxh.up'))}">▲</button><button type="button" class="icon-btn" data-kxh-down title="${esc(TL('kxh.down'))}">▼</button>${['auto', 's', 'm', 'l', 'full'].map(z => `<button type="button" class="chip ${(it.size || 'auto') === z ? 'active' : ''}" data-kxh-size="${z}" title="${esc(TL('kxh.size.' + z))}">${esc(TL('kxh.sz.' + z))}</button>`).join('')}<button type="button" class="icon-btn" data-kxh-hide title="${esc(it.hidden ? TL('kxh.show') : TL('kxh.hide'))}">${it.hidden ? '👁' : '🙈'}</button><b class="kxh-name">${esc(TL('kxh.b.' + it.id))}</b></div>`);
+            }
+        }
+        if (kxHomeEdit)
+            kxHomeBind(dash, order);
+    }
+    function kxHomeBind(dash, order) {
+        const save = (o) => { kxHomeSave(o); dash.dataset.kxHome = ''; kxHomeSweep(); };
+        const idx = (el) => order.findIndex(x => x.id === el.closest('[data-kxh-id]')?.dataset.kxhId);
+        dash.querySelectorAll('[data-kxh-up],[data-kxh-down]').forEach(b => b.onclick = (e) => { e.stopPropagation(); const i = idx(b), j = i + (b.hasAttribute('data-kxh-up') ? -1 : 1); if (i < 0 || j < 0 || j >= order.length)
+            return; const o = [...order]; [o[i], o[j]] = [o[j], o[i]]; save(o); });
+        dash.querySelectorAll('[data-kxh-size]').forEach(b => b.onclick = (e) => { e.stopPropagation(); const i = idx(b); if (i < 0)
+            return; const o = order.map(x => ({ ...x })); o[i].size = b.dataset.kxhSize; save(o); });
+        dash.querySelectorAll('[data-kxh-hide]').forEach(b => b.onclick = (e) => { e.stopPropagation(); const i = idx(b); if (i < 0)
+            return; const o = order.map(x => ({ ...x })); o[i].hidden = !o[i].hidden; save(o); });
+        let dragId = '';
+        dash.querySelectorAll('.kxh-drag').forEach(h => { h.ondragstart = (e) => { dragId = String(h.closest('[data-kxh-id]')?.dataset.kxhId || ''); e.dataTransfer?.setData('text/plain', dragId); }; });
+        dash.querySelectorAll('[data-kxh-id]').forEach(b => { b.ondragover = (e) => { if (dragId) {
+            e.preventDefault();
+            b.classList.add('kxh-over');
+        } }; b.ondragleave = () => b.classList.remove('kxh-over'); b.ondrop = (e) => { e.preventDefault(); b.classList.remove('kxh-over'); const to = String(b.dataset.kxhId); if (!dragId || dragId === to)
+            return; const o = order.filter(x => x.id !== dragId); const ti = o.findIndex(x => x.id === to); o.splice(ti, 0, order.find(x => x.id === dragId)); save(o); }; });
+    }
+    function kxHomeBar() {
+        const dash = document.querySelector('.content [data-ag-dash]');
+        if (!dash || document.querySelector('[data-kxh-bar]'))
+            return;
+        if (Array.from(dash.children).filter(k => kxHomeId(k)).length < 3)
+            return;
+        dash.insertAdjacentHTML('beforebegin', `<div class="kxh-bar" data-kxh-bar data-keep-open><button type="button" class="btn compact" data-kxh-toggle title="${esc(TL('kxh.help'))}">⚙ ${esc(TL('kxh.moderate'))}</button><span data-kxh-more hidden><button type="button" class="btn ghost compact" data-kxh-reset title="${esc(TL('kxh.reset'))}">↺ ${esc(TL('kxh.reset'))}</button><small class="muted">${esc(TL('kxh.where'))} ${esc(window.innerWidth <= 760 ? TL('kxh.phone') : TL('kxh.pc'))}</small></span></div>`);
+        const bar = document.querySelector('[data-kxh-bar]');
+        const sync = () => { bar.querySelector('[data-kxh-toggle]').classList.toggle('active', kxHomeEdit); bar.querySelector('[data-kxh-toggle]').innerHTML = kxHomeEdit ? '✓ ' + esc(TL('kxh.done')) : '⚙ ' + esc(TL('kxh.moderate')); bar.querySelector('[data-kxh-more]').hidden = !kxHomeEdit; };
+        bar.querySelector('[data-kxh-toggle]').onclick = () => { kxHomeEdit = !kxHomeEdit; sync(); dash.dataset.kxHome = ''; kxHomeSweep(); };
+        bar.querySelector('[data-kxh-reset]').onclick = () => { try {
+            localStorage.removeItem(kxHomeKey());
+        }
+        catch { } kxHomeEdit = false; render(); /* rebuild My day so the original block order comes back */ };
+        sync();
+    }
     function kxFrequentSweep() {
         document.querySelectorAll('.kx-hub-head[data-hub-head]:not([data-kx-cnt])').forEach(h => { h.dataset.kxCnt = '1'; kxUsageHit(String(h.dataset.hubHead || '')); const box = document.querySelector('.sidebar [data-kx-frequent]'); if (box)
             box.remove(); });
@@ -1468,6 +1586,13 @@ var KXAPP;
     }
     catch { } try {
         kxFrequentSweep();
+    }
+    catch { } try {
+        kxSearchSweep();
+    }
+    catch { } try {
+        kxHomeBar();
+        kxHomeSweep();
     }
     catch { } try {
         kxCatRenameSweep();
