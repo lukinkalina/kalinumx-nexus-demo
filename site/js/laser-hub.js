@@ -1505,7 +1505,7 @@ var KXLaserHub;
             const lr = lastT ? runs(lastT.id).slice(-1)[0] : null;
             const card = (k, label, b, sub, id = '') => `<button type="button" class="lh2-card" data-lh2-card="${k}" data-id="${esc(id)}" ${id || k === 'fav' ? '' : 'disabled'}><small>${esc(label)}</small><b>${esc(b)}</b><span>${esc(sub)}</span></button>`;
             return `<div class="lh2-top" data-lh2-top><div class="lh2-bar"><button type="button" class="icon-btn" data-lh2-prev title="${esc(TL('lh2.prev', 'Previous laser'))}">◀</button><select data-lh2-machine data-keep-select title="${esc(TL('lh2.active', 'Active laser – new projects and tests use it'))}">${list.filter((x) => !x.archivedAt).map((x) => `<option value="${esc(x.id)}" ${x.id === act ? 'selected' : ''}>${esc(x.data.name)}${x.data.origin === 'DEMO' ? ' · ' + esc(TL('lh2.demo', 'sample')) : ''}</option>`).join('')}</select><button type="button" class="icon-btn" data-lh2-next title="${esc(TL('lh2.next', 'Next laser'))}">▶</button>
-      <small class="muted">${prof ? esc(prof.data.name) : ''}${prof?.data?.focusMm ? ` · focus ${prof.data.focusMm} mm` : ''}${src?.data?.nominalPowerW ? ` · ${src.data.nominalPowerW} W` : ''}${src?.data?.wavelengthNm ? ` · ${src.data.wavelengthNm} nm` : ''}</small>${gl}</div>
+      <button type="button" class="btn compact" data-lh2-wizard title="${esc(TL('lw.open', 'New laser – guide in 5 steps'))}">＋ ${esc(TL('lw.btn', 'Laser (guide)'))}</button><small class="muted">${prof ? esc(prof.data.name) : ''}${prof?.data?.focusMm ? ` · focus ${prof.data.focusMm} mm` : ''}${src?.data?.nominalPowerW ? ` · ${src.data.nominalPowerW} W` : ''}${src?.data?.wavelengthNm ? ` · ${src.data.wavelengthNm} nm` : ''}</small>${gl}</div>
       <div class="lh2-cards">${card('cont', '▶ ' + TL('lh2.continue', 'Continue'), cont?.data.title || TL('lh2.none', 'nothing'), cont ? `${ops(cont.id)} ${TL('lh2.layers', 'layers')} · ${d(cont)}` : '', cont?.id)}${card('proj', TL('lh2.lastProject', 'Last project'), lastP?.data.title || TL('lh2.none', 'nothing'), lastP ? `${lastP.data.evidence?.result ? TL('lc.o.result.' + lastP.data.evidence.result, '') : TL('laser.prjStatus.' + lastP.data.status, lastP.data.status)} · ${d(lastP)}` : '', lastP?.id)}${card('test', TL('lh2.lastTest', 'Last test'), lastT?.data.title || TL('lh2.none', 'nothing'), lastT ? `${runs(lastT.id).length} ${TL('lts.steps', 'steps')}${lr ? ' · ' + RS[lr.data.result || 'PENDING'] : ''} · ${d(lastT)}` : '', lastT?.id)}${card('fav', '★ ' + TL('lh2.fav', 'Favourites'), `${fav} ${TL('lh2.projects', 'projects')}`, TL('lh2.favSub', 'quick access'), '')}${card('rec', '⏱ ' + TL('lh2.rec', 'Stopwatch'), rec ? TL('lh2.recOn', 'running') : TL('lh2.recOff', 'not running'), recT ? String(recT.data.title) : '', rec?.id || '')}</div></div>`;
         }
         catch (e) {
@@ -1526,6 +1526,10 @@ var KXLaserHub;
         const step = (d) => { const i = ids.indexOf(sel.value); go(ids[(i + d + ids.length) % ids.length]); };
         root.querySelector('[data-lh2-prev]').onclick = () => step(-1);
         root.querySelector('[data-lh2-next]').onclick = () => step(1);
+        root.querySelector('[data-lh2-wizard]')?.addEventListener('click', () => void openLaserWizard(core, opts, (id) => { try {
+            localStorage.setItem('kx.laser.active', id);
+        }
+        catch { } st.tab = 'MACHINES'; void KXLaserHub.mountHub(root, core, opts); }));
         root.querySelectorAll('[data-lh2-card]').forEach(b => b.onclick = () => { const k = b.dataset.lh2Card, id = String(b.dataset.id || ''); if (k === 'cont' || k === 'proj') {
             st.tab = 'PROJECTS';
             st.pOpen = id;
@@ -1614,6 +1618,138 @@ var KXLaserHub;
             return; const n = [...ids]; [n[i], n[j]] = [n[j], n[i]]; void done(n); });
         host.querySelectorAll('[data-lhg-del]').forEach(b => b.onclick = () => { if (!confirm(TL('lhg.delConfirm', 'Remove this picture from the record? (the file stays in Files)')))
             return; const i = Number(b.dataset.lhgDel); void done(ids.filter((_, k) => k !== i)); });
+    }
+    /* ---------- N2.6b+ NEW LASER GUIDE in 5 steps (original laserWizardModal + recommended settings per technology KX58_TECHS) ---------- */
+    const LW_T = {
+        MOPA: { codes: ['FIBER_MOPA', 'GALVO'], ctl: 'galvo', src: [{ tech: 'FIBER_MOPA', nm: 1064, w: 60 }], caps: 'FIBER_MOPA', sw: ['LIGHTBURN', 'EZCAD_2', 'EZCAD_3', 'SEACAD'], unit: 'mm/s', lenses: '110, 210, 300', area: '', focus: '', max: '' },
+        FIBER: { codes: ['FIBER', 'GALVO'], ctl: 'galvo', src: [{ tech: 'FIBER', nm: 1064, w: 30 }], caps: 'FIBER', sw: ['LIGHTBURN', 'EZCAD_2', 'EZCAD_3'], unit: 'mm/s', lenses: '110, 210', area: '', focus: '', max: '' },
+        UV: { codes: ['UV', 'GALVO'], ctl: 'galvo', src: [{ tech: 'UV', nm: 355, w: 5 }], caps: 'UV', sw: ['LIGHTBURN', 'EZCAD_2', 'EZCAD_3'], unit: 'mm/s', lenses: '110', area: '', focus: '', max: '' },
+        CO2: { codes: ['CO2', 'DSP'], ctl: 'dsp', variant: 'ruida', src: [{ tech: 'CO2', nm: 10600, w: 60 }], caps: 'CO2', sw: ['LIGHTBURN', 'RDWORKS'], unit: 'mm/s', lenses: '', area: '600 × 400 mm', focus: '', max: '500' },
+        DIODE: { codes: ['DIODE'], ctl: 'gcode', src: [{ tech: 'DIODE', nm: 455, w: 10 }], caps: 'DIODE', sw: ['LIGHTBURN', 'LASERGRBL'], unit: 'mm/min', lenses: '', area: '400 × 400 mm', focus: '', max: '' },
+        COMBI: { codes: ['LP4', 'DIODE', 'FIBER'], ctl: 'gcode', src: [{ tech: 'DIODE', nm: 455, w: 10, preset: 'LP4_P566' }, { tech: 'FIBER', nm: 1064, w: 2, preset: 'LP4_P566' }], caps: '', sw: ['LIGHTBURN', 'LASERPECKER_DESIGN_SPACE'], unit: 'Depth %', lenses: '', area: '160 × 120 mm', focus: '150', max: '4000', modes: 'Standard, Slide, Rotary' }
+    };
+    const LW_SW = [['LIGHTBURN', 'LightBurn'], ['EZCAD_2', 'EZCAD 2'], ['EZCAD_3', 'EZCAD 3'], ['SEACAD', 'SeaCAD'], ['RDWORKS', 'RDWorks'], ['LASERGRBL', 'LaserGRBL'], ['LASERPECKER_DESIGN_SPACE', 'LaserPecker Design Space'], ['XTOOL_CREATIVE_SPACE', 'xTool Creative Space']];
+    async function openLaserWizard(core, opts, onDone) {
+        const RC = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['LASER.READ', 'LASER.CONFIG.EDIT', 'CORE.ENTITY.CREATE'], confirmed: true };
+        const G = globalThis.KXLaserGuard;
+        const capsOfTpl = (t, sx) => ({ ...(sx.preset ? G?.PRESET_CAPS?.[sx.preset] : G?.TECH_CAPS?.[t.caps || sx.tech]) || {} });
+        let step = 1;
+        const S = { tpl: 'MOPA', name: '', maker: '', model: '', space: 'SPACE.COMPANY', variant: '', sources: [], sw: [], defSw: 'LIGHTBURN', unit: 'mm/s', lenses: '', area: '', focus: '', max: '', modes: 'Standard' };
+        const apply = (k) => { const t = LW_T[k]; S.tpl = k; S.ctl = t.ctl; S.variant = t.variant || ''; S.sources = t.src.map((x) => ({ ...x, caps: capsOfTpl(t, x) })); S.sw = [...t.sw]; S.defSw = t.sw[0]; S.unit = t.unit; S.lenses = t.lenses; S.area = t.area; S.focus = t.focus; S.max = t.max; S.modes = t.modes || 'Standard'; };
+        apply('MOPA');
+        const w = document.createElement('div');
+        w.className = 'lce-wrap';
+        w.setAttribute('data-keep-open', '');
+        w.setAttribute('data-laser-wizard', '');
+        document.body.appendChild(w);
+        ['click', 'pointerdown', 'mousedown', 'touchstart'].forEach(ev => w.addEventListener(ev, (e) => e.stopPropagation()));
+        const CAPK = ['frequency', 'pulse', 'wobble', 'timings', 'overscan', 'air', 'threeD', 'rotary', 'autoRotate'];
+        const steps = ['base', 'sources', 'programs', 'profiles', 'check'];
+        const body = () => {
+            if (step === 1)
+                return `<p class="muted">${esc(TL('lw.s1help', 'Choose the type – the recommended settings fill in automatically; everything can be changed.'))}</p><div class="lw-tpl">${Object.keys(LW_T).map(k => `<button type="button" class="chip ${S.tpl === k ? 'active' : ''}" data-lw-tpl="${k}">${esc(TL('lw.t.' + k, k))}</button>`).join('')}</div>
+        <div class="lce-grid"><label class="lce-f"><span class="lce-l">${esc(TL('lw.name', 'Name'))} *</span><input data-lw="name" value="${esc(S.name)}" placeholder="Haotian 60W MOPA · JPT M7"></label><label class="lce-f"><span class="lce-l">${esc(TL('lw.maker', 'Manufacturer'))}</span><input data-lw="maker" value="${esc(S.maker)}"></label><label class="lce-f"><span class="lce-l">${esc(TL('lw.model', 'Model'))}</span><input data-lw="model" value="${esc(S.model)}"></label>
+        <label class="lce-f"><span class="lce-l">${esc(TL('lw.ctl', 'Controller'))}</span><select data-lw="ctl" data-keep-select>${['galvo', 'gcode', 'dsp'].map(x => `<option value="${x}" ${S.ctl === x ? 'selected' : ''}>${esc(TL('lw.ctl.' + x, x))}</option>`).join('')}</select></label>${S.ctl === 'dsp' ? `<label class="lce-f"><span class="lce-l">${esc(TL('lw.variant', 'DSP variant'))}</span><select data-lw="variant" data-keep-select>${['ruida', 'trocen', 'topwisdom', ''].map(x => `<option value="${x}" ${S.variant === x ? 'selected' : ''}>${esc(x || '—')}</option>`).join('')}</select></label>` : ''}
+        <label class="lce-f"><span class="lce-l">${esc(TL('lw.space', 'Area'))}</span><select data-lw="space" data-keep-select>${['SPACE.COMPANY', 'SPACE.PERSONAL', 'SPACE.FAMILY'].map(x => `<option value="${x}" ${S.space === x ? 'selected' : ''}>${esc(TL('lw.sp.' + x, x))}</option>`).join('')}</select></label></div>`;
+            if (step === 2)
+                return `<p class="muted">${esc(TL('lw.s2help', 'Sources of the laser – wavelength, power and what the source can do (fields in projects follow it).'))}</p>${S.sources.map((x, i) => `<div class="lw-src"><div class="lce-grid"><label class="lce-f"><span class="lce-l">${esc(TL('lw.srcTech', 'Technology'))}</span><select data-lw-s="${i}:tech" data-keep-select>${['FIBER_MOPA', 'FIBER', 'UV', 'CO2', 'DIODE'].map(t => `<option value="${t}" ${x.tech === t ? 'selected' : ''}>${esc(TL('lw.tech.' + t, t))}</option>`).join('')}</select></label><label class="lce-f"><span class="lce-l">${esc(TL('lw.nm', 'Wavelength (nm)'))}</span><input type="number" data-lw-s="${i}:nm" value="${esc(x.nm)}"></label><label class="lce-f"><span class="lce-l">${esc(TL('lw.w', 'Power (W)'))} *</span><input type="number" step="any" data-lw-s="${i}:w" value="${esc(x.w)}"></label></div>
+        <div class="lw-caps">${CAPK.map(k => `<label><input type="checkbox" data-lw-c="${i}:${k}" ${x.caps?.[k] ? 'checked' : ''}> ${esc(TL('lw.cap.' + k, k))}</label>`).join('')}</div>${S.sources.length > 1 ? `<button type="button" class="btn ghost compact" data-lw-sdel="${i}">🗑 ${esc(TL('lw.srcDel', 'Remove the source'))}</button>` : ''}</div>`).join('')}<button type="button" class="btn compact" data-lw-sadd>＋ ${esc(TL('lw.srcAdd', 'Second source (dual laser)'))}</button>`;
+            if (step === 3)
+                return `<p class="muted">${esc(TL('lw.s3help', 'Programs you use with this laser and the default one; the speed unit as the program shows it.'))}</p><div class="lw-caps">${LW_SW.map(([k, l]) => `<label><input type="checkbox" data-lw-sw="${k}" ${S.sw.includes(k) ? 'checked' : ''}> ${esc(l)}</label>`).join('')}</div>
+        <div class="lce-grid"><label class="lce-f"><span class="lce-l">${esc(TL('lw.defSw', 'Default program'))}</span><select data-lw="defSw" data-keep-select>${LW_SW.filter(([k]) => S.sw.includes(k)).map(([k, l]) => `<option value="${k}" ${S.defSw === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label><label class="lce-f"><span class="lce-l">${esc(TL('lw.unit', 'Speed unit'))}</span><select data-lw="unit" data-keep-select>${['mm/s', 'mm/min', 'mm/rotation', 'Depth %'].map(x => `<option ${S.unit === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>`;
+            if (step === 4)
+                return `<p class="muted">${esc(S.ctl === 'galvo' ? TL('lw.s4galvo', 'Galvo: one profile per F-theta lens (focal length in mm). Focus = distance lens → material.') : TL('lw.s4other', 'Portal / LaserPecker: one profile per mode (Standard, Slide, Rotary…) with the working area.'))}</p><div class="lce-grid">${S.ctl === 'galvo' ? `<label class="lce-f"><span class="lce-l">${esc(TL('lw.lenses', 'Lenses (mm, comma)'))} *</span><input data-lw="lenses" value="${esc(S.lenses)}" placeholder="110, 210, 300"></label>` : `<label class="lce-f"><span class="lce-l">${esc(TL('lw.modes', 'Modes (comma)'))} *</span><input data-lw="modes" value="${esc(S.modes)}"></label><label class="lce-f"><span class="lce-l">${esc(TL('lw.area', 'Working area'))}</span><input data-lw="area" value="${esc(S.area)}" placeholder="400 × 400 mm"></label>`}<label class="lce-f"><span class="lce-l">${esc(TL('lw.focus', 'Focus (mm)'))}</span><input type="number" step="any" data-lw="focus" value="${esc(S.focus)}"></label><label class="lce-f"><span class="lce-l">${esc(TL('lw.max', 'Max speed (mm/s)'))}</span><input type="number" step="any" data-lw="max" value="${esc(S.max)}"></label></div>`;
+            const profs = lwProfiles();
+            return `<p class="muted">${esc(TL('lw.s5help', 'Check and create – everything can be edited later.'))}</p><table class="kx-calc-table"><tr><td>${esc(TL('lw.name', 'Name'))}</td><td><b>${esc(S.name || '—')}</b> · ${esc(TL('lw.t.' + S.tpl, S.tpl))} · ${esc(TL('lw.ctl.' + S.ctl, S.ctl))}${S.variant ? ' (' + esc(S.variant) + ')' : ''}</td></tr><tr><td>${esc(TL('lw.sources', 'Sources'))}</td><td>${S.sources.map((x) => `${x.nm} nm · ${x.w} W · ${CAPK.filter(k => x.caps?.[k]).map(k => TL('lw.cap.' + k, k)).join(', ') || '—'}`).join('<br>')}</td></tr><tr><td>${esc(TL('lw.programs', 'Programs'))}</td><td>${S.sw.map((k) => esc(LW_SW.find(x => x[0] === k)?.[1] || k)).join(', ')} · ${esc(S.unit)}</td></tr><tr><td>${esc(TL('lw.profiles', 'Profiles'))}</td><td>${profs.map(x => esc(x.name)).join(', ') || '—'}</td></tr></table>`;
+        };
+        function lwProfiles() {
+            const out = [];
+            const L = String(S.lenses || '').split(/[;,\s]+/).map(Number).filter(n => n > 0);
+            const M = String(S.modes || 'Standard').split(/[;,]+/).map(x => x.trim()).filter(Boolean);
+            S.sources.forEach((x, si) => { const sn = S.sources.length > 1 ? ` · ${x.nm} nm` : ''; if (S.ctl === 'galvo')
+                for (const f of L)
+                    out.push({ si, name: `${TL('lw.lens', 'Lens')} ${f} mm${sn}`, lens: f, mode: 'Standard' });
+            else
+                for (const m of M)
+                    out.push({ si, name: `${m}${sn}`, mode: m }); });
+            return out;
+        }
+        const err = (m) => { const e = w.querySelector('[data-lw-err]'); if (e)
+            e.textContent = m; };
+        const read = () => { w.querySelectorAll('[data-lw]').forEach(el => { S[el.dataset.lw] = String(el.value ?? '').trim(); }); w.querySelectorAll('[data-lw-s]').forEach(el => { const [i, k] = String(el.dataset.lwS).split(':'); S.sources[Number(i)][k] = k === 'tech' ? el.value : Number(String(el.value).replace(',', '.')); }); w.querySelectorAll('[data-lw-c]').forEach(el => { const [i, k] = String(el.dataset.lwC).split(':'); S.sources[Number(i)].caps = { ...(S.sources[Number(i)].caps || {}), [k]: !!el.checked }; }); if (w.querySelector('[data-lw-sw]'))
+            S.sw = Array.from(w.querySelectorAll('[data-lw-sw]')).filter(x => x.checked).map(x => String(x.dataset.lwSw)); if (!S.sw.includes(S.defSw))
+            S.defSw = S.sw[0] || ''; };
+        const valid = () => { if (step === 1 && !S.name) {
+            err(TL('lw.err.name', 'Enter the name of the laser.'));
+            return false;
+        } if (step === 2 && S.sources.some((x) => !(x.w > 0) || !(x.nm > 0))) {
+            err(TL('lw.err.src', 'Every source needs a wavelength and power.'));
+            return false;
+        } if (step === 3 && !S.sw.length) {
+            err(TL('lw.err.sw', 'Choose at least one program.'));
+            return false;
+        } if (step === 4 && !lwProfiles().length) {
+            err(TL('lw.err.prof', 'Enter at least one lens / mode.'));
+            return false;
+        } return true; };
+        const draw = () => { w.innerHTML = `<div class="lce" role="dialog" aria-modal="true"><div class="lce-head"><div><b>🧭 ${esc(TL('lw.title', 'New laser'))}</b><small>${steps.map((k, i) => `<span class="lw-step ${i + 1 === step ? 'on' : i + 1 < step ? 'done' : ''}">${i + 1} · ${esc(TL('lw.step.' + k, k))}</span>`).join(' ')}</small></div><button type="button" class="icon-btn" data-lw-close title="${esc(TL('vault.cancel', 'Cancel'))}">✕</button></div><div class="lce-body">${body()}</div><div class="lce-foot"><span class="lce-err" data-lw-err></span><button type="button" class="btn ghost" data-lw-back ${step === 1 ? 'disabled' : ''}>◀ ${esc(TL('lw.back', 'Back'))}</button>${step < 5 ? `<button type="button" class="btn primary" data-lw-next>${esc(TL('lw.next', 'Next'))} ▶</button>` : `<button type="button" class="btn primary" data-lw-create>✓ ${esc(TL('lw.create', 'Create the laser'))}</button>`}</div></div>`; bind(); };
+        function bind() {
+            w.querySelectorAll('[data-lw-close]').forEach(b => b.onclick = () => w.remove());
+            w.onkeydown = (e) => { if (e.key === 'Escape') {
+                e.stopPropagation();
+                w.remove();
+            } };
+            w.querySelectorAll('[data-lw-tpl]').forEach(b => b.onclick = () => { read(); apply(String(b.dataset.lwTpl)); draw(); });
+            w.querySelector('[data-lw="ctl"]')?.addEventListener('change', () => { read(); draw(); });
+            w.querySelectorAll('[data-lw-s$=":tech"]').forEach(sl => sl.onchange = () => { read(); const i = Number(String(sl.dataset.lwS).split(':')[0]); const t = sl.value; S.sources[i].caps = { ...(G?.TECH_CAPS?.[t] || {}) }; S.sources[i].nm = t === 'UV' ? 355 : t === 'CO2' ? 10600 : t === 'DIODE' ? 455 : 1064; draw(); });
+            w.querySelector('[data-lw-sadd]')?.addEventListener('click', () => { read(); S.sources.push({ tech: 'FIBER', nm: 1064, w: 2, caps: { ...(G?.TECH_CAPS?.FIBER || {}) } }); draw(); });
+            w.querySelectorAll('[data-lw-sdel]').forEach(b => b.onclick = () => { read(); S.sources.splice(Number(b.dataset.lwSdel), 1); draw(); });
+            w.querySelectorAll('[data-lw-sw]').forEach(cb => cb.onchange = () => { read(); draw(); });
+            w.querySelector('[data-lw-back]').onclick = () => { read(); step = Math.max(1, step - 1); draw(); };
+            w.querySelector('[data-lw-next]')?.addEventListener('click', () => { read(); if (!valid())
+                return; step++; draw(); });
+            w.querySelector('[data-lw-create]')?.addEventListener('click', async () => {
+                read();
+                const btn = w.querySelector('[data-lw-create]');
+                btn.disabled = true;
+                try {
+                    const t = LW_T[S.tpl];
+                    const sp = [S.space];
+                    const swLabel = S.sw.map((k) => LW_SW.find(x => x[0] === k)?.[1] || k).join(' + ');
+                    const m = await core.actions.invoke('ACTION.LASER.MACHINE.SAVE', { spaceIds: sp, data: { name: S.name, manufacturer: S.maker || undefined, model: S.model || undefined, physicalOwned: true, origin: 'USER', technologyCodes: [...new Set([...t.codes, ...S.sources.map((x) => x.tech), ...(S.ctl === 'galvo' ? ['GALVO'] : S.ctl === 'dsp' ? ['DSP'] : [])])], controller: S.ctl, controllerVariant: S.variant || undefined, software: S.sw, defaultSoftware: S.defSw, speedUnit: S.unit, status: 'ACTIVE' } }, RC);
+                    const srcIds = [];
+                    for (const x of S.sources) {
+                        const so = await core.actions.invoke('ACTION.LASER.SOURCE_MODULE.SAVE', { spaceIds: sp, data: { machineId: m.id, name: `${TL('lw.tech.' + x.tech, x.tech)} ${x.nm} nm`, technologyCode: x.tech, wavelengthNm: x.nm, nominalPowerW: x.w, capabilities: Object.fromEntries(CAPK.map(k => [k, !!x.caps?.[k]])) } }, RC);
+                        srcIds.push(so.id);
+                    }
+                    const lensIds = {};
+                    let stdLens = '';
+                    if (S.ctl !== 'galvo') {
+                        const le = await core.actions.invoke('ACTION.LASER.LENS.SAVE', { spaceIds: sp, data: { machineId: m.id, name: TL('lw.stdLens', 'Standard optics'), kind: 'OTHER' } }, RC);
+                        stdLens = le.id;
+                    } /* projects need a lens – portal / LaserPecker machines get their standard optics */
+                    for (const pf of lwProfiles()) {
+                        let lensId = stdLens || undefined;
+                        if (pf.lens) {
+                            if (!lensIds[pf.lens]) {
+                                const le = await core.actions.invoke('ACTION.LASER.LENS.SAVE', { spaceIds: sp, data: { machineId: m.id, name: `F${pf.lens}`, focalLengthMm: pf.lens, kind: 'FIELD' } }, RC);
+                                lensIds[pf.lens] = le.id;
+                            }
+                            lensId = lensIds[pf.lens];
+                        }
+                        await core.actions.invoke('ACTION.LASER.PROFILE.SAVE', { spaceIds: sp, data: { machineId: m.id, sourceModuleId: srcIds[pf.si], name: pf.name, mode: pf.mode, software: swLabel, ...(lensId ? { defaultLensId: lensId } : {}), speedUnit: S.unit, ...(S.area ? { workspace: S.area } : {}), ...(Number(S.focus) > 0 ? { focusMm: Number(S.focus) } : {}), ...(Number(S.max) > 0 ? { maxSpeedMmS: Number(S.max) } : {}) } }, RC);
+                    }
+                    w.remove();
+                    opts.onToast?.(TL('lw.created', 'Laser created') + ': ' + S.name);
+                    onDone(m.id);
+                }
+                catch (e) {
+                    btn.disabled = false;
+                    err(String(e?.message || e));
+                }
+            });
+        }
+        draw();
     }
     function lceMsg(f) {
         const T2 = (k, d) => TL('lce.m.' + k, d);
