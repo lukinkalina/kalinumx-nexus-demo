@@ -1467,6 +1467,79 @@ var KXAPP;
         catch { } kxHomeEdit = false; render(); /* rebuild My day so the original block order comes back */ };
         sync();
     }
+    /* N2.6b+ ONE ⋯ MENU FOR EVERY HUB (approved design: icon, description, shortcut, disabled with a reason) – built from the shared hub toolbar */
+    /* hub shortcuts promised by the ⋯ menu: N = new record, / = search in hub, F1 = manual (not while typing) */
+    document.addEventListener('keydown', (e) => {
+        const ins = document.querySelector('#inspector.open');
+        if (!ins || e.ctrlKey || e.metaKey || e.altKey)
+            return;
+        const t = e.target;
+        if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))
+            return;
+        if (document.querySelector('.lce-wrap,.ag-confirm-wrap,.kx-more-menu'))
+            return;
+        if (e.key === 'n' || e.key === 'N') {
+            const b = ins.querySelector('[data-hub-new]');
+            if (b) {
+                e.preventDefault();
+                b.click();
+            }
+        }
+        else if (e.key === '/') {
+            const i = ins.querySelector('[data-hub-search]');
+            if (i) {
+                e.preventDefault();
+                i.focus();
+                i.select();
+            }
+        }
+        else if (e.key === 'F1') {
+            const b = ins.querySelector('[data-kx-manual]');
+            if (b) {
+                e.preventDefault();
+                b.click();
+            }
+        }
+    });
+    function kxHubMoreSweep() {
+        document.querySelectorAll('#inspector.open [data-hub-issues]:not([data-kx-hubmore-done])').forEach(iss => {
+            iss.dataset.kxHubmoreDone = '1';
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = iss.className;
+            b.dataset.kxHubmore = '1';
+            b.textContent = '⋯';
+            b.title = TL('hm.title');
+            iss.after(b);
+            b.onclick = (e) => {
+                e.stopPropagation();
+                const ins = b.closest('#inspector');
+                const q = (sel) => ins?.querySelector(sel) || null;
+                const click = (sel) => () => { q(sel)?.click(); };
+                const csv = Array.from(ins?.querySelectorAll('button') || []).find(x => /^(⇩\s*)?CSV\b|Export CSV/i.test((x.textContent || '').trim()) && x.offsetParent !== null);
+                const code = String(q('[data-hub-head]')?.dataset.hubHead || '');
+                kxMoreMenu(b, [
+                    { key: 'new', group: TL('hm.g.work'), label: `＋ ${TL('hm.new')}`, hint: TL('hm.newHint'), kbd: 'N', disabled: q('[data-hub-new]') ? undefined : TL('hm.noNew'), run: click('[data-hub-new]') },
+                    { key: 'search', group: TL('hm.g.work'), label: `⌕ ${TL('hm.search')}`, hint: TL('hm.searchHint'), kbd: '/', disabled: q('[data-hub-search]') ? undefined : TL('hm.noSearch'), run: () => { const i = q('[data-hub-search]'); i?.focus(); i?.select(); } },
+                    { key: 'csv', group: TL('hm.g.work'), label: `⇩ ${TL('hm.csv')}`, hint: TL('hm.csvHint'), disabled: csv ? undefined : TL('hm.noCsv'), run: () => csv?.click() },
+                    { key: 'max', group: TL('hm.g.window'), label: `⤢ ${TL('hm.max')}`, hint: TL('hm.maxHint'), disabled: q('[data-hubwm-max]') ? undefined : TL('hm.noWin'), run: click('[data-hubwm-max]') },
+                    { key: 'mode', group: TL('hm.g.window'), label: `▣ ${TL('hm.mode')}`, hint: TL('hm.modeHint'), disabled: q('[data-hubwm-mode]') ? undefined : TL('hm.noWin'), run: click('[data-hubwm-mode]') },
+                    { key: 'tab', group: TL('hm.g.window'), label: `⧉ ${TL('hm.tab')}`, hint: TL('hm.tabHint'), disabled: q('[data-ins-tab]') ? undefined : TL('hm.noWin'), run: click('[data-ins-tab]') },
+                    { key: 'manual', group: TL('hm.g.help'), label: `📖 ${TL('hm.manual')}`, hint: TL('hm.manualHint'), kbd: 'F1', disabled: q('[data-kx-manual]') ? undefined : TL('hm.noManual'), run: click('[data-kx-manual]') },
+                    { key: 'settings', group: TL('hm.g.help'), label: `⚙ ${TL('hm.settings')}`, hint: TL('hm.settingsHint'), run: click('[data-hub-settings]') },
+                    { key: 'issues', group: TL('hm.g.help'), label: `🔔 ${TL('hm.issues')}`, hint: TL('hm.issuesHint'), run: click('[data-hub-issues]') },
+                    { key: 'code', group: TL('hm.g.help'), label: `ⓘ ${TL('hm.code')}`, hint: code || '—', disabled: code ? undefined : TL('hm.noCode'), run: async () => { try {
+                            await navigator.clipboard.writeText(code);
+                            toast(TL('hm.copied') + ': ' + code);
+                        }
+                        catch {
+                            toast(code);
+                        } } },
+                    { key: 'close', group: TL('hm.g.window'), label: `✕ ${TL('hm.close')}`, hint: TL('hm.closeHint'), kbd: 'Esc', run: click('[data-ins-close]') }
+                ]);
+            };
+        });
+    }
     function kxFrequentSweep() {
         document.querySelectorAll('.kx-hub-head[data-hub-head]:not([data-kx-cnt])').forEach(h => { h.dataset.kxCnt = '1'; kxUsageHit(String(h.dataset.hubHead || '')); const box = document.querySelector('.sidebar [data-kx-frequent]'); if (box)
             box.remove(); });
@@ -1589,6 +1662,9 @@ var KXAPP;
     }
     catch { } try {
         kxSearchSweep();
+    }
+    catch { } try {
+        kxHubMoreSweep();
     }
     catch { } try {
         kxHomeBar();
