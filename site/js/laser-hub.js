@@ -792,7 +792,7 @@ var KXLaserHub;
             return `<tr data-lts-step="${esc(r.id)}"><td><b>${i + 1}</b></td><td class="kx-lts-diff">${i ? (dif.length ? dif.slice(0, 6).map(d => `<span class="kx-chip-diff">${esc(lcsName(d.k))}: ${esc(lcsVal(d.k, d.from))} → <b>${esc(lcsVal(d.k, d.to))}</b></span>`).join('') : `<small class="muted">${esc(TL('lts.noChange', 'no change'))}</small>`) : `<small class="muted">${esc(TL('lts.baseline', 'baseline'))}</small>`}</td>${KEY.map(k => `<td class="${dif.some(d => d.k === k) ? 'kx-lts-chg' : ''}">${esc(lcsVal(k, F[k]))}</td>`).join('')}<td>${gst(pr)}</td>
           <td class="kx-lts-res">${['PENDING', 'PASS', 'FAIL', 'MIXED'].map(x => `<button class="icon-btn ${r.data.result === x ? 'on' : ''}" data-lts-res="${x}" title="${esc(TL('lts.r.' + x, x))}">${RS[x]}</button>`).join('')}</td>
           <td><input class="kx-lts-note" data-lts-note value="${esc(r.data.notes || '')}" placeholder="${esc(TL('lts.notePh', 'what did you see?'))}"></td><td>${r.data.durationMs ? fmtMs(r.data.durationMs) : '—'}</td>
-          <td class="kx-lts-act"><button class="icon-btn" data-lts-edit title="${esc(TL('lts.edit', 'Edit the step'))}">⚙</button>${i ? `<button class="icon-btn" data-lts-cmp title="${esc(TL('lts.compare', 'Compare with the previous step'))}">⇄</button>` : ''}${i < runs.length - 1 ? `<button class="icon-btn" data-lts-back title="${esc(TL('lts.back', 'Return to this step (new step with its values)'))}">↺</button><button class="icon-btn" data-lts-comb title="${esc(TL('lts.combine', 'Combine values of this step with the last one'))}">⊕</button>` : ''}<button class="icon-btn" data-lts-proj title="${esc(TL('lts.toProject', 'Save as a project'))}">💾</button></td></tr>`;
+          <td class="kx-lts-act"><button class="icon-btn" data-lts-edit title="${esc(TL('lts.edit', 'Edit the step'))}">⚙</button>${i ? `<button class="icon-btn" data-lts-cmp title="${esc(TL('lts.compare', 'Compare with the previous step'))}">⇄</button>` : ''}${i < runs.length - 1 ? `<button class="icon-btn" data-lts-back title="${esc(TL('lts.back', 'Return to this step (new step with its values)'))}">↺</button><button class="icon-btn" data-lts-comb title="${esc(TL('lts.combine', 'Combine values of this step with the last one'))}">⊕</button>` : ''}<button class="icon-btn" data-lts-photo title="${esc(TL('lhg.stepPhotos', 'Photos of the step'))}">📷${(r.data.photos || []).length ? `<sup>${(r.data.photos || []).length}</sup>` : ''}</button><button class="icon-btn" data-lts-proj title="${esc(TL('lts.toProject', 'Save as a project'))}">💾</button></td></tr>`;
         }).join('')}</tbody></table>` : `<p class="muted">${esc(TL('lts.empty', 'No steps yet – add the baseline with “＋ Next step”.'))}</p>`}
       <div data-lts-panel></div></section>`;
         const runOf = (el) => runs.find((x) => x.id === el.closest('[data-lts-step]')?.dataset.ltsStep);
@@ -868,6 +868,11 @@ var KXLaserHub;
                     delete pr.extras[k];
             } }); editStep(pr, undefined, TL('lts.combineTitle', 'Combined step')); };
         });
+        det.querySelectorAll('[data-lts-photo]').forEach(b => b.onclick = () => { const r = runOf(b); if (!r)
+            return; const w = document.createElement('div'); w.className = 'lce-wrap'; w.setAttribute('data-keep-open', ''); ['click', 'pointerdown', 'mousedown', 'touchstart'].forEach(ev => w.addEventListener(ev, (x) => x.stopPropagation())); w.innerHTML = `<div class="lce" role="dialog" aria-modal="true"><div class="lce-head"><b>📷 ${esc(TL('lhg.stepPhotos', 'Photos of the step'))} ${runs.indexOf(r) + 1}</b><button type="button" class="icon-btn" data-lhg-close title="${esc(TL('lts.close', 'Close'))}">✕</button></div><div class="lce-body" data-lhg-host></div></div>`; document.body.appendChild(w); w.querySelector('[data-lhg-close]').onclick = () => { w.remove(); again(); }; w.addEventListener('keydown', (x) => { if (x.key === 'Escape') {
+            w.remove();
+            again();
+        } }); let curR = r; const draw = async () => { await lhGallery(core, opts, w.querySelector('[data-lhg-host]'), (curR.data.photos || []), cur.spaceIds, async (ids) => { curR = await saveRun(curR.data.parameters, curR, { photos: ids }); await draw(); }); }; void draw(); });
         det.querySelectorAll('[data-lts-proj]').forEach(b => b.onclick = async () => {
             const r = runOf(b);
             if (!r)
@@ -1543,6 +1548,73 @@ var KXLaserHub;
             }
         } });
     }
+    /* ---------- N2.6b+ PHOTO GALLERY (original: take a photo · choose pictures · screen screenshot · main picture · move · delete) – files in NEXUS, ids on the record ---------- */
+    async function lhGallery(core, opts, host, ids, spaceIds, save, readOnly = false) {
+        const FC = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['CORE.FILE.WRITE', 'CORE.ENTITY.CREATE', 'LASER.READ'], confirmed: true };
+        const urls = [];
+        for (const id of ids) {
+            try {
+                const b = await core.files.getBlob(id);
+                urls.push(b ? URL.createObjectURL(b) : '');
+            }
+            catch {
+                urls.push('');
+            }
+        }
+        host.innerHTML = `<div class="lhg" data-lhg><div class="lhg-bar"><b>📷 ${esc(TL('lhg.title', 'Photos'))} · ${ids.length}</b>${readOnly ? '' : `<label class="btn compact">📷 ${esc(TL('lhg.camera', 'Take a photo'))}<input type="file" accept="image/*" capture="environment" data-lhg-file hidden></label><label class="btn compact">🖼 ${esc(TL('lhg.pick', 'Choose pictures'))}<input type="file" accept="image/*" multiple data-lhg-file hidden></label><button type="button" class="btn compact" data-lhg-screen title="${esc(TL('lhg.screenHelp', 'Captures one window or monitor as a picture'))}">🖥 ${esc(TL('lhg.screen', 'Screenshot'))}</button>`}<small class="muted" data-lhg-msg></small></div>
+      <div class="lhg-grid">${ids.map((id, i) => `<figure class="lhg-it ${i === 0 ? 'main' : ''}">${urls[i] ? `<img src="${esc(urls[i])}" alt="" data-lhg-zoom>` : `<div class="lhg-miss">?</div>`}${i === 0 ? `<span class="lhg-main">★ ${esc(TL('lhg.main', 'main'))}</span>` : ''}${readOnly ? '' : `<figcaption>${i ? `<button type="button" class="icon-btn" data-lhg-main="${i}" title="${esc(TL('lhg.setMain', 'Set as the main picture'))}">★</button>` : ''}<button type="button" class="icon-btn" data-lhg-mv="${i}" data-dir="-1" title="${esc(TL('lg2.left', 'Move left'))}" ${i === 0 ? 'disabled' : ''}>◀</button><button type="button" class="icon-btn" data-lhg-mv="${i}" data-dir="1" title="${esc(TL('lg2.right', 'Move right'))}" ${i === ids.length - 1 ? 'disabled' : ''}>▶</button><button type="button" class="icon-btn" data-lhg-del="${i}" title="${esc(TL('lhg.del', 'Remove the picture'))}">🗑</button></figcaption>`}</figure>`).join('') || `<small class="muted">${esc(TL('lhg.empty', 'No photos yet.'))}</small>`}</div></div>`;
+        const msg = (m) => { const e = host.querySelector('[data-lhg-msg]'); if (e)
+            e.textContent = m; };
+        const done = async (n) => { try {
+            await save(n);
+        }
+        catch (e) {
+            msg(String(e?.message || e));
+        } };
+        const add = async (blobs) => { const n = [...ids]; try {
+            for (const x of blobs) {
+                if (!/^image\//.test(x.b.type))
+                    continue;
+                const fr = await core.files.importBlob(x.b, x.name, x.b.type, OWNER, spaceIds, FC, { tags: ['kx:laser-photo'] });
+                n.push(fr.id);
+            }
+        }
+        catch (e) {
+            msg(String(e?.message || e));
+            return;
+        } if (n.length !== ids.length)
+            await done(n); };
+        host.querySelectorAll('[data-lhg-file]').forEach(inp => inp.onchange = async (e) => { const fs = Array.from(e.target.files || []); await add(fs.map(f => ({ b: f, name: f.name }))); });
+        host.querySelector('[data-lhg-screen]')?.addEventListener('click', async () => { try {
+            const md = navigator.mediaDevices;
+            if (!md?.getDisplayMedia) {
+                msg(TL('lhg.noScreen', 'This browser cannot capture the screen.'));
+                return;
+            }
+            const stream = await md.getDisplayMedia({ video: true, audio: false });
+            const v = document.createElement('video');
+            v.srcObject = stream;
+            v.muted = true;
+            await v.play();
+            await new Promise(r => setTimeout(r, 250));
+            const c = document.createElement('canvas');
+            c.width = v.videoWidth;
+            c.height = v.videoHeight;
+            c.getContext('2d').drawImage(v, 0, 0);
+            stream.getTracks().forEach((t) => t.stop());
+            const b = await new Promise(r => c.toBlob(x => r(x), 'image/png'));
+            await add([{ b, name: `screenshot-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png` }]);
+        }
+        catch (e) {
+            msg(String(e?.message || e));
+        } });
+        host.querySelectorAll('[data-lhg-zoom]').forEach(im => im.onclick = () => im.classList.toggle('big'));
+        host.querySelectorAll('[data-lhg-main]').forEach(b => b.onclick = () => { const i = Number(b.dataset.lhgMain); const n = [ids[i], ...ids.filter((_, k) => k !== i)]; void done(n); });
+        host.querySelectorAll('[data-lhg-mv]').forEach(b => b.onclick = () => { const i = Number(b.dataset.lhgMv), j = i + (b.dataset.dir === '-1' ? -1 : 1); if (j < 0 || j >= ids.length)
+            return; const n = [...ids]; [n[i], n[j]] = [n[j], n[i]]; void done(n); });
+        host.querySelectorAll('[data-lhg-del]').forEach(b => b.onclick = () => { if (!confirm(TL('lhg.delConfirm', 'Remove this picture from the record? (the file stays in Files)')))
+            return; const i = Number(b.dataset.lhgDel); void done(ids.filter((_, k) => k !== i)); });
+    }
     function lceMsg(f) {
         const T2 = (k, d) => TL('lce.m.' + k, d);
         switch (f.code) {
@@ -1925,7 +1997,7 @@ var KXLaserHub;
             const groups = [['PERSONAL', list.filter((r) => r.data.origin === 'PERSONAL')], ['USER', list.filter((r) => !r.data.origin || r.data.origin === 'USER')], ['DEMO', list.filter((r) => r.data.origin === 'DEMO')]];
             const lhTop = await lhTopHtml(core, st, list);
             const tabsHtml = lhTop + `<div class="kx-print3d-tabs">${TABS.map(([k, l]) => `<button class="chip ${st.tab === k ? 'active' : ''}" data-laser-tab="${k}">${esc(l)}</button>`).join('')}<button class="icon-btn" data-kx-manual="HUB:APP.KX.LASER" title="📖">📖</button></div>`;
-            const bindTabs = () => { root.querySelectorAll('[data-laser-tab]').forEach(b => b.onclick = () => { st.tab = String(b.dataset.laserTab); void KXLaserHub.mountHub(root, core, opts); }); lhTopBind(root, core, opts, st, list); };
+            const bindTabs = () => { root.querySelectorAll('[data-laser-tab]').forEach(b => b.onclick = () => { st.tab = String(b.dataset.laserTab); st.favOnly = false; void KXLaserHub.mountHub(root, core, opts); }); lhTopBind(root, core, opts, st, list); root.querySelector('[data-lh2-favoff]')?.addEventListener('click', () => { st.favOnly = false; void KXLaserHub.mountHub(root, core, opts); }); };
             /* N2.4d: utilisation of every laser across all open orders (the same planner as SHOP); „Plánovat v SHOPu“ opens the SHOP orders */
             if (st.tab === 'IMPORTS') {
                 const all = await core.laserDomain.list();
@@ -2069,14 +2141,14 @@ var KXLaserHub;
             }
             if (st.tab === 'PROJECTS') {
                 const all = await core.laserDomain.list();
-                const projs = all.filter((x) => x.type === 'APP.LASER.PROJECT' && !x.archivedAt);
+                const projs = all.filter((x) => x.type === 'APP.LASER.PROJECT' && !x.archivedAt && (!st.favOnly || x.data.evidence?.projectFavorite)); /* N2.6b+: ★ favourites filter (status card) */
                 const own = (await machines(core)).filter((m) => m.data.origin !== 'DEMO');
                 const mats = await materials(core);
                 const byId = (id) => all.find((x) => x.id === id);
                 const ops = (pid) => all.filter((x) => x.type === 'APP.LASER.OPERATION' && x.data.projectId === pid && !x.archivedAt).sort((a, b) => a.data.sequence - b.data.sequence);
                 const PC = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['LASER.PROJECT.EDIT', 'LASER.CONFIG.EDIT'], confirmed: true };
                 const cur = st.pOpen ? projs.find((x) => x.id === st.pOpen) : null;
-                root.innerHTML = `<div data-laser-hub class="kx-laser" data-laser-projects>${tabsHtml}
+                root.innerHTML = `<div data-laser-hub class="kx-laser" data-laser-projects>${tabsHtml}${st.favOnly ? `<div class="lh2-filter"><span class="kx-badge">★ ${esc(TL('lh2.favOnly', 'only favourites'))}</span><button type="button" class="btn compact" data-lh2-favoff title="${esc(TL('lh2.favOff', 'Show all projects'))}">✕ ${esc(TL('lh2.favOff', 'Show all projects'))}</button></div>` : ''}
           <details class="kx-lcols" data-lh-pnew ${projs.length ? '' : 'open'}><summary>＋ ${esc(TL('laser.prj.new', 'New project'))}</summary><div class="kx-calc-grid">
             <label class="kx-lf"><span>${esc(TL('laser.prj.title', 'Title'))}*</span><span class="kx-lf-in"><input data-pn="title" maxlength="160"></span></label>
             <label class="kx-lf"><span>${esc(TL('laser.prj.machine', 'Laser'))}</span><select data-pn="machine">${own.map((m) => `<option value="${esc(m.id)}">${esc(m.data.name)}</option>`).join('')}</select></label>
@@ -2167,7 +2239,7 @@ var KXLaserHub;
             <td class="kx-layer-act"><button class="icon-btn" data-lh-adv="${esc(o.id)}" title="${esc(TL('lce.edit', 'Layer settings'))}">⚙</button><button class="icon-btn" data-lh-edit="${esc(o.id)}" title="✎">✎</button><button class="icon-btn" data-lh-sub="${esc(o.id)}" title="${esc(TL('laser.prj.addSub', 'add a sublayer'))}">＋↳</button><button class="icon-btn" data-lh-del="${esc(o.id)}" title="🗑">🗑</button></td></tr>` + kids(o.id).map((k) => row(k, depth + 1)).join('');
                     const form = (prefix) => `<tr data-lh-layer-form="${esc(prefix)}"><td><input data-ln="name" maxlength="80" placeholder="${esc(TL('laser.prj.layerPh', 'e.g. Fill logo'))}"></td>${pf.map(p => `<td><input data-lp="${p.k}" inputmode="decimal" style="width:68px"><span class="kx-lf-help" data-lp-help="${p.k}"></span></td>`).join('')}${isLp4 ? LDS.map(p => `<td>${p.opts ? `<select data-lds="${p.k}"><option value="">—</option>${p.opts.map(x => `<option>${x}</option>`).join('')}</select>` : `<input data-lds="${p.k}" inputmode="decimal" style="width:60px">`}</td>`).join('') : ''}<td><button class="btn compact" data-ln-add>✓</button></td></tr>`;
                     det.innerHTML = `<section class="kx-lcard open" data-lh-project="${esc(cur.id)}"><header class="kx-lcard-h"><b>${esc(cur.data.recordCode)} · ${esc(cur.data.title)}</b><small class="muted">${esc(mc?.data.name || '')} · ${esc(byId(cur.data.profileId)?.data.name || '')}${cur.data.material ? ` · ${esc(cur.data.material)}` : ''}</small><button class="btn compact" data-lh-evid title="${esc(TL('lce.ev.title', 'Project evidence'))}">✎ ${esc(TL('lce.ev.btn', 'Evidence'))}</button>${cur.data.evidence?.projectFavorite ? '<span class="kx-badge">★</span>' : ''}${cur.data.evidence?.projectLocked ? `<span class="kx-badge" title="${esc(TL('lce.locked', 'Parameters are locked'))}">🔒</span>` : ''}<button class="icon-btn" data-lh-pclose>×</button></header>
-            <div class="kx-lh-layerbar"><h5>${esc(TL('laser.prj.layers', 'Layers (LightBurn order)'))}</h5><button type="button" class="btn compact" data-lh-advnew="" title="${esc(TL('lce.new', 'New layer'))}">＋ ⚙ ${esc(TL('lce.new', 'New layer'))}</button></div><div data-lg-grid></div>${isLp4 ? `<p class="muted kx-acc-help">${esc(TL('laser.prj.lp4dual', 'LaserPecker LP4: LightBurn and Design Space side by side – values are NOT converted (Design Space uses Depth, LightBurn speed).'))}</p>` : ''}
+            <div class="kx-lh-layerbar"><h5>${esc(TL('laser.prj.layers', 'Layers (LightBurn order)'))}</h5><button type="button" class="btn compact" data-lh-advnew="" title="${esc(TL('lce.new', 'New layer'))}">＋ ⚙ ${esc(TL('lce.new', 'New layer'))}</button></div><div data-lg-grid></div><div data-lh-gal></div>${isLp4 ? `<p class="muted kx-acc-help">${esc(TL('laser.prj.lp4dual', 'LaserPecker LP4: LightBurn and Design Space side by side – values are NOT converted (Design Space uses Depth, LightBurn speed).'))}</p>` : ''}
             <table class="kx-calc-table" data-lh-layers><tr><th>${esc(TL('laser.prj.layerName', 'Name'))}</th>${pf.map(p => `<th title="${esc(TL('laser.param.help.' + p.k, ''))}">${isLp4 ? 'LB · ' : ''}${esc(TL('laser.param.' + p.k, p.k))} <small>${esc(p.u)}</small></th>`).join('')}${isLp4 ? LDS.map(p => `<th class="kx-lds" title="${esc(TL('laser.param.help.lds.' + p.k, ''))}">DS · ${esc(TL('laser.param.lds.' + p.k, p.k))} <small>${esc(p.u)}</small></th>`).join('') : ''}<th></th></tr>
             ${kids(null).map((o) => row(o, 0)).join('')}${form(st.pForm || '')}</table>
             <small class="muted" data-lh-form-ctx>${esc(st.pEdit ? TL('laser.prj.editing', 'Editing') + ': ' + (layers.find((x) => x.id === st.pEdit)?.data.name || '') : st.pForm ? TL('laser.prj.newSub', 'New sublayer of') + ': ' + (layers.find((x) => x.id === st.pForm)?.data.name || '') : TL('laser.prj.newTop', 'New layer'))}</small> <span class="kx-lf-help" data-ln-err></span><div class="kx-lguard" data-ln-guard></div><label class="kx-lguard-ack" data-ln-ack hidden><input type="checkbox" data-ln-guard-ack> ${esc(TL('lg.ack', ''))}</label></section>`;
@@ -2223,6 +2295,11 @@ var KXLaserHub;
                         const gh = det.querySelector('[data-lg-grid]');
                         if (gh)
                             void renderLayerGrid(core, opts, gh, cur, layers, again2, PC);
+                    }
+                    {
+                        const gal = det.querySelector('[data-lh-gal]');
+                        if (gal)
+                            void lhGallery(core, opts, gal, (cur.data.evidence?.photos || []), cur.spaceIds, async (ids) => { await core.actions.invoke('ACTION.LASER.PROJECT.SAVE', { id: cur.id, expectedRevision: cur.revision, spaceIds: cur.spaceIds, data: { ...cur.data, evidence: { ...(cur.data.evidence || {}), photos: ids } } }, PC); again2(); }, !!cur.data.evidence?.projectLocked && false);
                     }
                     det.querySelectorAll('[data-lh-adv]').forEach(b => b.onclick = () => { const o = layers.find((x) => x.id === b.dataset.lhAdv); if (o)
                         void openLayerEditor(core, opts, { project: cur, op: o, layers, onSaved: again2, PC }); });
