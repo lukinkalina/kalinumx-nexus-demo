@@ -697,7 +697,7 @@ var KXLaserHub;
         w.className = 'lce-wrap';
         w.setAttribute('data-keep-open', '');
         w.setAttribute('data-laser-evidence', '');
-        w.innerHTML = `<div class="lce" role="dialog" aria-modal="true"><div class="lce-head"><div><b>✎ ${esc(TL('lce.ev.title', 'Project evidence'))}</b><small>${esc(pj.data.recordCode || '')} · ${esc(pj.data.title || '')}</small></div><button type="button" class="icon-btn" data-pe-close>✕</button></div><div class="lce-body"><div class="lce-grid">${fields.map((q) => `<label class="lce-f"><span class="lce-l">${esc(TL('lc.' + q.k, q.lb))}${q.u ? ` <small>[${esc(q.u)}]</small>` : ''}${q.req ? ' *' : ''} <i class="lce-i" title="${esc(TL('lc.' + q.k + '.d', ''))}" tabindex="0">ⓘ</i></span>${ctl(q)}</label>`).join('')}</div></div><div class="lce-foot"><span class="lce-err" data-pe-err></span><button type="button" class="btn ghost" data-pe-close>${esc(TL('vault.cancel', 'Cancel'))}</button><button type="button" class="btn primary" data-pe-save>✓ ${esc(TL('cv.save', 'Save'))}</button></div></div>`;
+        w.innerHTML = `<div class="lce" role="dialog" aria-modal="true"><div class="lce-head"><div><b>✎ ${esc(TL('lce.ev.title', 'Project evidence'))}</b><small>${esc(pj.data.recordCode || '')} · ${esc(pj.data.title || '')}</small></div><button type="button" class="icon-btn" data-pe-close>✕</button></div><div class="lce-body"><div class="lce-grid"><label class="lce-f"><span class="lce-l">📅 ${esc(TL('lhd.deadline', 'Deadline'))} <i class="lce-i" title="${esc(TL('lhd.deadlineHelp', 'With “To the calendar” a task appears in the Calendar and My day; clearing the date closes it.'))}" tabindex="0">ⓘ</i></span><input type="date" data-pe-deadline value="${esc(ev.deadline || '')}"></label><label class="lce-f"><span class="lce-l">${esc(TL('lhd.toCal', 'To the calendar'))}</span><input type="checkbox" data-pe-tocal ${ev.deadlineToCalendar === false ? '' : 'checked'}></label>${fields.map((q) => `<label class="lce-f"><span class="lce-l">${esc(TL('lc.' + q.k, q.lb))}${q.u ? ` <small>[${esc(q.u)}]</small>` : ''}${q.req ? ' *' : ''} <i class="lce-i" title="${esc(TL('lc.' + q.k + '.d', ''))}" tabindex="0">ⓘ</i></span>${ctl(q)}</label>`).join('')}</div></div><div class="lce-foot"><span class="lce-err" data-pe-err></span><button type="button" class="btn ghost" data-pe-close>${esc(TL('vault.cancel', 'Cancel'))}</button><button type="button" class="btn primary" data-pe-save>✓ ${esc(TL('cv.save', 'Save'))}</button></div></div>`;
         document.body.appendChild(w);
         ['click', 'pointerdown', 'mousedown', 'touchstart'].forEach(e2 => w.addEventListener(e2, (e) => e.stopPropagation()));
         const close = () => w.remove();
@@ -734,9 +734,25 @@ var KXLaserHub;
                 else
                     evidence[q.k] = x;
             }
+            const dl = String(w.querySelector('[data-pe-deadline]').value || '');
+            const toCal = !!w.querySelector('[data-pe-tocal]').checked;
+            if (dl)
+                evidence.deadline = dl;
+            else
+                delete evidence.deadline;
+            evidence.deadlineToCalendar = toCal;
             const data = { ...pj.data, title: v.projectName, tags: String(v.projectTags || '').split(',').map((t) => t.trim()).filter(Boolean), material: v.material || pj.data.material, evidence };
             try {
-                await core.actions.invoke('ACTION.LASER.PROJECT.SAVE', { id: pj.id, expectedRevision: pj.revision, spaceIds: pj.spaceIds, data }, ctx.PC);
+                let saved = await core.actions.invoke('ACTION.LASER.PROJECT.SAVE', { id: pj.id, expectedRevision: pj.revision, spaceIds: pj.spaceIds, data }, ctx.PC);
+                try {
+                    const tid = await lhDeadlineTask(core, opts, saved, 'PROJECT', toCal ? dl : '', ev.deadlineTaskId);
+                    if ((tid || '') !== (ev.deadlineTaskId || '')) {
+                        saved = await core.actions.invoke('ACTION.LASER.PROJECT.SAVE', { id: saved.id, expectedRevision: saved.revision, spaceIds: saved.spaceIds, data: { ...saved.data, evidence: { ...saved.data.evidence, deadlineTaskId: tid || undefined } } }, ctx.PC);
+                    }
+                }
+                catch (e2) {
+                    opts.onToast?.(TL('lhd.taskFail', 'The calendar task could not be saved') + ': ' + String(e2?.message || e2));
+                }
                 close();
                 opts.onToast?.(TL('lce.ev.saved', 'Evidence saved'));
                 ctx.onSaved();
@@ -791,7 +807,7 @@ var KXLaserHub;
             return ''; const r = G.evaluate(guard, pr || {}); if (pr?.extras?.guardOverride && r.status === 'danger')
             return `<span class="kx-badge kx-badge-off">🛡</span>`; return r.status === 'danger' ? '<span class="kx-badge kx-badge-bad">⛔</span>' : r.status === 'warn' ? '<span class="kx-badge kx-badge-warn">⚠</span>' : '<span class="kx-badge kx-badge-ok">✓</span>'; };
         det.innerHTML = `<section class="kx-lcard open" data-lt-test="${esc(cur.id)}" data-lts-session><header class="kx-lcard-h"><b>${esc(cur.data.recordCode)} · ${esc(cur.data.title)}</b><small class="muted">${esc(byId(cur.data.machineId)?.data.name || '')} · ${esc(byId(cur.data.profileId)?.data.name || '')}${cur.data.material ? ' · ' + esc(cur.data.material) : ''} · ${esc(TL('lts.status.' + cur.data.status, cur.data.status))}</small><button class="icon-btn" data-lt-close title="${esc(TL('lts.close', 'Close the session'))}">×</button></header>
-      <div class="kx-lts-bar"><button class="btn" data-lts-qr title="${esc(TL('lq.title', 'QR identity'))}">▦ QR</button><button class="btn primary" data-lts-next>＋ ${esc(TL('lts.next', 'Next step'))}</button><button class="btn ${recAt ? 'kx-rec-on' : ''}" data-lts-rec>${recAt ? '■ ' + esc(TL('lts.recStop', 'Stop')) + ' <b data-lts-recclock>' + fmtMs(Date.now() - recAt) + '</b>' : '● ' + esc(TL('lts.rec', 'REC'))}</button>${cur.data.status !== 'DONE' ? `<button class="btn" data-lts-done>✓ ${esc(TL('lts.finish', 'Finish the session'))}</button>` : ''}<small class="muted">${esc(TL('lts.hint', 'Each step remembers all parameters; changes against the previous step are highlighted.'))}</small></div>
+      <div class="kx-lts-bar"><label class="lts-plan" title="${esc(TL('lhd.planHelp', 'Planned test date – shows in the Calendar and My day'))}">📅 <input type="date" data-lts-plan value="${esc(cur.data.plannedDate || '')}"></label><button class="btn" data-lts-qr title="${esc(TL('lq.title', 'QR identity'))}">▦ QR</button><button class="btn primary" data-lts-next>＋ ${esc(TL('lts.next', 'Next step'))}</button><button class="btn ${recAt ? 'kx-rec-on' : ''}" data-lts-rec>${recAt ? '■ ' + esc(TL('lts.recStop', 'Stop')) + ' <b data-lts-recclock>' + fmtMs(Date.now() - recAt) + '</b>' : '● ' + esc(TL('lts.rec', 'REC'))}</button>${cur.data.status !== 'DONE' ? `<button class="btn" data-lts-done>✓ ${esc(TL('lts.finish', 'Finish the session'))}</button>` : ''}<small class="muted">${esc(TL('lts.hint', 'Each step remembers all parameters; changes against the previous step are highlighted.'))}</small></div>
       ${runs.length ? `<table class="kx-calc-table kx-lts-table"><thead><tr><th>#</th><th>${esc(TL('lts.changed', 'What changed'))}</th>${KEY.map(k => `<th>${esc(lcsName(k))}</th>`).join('')}<th>${esc(TL('lce.col.guard', 'Protection'))}</th><th>${esc(TL('lts.result', 'Result'))}</th><th>${esc(TL('lts.note', 'Note'))}</th><th>${esc(TL('lts.time', 'Time'))}</th><th></th></tr></thead><tbody>
       ${runs.map((r, i) => {
             const pr = r.data.parameters || {};
@@ -808,6 +824,17 @@ var KXLaserHub;
         const saveRun = async (pr, base, patch = {}) => core.actions.invoke('ACTION.LASER.TEST_RUN.SAVE', base ? { id: base.id, expectedRevision: base.revision, spaceIds: base.spaceIds, data: { ...base.data, parameters: pr, ...patch } } : { spaceIds: cur.spaceIds, data: { testId: cur.id, lensId: cur.data.lensIds?.[0], sequence: runs.length ? Math.max(...runs.map((x) => Number(x.data.sequence) || 0)) + 1 : 0, parameters: pr, result: 'PENDING', ...patch } }, TC);
         const editStep = (start, base, title) => void openLayerEditor(core, opts, { project: pj, op: start ? { data: { name: '', parameters: start } } : undefined, layers: [], onSaved: again, PC: TC, title: title || TL('lts.stepTitle', 'Test step'), saveStep: async (pr) => { await saveRun(pr, base); } });
         det.querySelector('[data-lt-close]').onclick = () => { globalThis.__kxLtsClose?.(); det.innerHTML = ''; };
+        det.querySelector('[data-lts-plan]').onchange = async (ev2) => { const dl = String(ev2.target.value || ''); try {
+            let saved = await core.actions.invoke('ACTION.LASER.TEST.SAVE', { id: cur.id, expectedRevision: cur.revision, spaceIds: cur.spaceIds, data: { ...cur.data, plannedDate: dl || undefined } }, TC);
+            const tid = await lhDeadlineTask(core, opts, saved, 'TEST', dl, cur.data.plannedTaskId);
+            if ((tid || '') !== (cur.data.plannedTaskId || ''))
+                await core.actions.invoke('ACTION.LASER.TEST.SAVE', { id: saved.id, expectedRevision: saved.revision, spaceIds: saved.spaceIds, data: { ...saved.data, plannedTaskId: tid || undefined } }, TC);
+            opts.onToast?.(dl ? TL('lhd.planned', 'Planned – in the calendar') : TL('lhd.unplanned', 'Plan removed'));
+            again();
+        }
+        catch (e3) {
+            opts.onToast?.(String(e3?.message || e3));
+        } };
         det.querySelector('[data-lts-qr]').onclick = () => openLaserQr(core, opts, cur, 'TEST');
         det.querySelector('[data-lts-next]').onclick = () => editStep(runs.length ? structuredClone(runs[runs.length - 1].data.parameters) : null, undefined, runs.length ? `${TL('lts.stepTitle', 'Test step')} ${runs.length + 1}` : TL('lts.baselineTitle', 'Baseline'));
         det.querySelector('[data-lts-rec]').onclick = async () => {
@@ -1851,6 +1878,24 @@ var KXLaserHub;
         }
     }
     catch { }
+    /* ---------- N2.6b+ deadlines in the calendar: a core task (shows in Calendar and My day) bound to the laser record; clearing the date completes it ---------- */
+    async function lhDeadlineTask(core, opts, rec, kind, due, taskId) {
+        const TC = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['CORE.TASK.EDIT', 'CORE.ENTITY.CREATE'], confirmed: true };
+        const old = taskId ? await core.tasks.get(taskId).catch(() => null) : null;
+        const title = `${kind === 'TEST' ? '🧪' : '🔥'} Laser: ${String(rec.data.title || '')} (${rec.data.recordCode || ''})`;
+        if (!due) {
+            if (old && old.status !== 'DONE') {
+                try {
+                    await core.actions.invoke('ACTION.CORE.TASK.COMPLETE', { id: old.id }, TC);
+                }
+                catch { }
+            }
+            return undefined;
+        }
+        const dueAt = new Date(due + 'T09:00:00').toISOString();
+        const r = await core.actions.invoke('ACTION.CORE.TASK.SAVE', old ? { id: old.id, expectedRevision: old.revision, title, ownerApp: OWNER, spaceIds: rec.spaceIds, dueAt, description: lqLink(kind, String(rec.data.recordCode || '')) } : { title, ownerApp: OWNER, spaceIds: rec.spaceIds, dueAt, description: lqLink(kind, String(rec.data.recordCode || '')) }, TC);
+        return String(r?.id || taskId || '');
+    }
     function lceMsg(f) {
         const T2 = (k, d) => TL('lce.m.' + k, d);
         switch (f.code) {

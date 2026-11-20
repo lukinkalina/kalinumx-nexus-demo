@@ -2033,3 +2033,7 @@ html[data-kx-scheme="light"] .kx-gold{filter:drop-shadow(0 0 .6px #3a2506) drop-
 .lw-tpl{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}.lw-src{padding:8px;border-radius:10px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 18%,transparent);margin-bottom:8px;display:grid;gap:6px}.lw-caps{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px}.lw-step{font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 25%,transparent);margin-right:3px}.lw-step.on{background:linear-gradient(180deg,#f6d585,#c9963c);color:#14100a;font-weight:700}.lw-step.done{opacity:.7}
 
 .lq{width:min(620px,96vw)}.lq-body{display:grid;grid-template-columns:200px 1fr;gap:14px;align-items:start}.lq-code{background:#fff;padding:8px;border-radius:10px}.lq-code svg{width:100%;height:auto;display:block}.lq-id{font:700 18px ui-monospace,monospace;letter-spacing:.04em}.lq-url{width:100%;font-size:11px;margin:6px 0}@media (max-width:560px){.lq-body{grid-template-columns:1fr}}
+
+.lts-plan{display:inline-flex;align-items:center;gap:4px}.lts-plan input{height:28px}
+/* N2.6b+ (strict, intermittent “mobile overflow” of various hubs): no size / position animation of the hub window and its workspace on phones – the layout switches immediately */
+@media (max-width:680px){#inspector,#inspector #hubWorkspace,#inspector .hub-workspace{transition:none !important}}
