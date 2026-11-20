@@ -1316,6 +1316,17 @@ var KXLaserHub;
             return st;
         };
         let S = toState(src.data.guard || null);
+        let suggestedNote = '';
+        if (!src.data.guard) {
+            try {
+                const gf = await core.actions.invoke('ACTION.LASER.GUARD.FOR', { sourceModuleId: sourceId }, RC);
+                if (gf?.guard?.suggested && gf.guard.tableId === 'JPT_M7_60_1_5MJ') {
+                    S = toState(await core.actions.invoke('ACTION.LASER.GUARD.TEMPLATE', { template: 'JPT_M7' }, RC));
+                    suggestedNote = TL('sg.suggestedNote', 'Suggested by the source name (JPT M7) – check and save to confirm.');
+                }
+            }
+            catch { }
+        }
         const w = document.createElement('div');
         w.className = 'lce-wrap';
         w.setAttribute('data-keep-open', '');
@@ -1455,6 +1466,82 @@ var KXLaserHub;
             w.querySelectorAll('[data-sg="enabled"]').forEach(i => i.onchange = () => { read(); draw(); });
         }
         draw();
+        if (suggestedNote)
+            err(suggestedNote);
+    }
+    /* ---------- N2.6b+ ACTIVE LASER + STATUS CARDS (original hub header: machine selector ◀ ▶, Continue · Last project · Last test · Favourites · Stopwatch) ---------- */
+    function lhActiveId(list) { const own = list.filter((m) => m.data.origin !== 'DEMO' && !m.archivedAt); const saved = localStorage.getItem('kx.laser.active') || ''; return (list.find((m) => m.id === saved) || own[0] || list[0])?.id || ''; }
+    async function lhTopHtml(core, st, list) {
+        try {
+            const all = await core.laserDomain.list();
+            const act = lhActiveId(list);
+            const m = list.find((x) => x.id === act);
+            if (!m)
+                return '';
+            const profs = all.filter((x) => x.type === 'APP.LASER.PROFILE' && !x.archivedAt && x.data.machineId === act).sort((a, b) => String(a.data.name).localeCompare(String(b.data.name), 'cs', { numeric: true }));
+            const lastUsed = all.filter((x) => x.type === 'APP.LASER.PROJECT' && !x.archivedAt && x.data.machineId === act).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))[0]?.data.profileId;
+            const prof = profs.find((x) => x.id === lastUsed) || profs[0]; /* the profile used last on this laser, else the first by name */
+            const src = prof && all.find((x) => x.id === prof.data.sourceModuleId);
+            const G = globalThis.KXLaserGuard;
+            const g = src && G ? G.effective(src.data) : null;
+            const gl = !g ? `<span class="kx-badge kx-badge-off">🛡 ${esc(TL('lh2.noGuard', 'no protection'))}</span>` : g.enabled === false ? `<span class="kx-badge kx-badge-off">🛡 OFF</span>` : `<span class="kx-badge kx-badge-ok">🛡 ${esc(g.name || TL('lh2.guardOn', 'protection'))} · ${esc(TL('sg.mode.' + (g.mode || 'hard-stop'), g.mode || ''))}${g.suggested ? ' · ' + esc(TL('lh2.suggested', 'suggested')) : ''}</span>`;
+            const by = (t) => all.filter((x) => x.type === t && !x.archivedAt && x.data.machineId === act).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+            const prj = by('APP.LASER.PROJECT'), tst = by('APP.LASER.TEST').filter((x) => x.data.kind === 'SESSION' || x.data.grid);
+            const ops = (id) => all.filter((x) => x.type === 'APP.LASER.OPERATION' && !x.archivedAt && x.data.projectId === id).length;
+            const runs = (id) => all.filter((x) => x.type === 'APP.LASER.TEST_RUN' && !x.archivedAt && x.data.testId === id).sort((a, b) => (a.data.sequence || 0) - (b.data.sequence || 0));
+            const cont = prj.find((x) => ['DRAFT', 'READY', 'RUNNING'].includes(x.data.status));
+            const lastP = prj[0];
+            const lastT = tst[0];
+            const fav = prj.filter((x) => x.data.evidence?.projectFavorite).length;
+            const rec = Object.keys(localStorage).filter(k => k.startsWith('kx.laser.rec.')).map(k => ({ id: k.slice(13), at: Number(localStorage.getItem(k) || 0) })).find(x => x.at);
+            const recT = rec && all.find((x) => x.id === rec.id);
+            const d = (x) => x?.updatedAt ? new Date(x.updatedAt).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric' }) : '';
+            const RS = { PENDING: '⏳', PASS: '✓', FAIL: '✗', MIXED: '≈' };
+            const lr = lastT ? runs(lastT.id).slice(-1)[0] : null;
+            const card = (k, label, b, sub, id = '') => `<button type="button" class="lh2-card" data-lh2-card="${k}" data-id="${esc(id)}" ${id || k === 'fav' ? '' : 'disabled'}><small>${esc(label)}</small><b>${esc(b)}</b><span>${esc(sub)}</span></button>`;
+            return `<div class="lh2-top" data-lh2-top><div class="lh2-bar"><button type="button" class="icon-btn" data-lh2-prev title="${esc(TL('lh2.prev', 'Previous laser'))}">◀</button><select data-lh2-machine data-keep-select title="${esc(TL('lh2.active', 'Active laser – new projects and tests use it'))}">${list.filter((x) => !x.archivedAt).map((x) => `<option value="${esc(x.id)}" ${x.id === act ? 'selected' : ''}>${esc(x.data.name)}${x.data.origin === 'DEMO' ? ' · ' + esc(TL('lh2.demo', 'sample')) : ''}</option>`).join('')}</select><button type="button" class="icon-btn" data-lh2-next title="${esc(TL('lh2.next', 'Next laser'))}">▶</button>
+      <small class="muted">${prof ? esc(prof.data.name) : ''}${prof?.data?.focusMm ? ` · focus ${prof.data.focusMm} mm` : ''}${src?.data?.nominalPowerW ? ` · ${src.data.nominalPowerW} W` : ''}${src?.data?.wavelengthNm ? ` · ${src.data.wavelengthNm} nm` : ''}</small>${gl}</div>
+      <div class="lh2-cards">${card('cont', '▶ ' + TL('lh2.continue', 'Continue'), cont?.data.title || TL('lh2.none', 'nothing'), cont ? `${ops(cont.id)} ${TL('lh2.layers', 'layers')} · ${d(cont)}` : '', cont?.id)}${card('proj', TL('lh2.lastProject', 'Last project'), lastP?.data.title || TL('lh2.none', 'nothing'), lastP ? `${lastP.data.evidence?.result ? TL('lc.o.result.' + lastP.data.evidence.result, '') : TL('laser.prjStatus.' + lastP.data.status, lastP.data.status)} · ${d(lastP)}` : '', lastP?.id)}${card('test', TL('lh2.lastTest', 'Last test'), lastT?.data.title || TL('lh2.none', 'nothing'), lastT ? `${runs(lastT.id).length} ${TL('lts.steps', 'steps')}${lr ? ' · ' + RS[lr.data.result || 'PENDING'] : ''} · ${d(lastT)}` : '', lastT?.id)}${card('fav', '★ ' + TL('lh2.fav', 'Favourites'), `${fav} ${TL('lh2.projects', 'projects')}`, TL('lh2.favSub', 'quick access'), '')}${card('rec', '⏱ ' + TL('lh2.rec', 'Stopwatch'), rec ? TL('lh2.recOn', 'running') : TL('lh2.recOff', 'not running'), recT ? String(recT.data.title) : '', rec?.id || '')}</div></div>`;
+        }
+        catch (e) {
+            globalThis.KXBugs?.pushErr?.(e);
+            return '';
+        }
+    }
+    function lhTopBind(root, core, opts, st, list) {
+        const sel = root.querySelector('[data-lh2-machine]');
+        if (!sel)
+            return;
+        const go = (id) => { try {
+            localStorage.setItem('kx.laser.active', id);
+        }
+        catch { } void KXLaserHub.mountHub(root, core, opts); };
+        sel.onchange = () => go(sel.value);
+        const ids = Array.from(sel.options).map(o => o.value);
+        const step = (d) => { const i = ids.indexOf(sel.value); go(ids[(i + d + ids.length) % ids.length]); };
+        root.querySelector('[data-lh2-prev]').onclick = () => step(-1);
+        root.querySelector('[data-lh2-next]').onclick = () => step(1);
+        root.querySelectorAll('[data-lh2-card]').forEach(b => b.onclick = () => { const k = b.dataset.lh2Card, id = String(b.dataset.id || ''); if (k === 'cont' || k === 'proj') {
+            st.tab = 'PROJECTS';
+            st.pOpen = id;
+        }
+        else if (k === 'test' || k === 'rec') {
+            st.tab = 'TESTS';
+            st.tOpen = id;
+        }
+        else if (k === 'fav') {
+            st.tab = 'PROJECTS';
+            st.favOnly = true;
+        } void KXLaserHub.mountHub(root, core, opts); });
+        /* new project / test forms start with the active laser */ const act = sel.value;
+        root.querySelectorAll('select').forEach(s2 => { if (s2 === sel || s2.dataset.lh2Done)
+            return; if (Array.from(s2.options).some(o => o.value === act) && s2.closest('[data-pn-form],[data-lt-new],form,details') && !s2.dataset.keepMachine) {
+            s2.dataset.lh2Done = '1';
+            if (s2.value !== act && !s2.closest('[data-lh-project]')) {
+                s2.value = act;
+                s2.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        } });
     }
     function lceMsg(f) {
         const T2 = (k, d) => TL('lce.m.' + k, d);
@@ -1836,8 +1923,9 @@ var KXLaserHub;
               <button class="btn" data-lh-save="${esc(r.id)}">${esc(TL('laser.save', 'Save'))}</button></section></div>` : ''}</article>`;
             };
             const groups = [['PERSONAL', list.filter((r) => r.data.origin === 'PERSONAL')], ['USER', list.filter((r) => !r.data.origin || r.data.origin === 'USER')], ['DEMO', list.filter((r) => r.data.origin === 'DEMO')]];
-            const tabsHtml = `<div class="kx-print3d-tabs">${TABS.map(([k, l]) => `<button class="chip ${st.tab === k ? 'active' : ''}" data-laser-tab="${k}">${esc(l)}</button>`).join('')}<button class="icon-btn" data-kx-manual="HUB:APP.KX.LASER" title="📖">📖</button></div>`;
-            const bindTabs = () => root.querySelectorAll('[data-laser-tab]').forEach(b => b.onclick = () => { st.tab = String(b.dataset.laserTab); void KXLaserHub.mountHub(root, core, opts); });
+            const lhTop = await lhTopHtml(core, st, list);
+            const tabsHtml = lhTop + `<div class="kx-print3d-tabs">${TABS.map(([k, l]) => `<button class="chip ${st.tab === k ? 'active' : ''}" data-laser-tab="${k}">${esc(l)}</button>`).join('')}<button class="icon-btn" data-kx-manual="HUB:APP.KX.LASER" title="📖">📖</button></div>`;
+            const bindTabs = () => { root.querySelectorAll('[data-laser-tab]').forEach(b => b.onclick = () => { st.tab = String(b.dataset.laserTab); void KXLaserHub.mountHub(root, core, opts); }); lhTopBind(root, core, opts, st, list); };
             /* N2.4d: utilisation of every laser across all open orders (the same planner as SHOP); „Plánovat v SHOPu“ opens the SHOP orders */
             if (st.tab === 'IMPORTS') {
                 const all = await core.laserDomain.list();

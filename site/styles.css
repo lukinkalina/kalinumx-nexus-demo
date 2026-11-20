@@ -2015,3 +2015,9 @@ html[data-kx-scheme="light"] .kx-gold{filter:drop-shadow(0 0 .6px #3a2506) drop-
 .kx-fin-sumtab td.kx-neg,.kx-fin-sumtab td.kx-neg b{color:#ff8a8d !important}.kx-fin-sumtab td.kx-pos,.kx-fin-sumtab td.kx-pos b{color:#7fe0a5 !important}
 
 .sg-tab input{width:110px}.sg-lbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}.sg-lbar textarea{flex:1 1 240px;min-height:34px}.sg-json{width:100%;font-family:ui-monospace,monospace;font-size:12px}
+
+/* Laser: active laser + status cards */
+.lh2-top{display:grid;gap:8px;margin:0 0 8px}.lh2-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;border-radius:12px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 35%,transparent);background:color-mix(in srgb,var(--accent,#f2c869) 6%,transparent)}
+.lh2-bar select{font-weight:700;min-width:220px}.lh2-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px}
+.lh2-card{display:grid;gap:2px;text-align:left;padding:7px 10px;border-radius:11px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 18%,transparent);background:linear-gradient(180deg,var(--surface2,#121824),var(--surface,#0d1119));cursor:pointer;color:inherit;min-width:0}
+.lh2-card small{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.05em}.lh2-card b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lh2-card span{color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lh2-card:disabled{opacity:.55;cursor:default}
