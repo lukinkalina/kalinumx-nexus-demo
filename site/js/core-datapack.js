@@ -3,7 +3,7 @@
 // Guard: sensitive data (birth numbers, card numbers – Luhn) refused; preview first (dry run of every section); apply = restore point first, then sections in order.
 var KXDataPack;
 (function () {
-    const KINDS = ['VCARD', 'ICS', 'TABLE', 'FINANCE'];
+    const KINDS = ['VCARD', 'ICS', 'TABLE', 'FINANCE', 'LASER']; /* N2.6b+: LASER = backup of the old Laser Parameter Hub (P566) through the migration apply */
     const SPACE_KINDS = ['FAMILY', 'PERSONAL', 'COMPANY', 'SHARED'];
     const MAX_TEXT = 2 * 1024 * 1024;
     const luhn = (d) => { let s = 0, alt = false; for (let i = d.length - 1; i >= 0; i--) {
@@ -54,7 +54,7 @@ var KXDataPack;
                 return { i, kind, error: 'DATAPACK_SPACE' };
             if (kind === 'TABLE' && !String(s.target || '').trim())
                 return { i, kind, error: 'DATAPACK_TARGET' };
-            const sens = sensitive(text);
+            const sens = sensitive(text).filter((x) => !(kind === 'LASER' && x === 'CARD_NUMBER')); /* laser backups carry long timestamps – no payment cards there */
             if (sens.length)
                 return { i, kind, error: 'DATAPACK_SENSITIVE:' + sens.join(',') };
             return { i, kind, title: String(s.title || kind).slice(0, 120), text, space, area: s.area ? String(s.area) : undefined, target: s.target ? String(s.target) : undefined };
@@ -99,6 +99,18 @@ var KXDataPack;
                 }
                 const r = await core.actions.invoke('ACTION.FINANCE.IMPORT.APPLY', { text: sec.text, spaceId: sp }, C);
                 return { created: r.saved ?? r.created ?? 0 };
+            }
+            if (sec.kind === 'LASER') {
+                const LC = { ...C, permissions: [...C.permissions, 'LASER.READ', 'LASER.MIGRATION.PREVIEW', 'LASER.CONFIG.EDIT', 'LASER.PROJECT.EDIT', 'LASER.TEST.EDIT', 'LASER.IMPORT.EDIT'], confirmed: true };
+                const sum = (o) => Object.values(o || {}).reduce((a, b) => a + Number(b || 0), 0);
+                if (dry) {
+                    const r = await core.actions.invoke('ACTION.LASER.P566.MIGRATION.ANALYZE', { source: sec.text }, LC);
+                    if (r.sourceKind === 'UNKNOWN')
+                        throw new Error('DATAPACK_LASER_UNKNOWN');
+                    return { created: sum(r.counts), errors: Number(r.parity?.blocking || 0), detail: { sourceKind: r.sourceKind, counts: r.counts, parity: r.parity } };
+                }
+                const r = await core.actions.invoke('ACTION.LASER.P566.MIGRATION.APPLY', { source: sec.text, spaceIds: [sp], restorePoint: false }, LC);
+                return { created: sum(r.created), skipped: sum(r.skipped), errors: (r.errors || []).length, errorDetail: (r.errors || []).slice(0, 3) };
             }
             throw new Error('DATAPACK_KIND');
         }
