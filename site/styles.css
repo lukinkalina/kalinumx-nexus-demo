@@ -2070,3 +2070,5 @@ html[data-kx-scheme="light"] body #inspector :is(.btn.ghost,.btn,.chip) :is(.ag-
 html[data-kx-scheme="light"] body #inspector .btn.ghost:not(.danger),html[data-kx-scheme="light"] body #modal .btn.ghost:not(.danger),html[data-kx-scheme="light"] body #inspector .ag-ico,html[data-kx-scheme="light"] body #modal .ag-ico{color:#2a2213 !important}
 /* light mode: text-style buttons that also carry .ag-ico (QR / SOS print, Vault reveal) – beats the dark-theme icon rule (1 id + 9 classes) with 1 id + 11 classes */
 html[data-kx-scheme="light"] body :is(#inspector,#modal).open .btn.ag-ico.ag-ico:not(.danger):not(.primary):not(.on):not(.active):not([hidden]):not(.tb-overflow),html[data-kx-scheme="light"] body #modal .btn.ag-ico.ag-ico.ag-ico:not(.danger):not(.primary):not(.on):not(.active):not([hidden]):not(.tb-overflow){color:#2a2213 !important}
+
+.kx-li-mig{margin:6px 0 10px;padding:6px 10px;border-radius:10px;border:1px dashed color-mix(in srgb,var(--accent,#f2c869) 40%,transparent)}.kx-li-mig>summary{cursor:pointer;font-weight:700;color:var(--accent,#f2c869)}

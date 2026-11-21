@@ -981,9 +981,52 @@ var KXLaserHub;
         st.liSel = st.liSel || new Set();
         const cur = st.liOpen ? imps.find((x) => x.id === st.liOpen) : null;
         body.innerHTML = `<div class="kx-li-msg" data-li-msg role="status" aria-live="polite">${esc(st.liMsg || '')}</div><div class="kx-li-bar"><label class="btn primary kx-li-up">＋ ${esc(TL('li.new', 'New import (screenshot / photo)'))}<input type="file" accept="image/*" multiple capture="environment" data-li-file hidden></label><input class="kx-li-q" data-li-q placeholder="${esc(TL('li.search', 'Search import, material, product…'))}" value="${esc(st.liQ || '')}"><span class="kx-li-sel">${st.liSel.size ? `${st.liSel.size} ${esc(TL('li.selected', 'selected'))} · <button class="btn compact" data-li-merge="PROJECT">${esc(TL('li.mergeP', 'Merge → Project'))}</button><button class="btn compact" data-li-merge="TEST">${esc(TL('li.mergeT', 'Merge → Test'))}</button><button class="btn ghost compact" data-li-clearsel>${esc(TL('li.clearSel', 'Clear selection'))}</button>` : ''}</span></div>
-      <p class="muted kx-acc-help">${esc(TL('li.help', 'Screenshots of LightBurn / EZCAD / LaserPecker settings and photos of results. Type the values from the picture (AI reading comes with the server phase); the source protection is checked BEFORE conversion.'))}</p>
+      <details class="kx-li-mig" data-li-mig ${st.migOpen ? 'open' : ''}><summary>⇪ ${esc(TL('mig.title', 'Transfer from the old Laser Parameter Hub (P566)'))}</summary><p class="muted">${esc(TL('mig.help', 'Load the backup (.json) or the portable file (.html) of the old hub – first a preview, then the transfer. A restore point is made before writing; records already transferred are skipped.'))}</p><div class="sg-lbar"><label class="btn compact">📂 ${esc(TL('mig.pick', 'Choose the file'))}<input type="file" accept=".json,.html,.htm,application/json,text/html" data-mig-file hidden></label><label>${esc(TL('lw.space', 'Area'))} <select data-mig-space data-keep-select>${['SPACE.COMPANY', 'SPACE.PERSONAL', 'SPACE.FAMILY'].map(x => `<option value="${x}" ${(st.migSpace || 'SPACE.COMPANY') === x ? 'selected' : ''}>${esc(TL('lw.sp.' + x, x))}</option>`).join('')}</select></label></div><div data-mig-out>${st.migOut || ''}</div></details><p class="muted kx-acc-help">${esc(TL('li.help', 'Screenshots of LightBurn / EZCAD / LaserPecker settings and photos of results. Type the values from the picture (AI reading comes with the server phase); the source protection is checked BEFORE conversion.'))}</p>
       ${shown.length ? `<table class="kx-calc-table kx-li-table"><thead><tr><th></th><th>${esc(TL('li.col.code', 'Code'))}</th><th>${esc(TL('li.col.title', 'Name'))}</th><th>${esc(TL('li.col.pics', 'Pictures'))}</th><th>${esc(TL('li.col.profile', 'Laser / profile'))}</th><th>${esc(TL('li.col.layers', 'Layers'))}</th><th>${esc(TL('lce.col.guard', 'Protection'))}</th><th>${esc(TL('li.col.state', 'State'))}</th></tr></thead><tbody>${shown.map((im) => `<tr data-li-row="${esc(im.id)}" class="${cur?.id === im.id ? 'on' : ''}"><td><input type="checkbox" data-li-pick="${esc(im.id)}" ${st.liSel.has(im.id) ? 'checked' : ''}></td><td>${esc(im.data.recordCode || '')}</td><td><button class="kx-link" data-li-open="${esc(im.id)}">${esc(im.data.title)}</button></td><td>${(im.data.fileIds || []).length}</td><td>${esc(byId(im.data.profileId)?.data.name || '—')}</td><td>${(im.data.layers || []).length}</td><td>${badge(worst(im))}</td><td>${esc(stLab(im))}</td></tr>`).join('')}</tbody></table>` : `<p class="muted">${esc(TL('li.empty', 'No imports yet – add a screenshot or a photo.'))}</p>`}
       <div data-li-detail></div>`;
+        /* P566 transfer: preview (ANALYZE) → confirm → APPLY */
+        const migBox = body.querySelector('[data-mig-out]');
+        body.querySelector('[data-mig-space]').onchange = (e) => { st.migSpace = e.target.value; };
+        body.querySelector('[data-li-mig]').ontoggle = (e) => { st.migOpen = e.target.open; };
+        const MC = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['LASER.READ', 'LASER.MIGRATION.PREVIEW'], confirmed: true };
+        const T2 = { machines: TL('mig.c.machines', 'lasers'), sourceModules: TL('mig.c.sources', 'sources'), profiles: TL('mig.c.profiles', 'profiles'), lenses: TL('mig.c.lenses', 'lenses'), projects: TL('mig.c.projects', 'projects'), operations: TL('mig.c.operations', 'layers'), tests: TL('mig.c.tests', 'tests'), testRuns: TL('mig.c.runs', 'test steps'), imports: TL('mig.c.imports', 'imports') };
+        body.querySelector('[data-mig-file]').onchange = async (e) => {
+            const f = e.target.files?.[0];
+            if (!f)
+                return;
+            migBox.innerHTML = `<p class="muted">${esc(TL('mig.reading', 'Reading…'))}</p>`;
+            try {
+                const text = await f.text();
+                const r = await core.actions.invoke('ACTION.LASER.P566.MIGRATION.ANALYZE', { source: text }, MC);
+                if (r.sourceKind === 'UNKNOWN') {
+                    migBox.innerHTML = `<p class="lce-err">${esc(TL('mig.unknown', 'The file is not a backup of the old Laser hub.'))}</p>`;
+                    st.migOut = migBox.innerHTML;
+                    return;
+                }
+                const pc = r.parity || {};
+                migBox.innerHTML = `<table class="kx-calc-table"><tr><td>${esc(TL('mig.format', 'Format'))}</td><td><b>${esc(r.sourceKind)}</b> · ${esc(f.name)}</td></tr>${Object.entries(r.counts || {}).map(([k, v]) => `<tr><td>${esc(T2[k] || k)}</td><td><b>${v}</b></td></tr>`).join('')}<tr><td>${esc(TL('mig.parity', 'Mapping'))}</td><td>${esc(TL('mig.p', 'mapped {m} · kept {k} · derived {d} · unresolved {u} · blocking {b}').replace('{m}', pc.mapped).replace('{k}', pc.preserved).replace('{d}', pc.derived).replace('{u}', pc.unresolved).replace('{b}', pc.blocking))}</td></tr></table>${Number(pc.blocking) > 0 ? `<p class="lce-err">${esc(TL('mig.blocking', 'Some data block the transfer – see the mapping.'))}</p>` : `<button type="button" class="btn primary" data-mig-apply>⇪ ${esc(TL('mig.apply', 'Transfer to NEXUS'))}</button>`}`;
+                migBox.querySelector('[data-mig-apply]')?.addEventListener('click', async () => {
+                    if (!confirm(TL('mig.confirm', 'Transfer the data of the old hub to NEXUS? A restore point is made first; already transferred records are skipped.')))
+                        return;
+                    migBox.insertAdjacentHTML('beforeend', `<p class="muted" data-mig-run>${esc(TL('mig.running', 'Transferring…'))}</p>`);
+                    try {
+                        const a = await core.actions.invoke('ACTION.LASER.P566.MIGRATION.APPLY', { source: text, spaceIds: [st.migSpace || 'SPACE.COMPANY'] }, { ...MC, permissions: [...MC.permissions, 'LASER.CONFIG.EDIT', 'LASER.PROJECT.EDIT', 'LASER.TEST.EDIT', 'LASER.IMPORT.EDIT', 'CORE.ENTITY.CREATE'] });
+                        const sum = (o) => Object.values(o || {}).reduce((x, y) => x + Number(y), 0);
+                        st.migOut = `<p><b>✓ ${esc(TL('mig.done', 'Transferred'))}</b> · ${esc(TL('mig.created', 'created'))} ${sum(a.created)} · ${esc(TL('mig.skipped', 'skipped (already transferred)'))} ${sum(a.skipped)}${a.errors.length ? ` · <span class="lce-err">${esc(TL('mig.errors', 'errors'))} ${a.errors.length}</span>` : ''}${a.restorePoint ? ` · ${esc(TL('mig.rp', 'restore point made'))}` : ''}</p>${a.errors.length ? `<ul>${a.errors.slice(0, 8).map((x) => `<li><small>${esc(x.key)}: ${esc(x.error)}</small></li>`).join('')}</ul>` : ''}`;
+                        st.migOpen = true;
+                        again();
+                    }
+                    catch (err) {
+                        migBox.querySelector('[data-mig-run]')?.remove();
+                        migBox.insertAdjacentHTML('beforeend', `<p class="lce-err">${esc(String(err?.message || err))}</p>`);
+                    }
+                });
+                st.migOut = '';
+            }
+            catch (err) {
+                migBox.innerHTML = `<p class="lce-err">${esc(String(err?.message || err))}</p>`;
+            }
+        };
         body.querySelector('[data-li-q]').onchange = (e) => { st.liQ = e.target.value; again(); };
         body.querySelectorAll('[data-li-pick]').forEach(cb => cb.onchange = () => { cb.checked ? st.liSel.add(cb.dataset.liPick) : st.liSel.delete(cb.dataset.liPick); again(); });
         body.querySelector('[data-li-clearsel]')?.addEventListener('click', () => { st.liSel.clear(); again(); });

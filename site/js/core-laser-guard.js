@@ -397,8 +397,114 @@ var KXLaserGuard;
         core.laserCaps = svc;
         return svc;
     }
+    /* ---------- N2.6b+ P566 MIGRATION APPLY – the old Laser Parameter Hub data becomes NEXUS records: analyse (no blocking parity), restore point,
+       save candidates in dependency order through the existing save actions, keys → ids, idempotent by migrationKey, summary ---------- */
+    function installMigrate(core) {
+        if (core.__laserP566Apply)
+            return;
+        core.__laserP566Apply = true;
+        const OWNER = 'APP.KX.LASER';
+        const ORDER = [['APP.LASER.MACHINE', 'ACTION.LASER.MACHINE.SAVE'], ['APP.LASER.SOURCE_MODULE', 'ACTION.LASER.SOURCE_MODULE.SAVE'], ['APP.LASER.LENS', 'ACTION.LASER.LENS.SAVE'], ['APP.LASER.PROFILE', 'ACTION.LASER.PROFILE.SAVE'], ['APP.LASER.PROJECT', 'ACTION.LASER.PROJECT.SAVE'], ['APP.LASER.OPERATION', 'ACTION.LASER.OPERATION.SAVE'], ['APP.LASER.TEST', 'ACTION.LASER.TEST.SAVE'], ['APP.LASER.TEST_RUN', 'ACTION.LASER.TEST_RUN.SAVE'], ['APP.LASER.IMPORT', 'ACTION.LASER.IMPORT.SAVE']];
+        const KEYMAP = { machineKey: 'machineId', sourceModuleKey: 'sourceModuleId', profileKey: 'profileId', defaultLensKey: 'defaultLensId', projectKey: 'projectId', testKey: 'testId', lensKey: 'lensId' };
+        async function apply(p, ctx) {
+            if (ctx?.confirmed !== true)
+                throw new Error('LASER_P566_CONFIRM_REQUIRED');
+            const C = { ...ctx, appCode: OWNER, permissions: [...new Set([...(ctx.permissions || []), 'LASER.READ', 'LASER.MIGRATION.PREVIEW', 'LASER.CONFIG.EDIT', 'LASER.PROJECT.EDIT', 'LASER.TEST.EDIT', 'LASER.IMPORT.EDIT', 'CORE.ENTITY.CREATE'])] };
+            const r = await core.actions.invoke('ACTION.LASER.P566.MIGRATION.ANALYZE', { source: p?.source }, C);
+            if (r?.sourceKind === 'UNKNOWN')
+                throw new Error('LASER_P566_SOURCE_UNKNOWN');
+            if (Number(r?.parity?.blocking || 0) > 0)
+                throw new Error('LASER_P566_BLOCKING:' + r.parity.blocking);
+            const spaceIds = Array.isArray(p?.spaceIds) && p.spaceIds.length ? p.spaceIds.map(String) : ['SPACE.COMPANY'];
+            let restorePoint = null;
+            if (p?.restorePoint !== false && core.recovery?.create) {
+                try {
+                    const rp = await core.recovery.create({ createdBy: String(ctx.actorId || ''), runtimeVersion: 'P566-MIGRATION-APPLY', includeAudit: false });
+                    restorePoint = String(rp?.id || '') || null;
+                }
+                catch { }
+            }
+            const existing = (await core.laserDomain.list()).filter((x) => !x.archivedAt);
+            const byKey = new Map();
+            for (const x of existing) {
+                const k = x.data?.migrationKey;
+                if (k)
+                    byKey.set(String(k), x.id);
+            }
+            const created = {}, skipped = {}, errors = [];
+            for (const [type, action] of ORDER) {
+                for (const c of (r.candidates || []).filter((x) => x.entityType === type)) {
+                    const cand = c.candidate || {};
+                    const mk = String(cand.migrationKey || '');
+                    if (!mk)
+                        continue;
+                    if (byKey.has(mk)) {
+                        skipped[type] = (skipped[type] || 0) + 1;
+                        continue;
+                    }
+                    const data = {};
+                    let missing = '';
+                    for (const [k, v] of Object.entries(cand)) {
+                        if (type === 'APP.LASER.LENS' && k === 'profileKey')
+                            continue; /* back reference only – lenses are saved before profiles */
+                        if (k in KEYMAP) {
+                            if (v == null || v === '')
+                                continue;
+                            const id = byKey.get(String(v));
+                            if (!id) {
+                                missing = String(v);
+                                break;
+                            }
+                            data[KEYMAP[k]] = id;
+                            continue;
+                        }
+                        if (k === 'lensKeys') {
+                            const ids = v.map(x => byKey.get(String(x))).filter(Boolean);
+                            if (ids.length !== v.length) {
+                                missing = String(v);
+                                break;
+                            }
+                            data.lensIds = ids;
+                            continue;
+                        }
+                        if (k === 'mappedLegacyRefs') {
+                            data.mappedEntityIds = v.map(x => byKey.get(String(x))).filter(Boolean);
+                            continue;
+                        }
+                        if (k === 'derivedFromPreset')
+                            continue;
+                        data[k] = v;
+                    }
+                    if (missing) {
+                        errors.push({ key: mk, type, error: 'MISSING_REFERENCE:' + missing });
+                        continue;
+                    }
+                    data.migrationKey = mk;
+                    if (!data.recordUid)
+                        data.recordUid = mk;
+                    if (type === 'APP.LASER.IMPORT') {
+                        data.mappedEntityIds = data.mappedEntityIds || [];
+                        data.warnings = data.warnings || [];
+                    }
+                    try {
+                        const saved = await core.actions.invoke(action, { spaceIds, data }, C);
+                        byKey.set(mk, saved.id);
+                        created[type] = (created[type] || 0) + 1;
+                    }
+                    catch (e) {
+                        errors.push({ key: mk, type, error: String(e?.message || e).slice(0, 200) });
+                    }
+                }
+            }
+            return { contract: 'KX.LASER_P566_APPLY/1', sourceKind: r.sourceKind, sourceLabel: r.sourceLabel, restorePoint, created, skipped, errors, counts: r.counts, parity: { mapped: r.parity.mapped, preserved: r.parity.preserved, derived: r.parity.derived, unresolved: r.parity.unresolved, blocking: r.parity.blocking } };
+        }
+        try {
+            core.actions.register({ code: 'ACTION.LASER.P566.MIGRATION.APPLY', ownerApp: OWNER, risk: 'SAFE_WRITE', handler: (p, c) => apply(p, c) });
+        }
+        catch { }
+    }
     const install0 = install;
-    function installAll(core) { const g = install0(core); installCaps(core); return g; }
+    function installAll(core) { const g = install0(core); installCaps(core); installMigrate(core); return g; }
     KXLaserGuard = { TABLES, normalize, suggest, effective, evaluate, jptTemplate, install: installAll, installCaps, normalizeCaps, capsOf, TECH_CAPS, PRESET_CAPS, CAP_KEYS };
     globalThis.KXLaserGuard = KXLaserGuard;
 })();
