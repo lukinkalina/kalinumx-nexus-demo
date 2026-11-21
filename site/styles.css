@@ -2072,3 +2072,13 @@ html[data-kx-scheme="light"] body #inspector .btn.ghost:not(.danger),html[data-k
 html[data-kx-scheme="light"] body :is(#inspector,#modal).open .btn.ag-ico.ag-ico:not(.danger):not(.primary):not(.on):not(.active):not([hidden]):not(.tb-overflow),html[data-kx-scheme="light"] body #modal .btn.ag-ico.ag-ico.ag-ico:not(.danger):not(.primary):not(.on):not(.active):not([hidden]):not(.tb-overflow){color:#2a2213 !important}
 
 .kx-li-mig{margin:6px 0 10px;padding:6px 10px;border-radius:10px;border:1px dashed color-mix(in srgb,var(--accent,#f2c869) 40%,transparent)}.kx-li-mig>summary{cursor:pointer;font-weight:700;color:var(--accent,#f2c869)}
+/* N2.6b+ (user: icons on the Apps cards did not look nice) – colour icon mode: a calm, evenly sized tile with breathing room; the picture never touches the frame or the text */
+[data-nav-app] .hub-nav-glyph:not(.kx-glyph-gold){width:44px !important;height:44px !important;min-width:44px;flex:0 0 44px;padding:5px;box-sizing:border-box;margin-right:12px !important;border-radius:12px !important;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 22%,transparent) !important;background:color-mix(in srgb,var(--accent,#f2c869) 8%,transparent) !important;box-shadow:none !important;overflow:hidden}
+[data-nav-app] .hub-nav-glyph:not(.kx-glyph-gold) img{width:100% !important;height:100% !important;object-fit:contain !important;border-radius:8px;display:block}
+html[data-kx-scheme="light"] [data-nav-app] .hub-nav-glyph:not(.kx-glyph-gold){background:#fffaf0 !important;border-color:#e6d3a8 !important}
+[data-nav-app] .hub-nav-glyph.kx-glyph-gold{margin-right:12px !important;width:36px;flex:0 0 36px}
+/* the card is a grid: the first column must match the icon tile; spacing via the grid gap (no margins that overflow into the text column) */
+.hub-nav-row[data-nav-app]{grid-template-columns:44px minmax(0,1fr) auto !important;column-gap:14px !important}
+[data-nav-app] .hub-nav-glyph:not(.kx-glyph-gold),[data-nav-app] .hub-nav-glyph.kx-glyph-gold{margin-right:0 !important}
+[data-nav-app] .hub-nav-glyph.kx-glyph-gold{width:44px !important;flex:0 0 44px}
+[data-nav-app] .hub-nav-glyph.kx-glyph-gold svg.kx-gold{width:34px !important;height:34px !important}
