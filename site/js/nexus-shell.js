@@ -1512,6 +1512,10 @@ var KXAPP;
             }
         }
     });
+    /* N2.6b+ (user): the hub window covers the whole page under the top bar – nothing behind it can be clicked, it is always clear a window is open */
+    function kxTopHeight() { const tb = document.querySelector('.topbar'); const b = Math.max(0, Math.round(tb?.getBoundingClientRect().bottom || 0)); if (b)
+        document.documentElement.style.setProperty('--kx-top-h', b + 'px'); document.body.classList.toggle('kx-hub-open', !!document.querySelector('#inspector.open')); }
+    window.addEventListener('resize', () => kxTopHeight());
     function kxHubMoreSweep() {
         document.querySelectorAll('#inspector.open [data-hub-issues]:not([data-kx-hubmore-done])').forEach(iss => {
             iss.dataset.kxHubmoreDone = '1';
@@ -1676,6 +1680,9 @@ var KXAPP;
     }
     catch { } try {
         kxHubMoreSweep();
+    }
+    catch { } try {
+        kxTopHeight();
     }
     catch { } try {
         kxHomeBar();

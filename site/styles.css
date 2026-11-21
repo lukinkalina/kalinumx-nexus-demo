@@ -2092,3 +2092,43 @@ html[data-kx-scheme="light"] .kit-next[open]>.kit-next-in{background:#fffaf0}
 .btn.kit-remove{opacity:.7}.btn.kit-remove:hover{opacity:1;color:#ff8a8d !important;border-color:#ff8a8d !important}
 .btn.kit-archive:hover{color:#ff8a8d !important;border-color:#ff8a8d !important}
 .kit-sens{display:inline-flex;align-items:center;gap:2px;font-size:13px;cursor:pointer;opacity:.8}.kit-sens input{margin:0}
+
+/* N2.6b+ hub window = full page under the top bar (desktop); the window modes cannot shrink it any more */
+@media (min-width:761px){
+  #inspector.open.hub-full{position:fixed !important;left:0 !important;right:0 !important;top:var(--kx-top-h,64px) !important;bottom:0 !important;width:auto !important;height:auto !important;max-width:none !important;max-height:none !important;transform:none !important;margin:0 !important;border-radius:0 !important;z-index:60 !important}
+  body.kx-hub-open .sidebar{pointer-events:none}
+  #inspector.open.hub-full [data-hubwm-mode],#inspector.open.hub-full [data-hubwm-max]{display:none !important}
+}
+@media (min-width:761px){
+  html body #inspector.inspector.inspector.hub-full.open{position:fixed !important;left:0 !important;right:0 !important;top:var(--kx-top-h,64px) !important;bottom:0 !important;width:auto !important;height:auto !important;max-width:none !important;max-height:none !important;transform:none !important;margin:0 !important;border-radius:0 !important;resize:none !important;z-index:60 !important}
+  html body #inspector.open > .kx-rz{display:none !important}
+  html body #inspector.open .kx-hub-head{cursor:default !important}
+}
+@media (min-width:761px){html body #inspector.inspector.open :is([data-hubwm-mode],[data-hubwm-max]){display:none !important}}
+html body .pet-care li .veh-actions label.kit-sens{font-size:14px !important;line-height:1;gap:3px}
+/* phones too: the floating window rule (1 id + 4 classes) used to beat the phone layout – the root cause of the intermittent “mobile overflow” */
+@media (max-width:760px){
+  html body #inspector.inspector.inspector.open{position:fixed !important;left:0 !important;right:0 !important;top:var(--kx-top-h,0px) !important;bottom:0 !important;width:auto !important;height:auto !important;max-width:none !important;max-height:none !important;transform:none !important;margin:0 !important;border-radius:0 !important;resize:none !important}
+  html body #inspector.open > .kx-rz{display:none !important}
+}
+/* ===== N2.6b+ (user: keep luxury; son is colour-sensitive) – layers by LIGHTNESS, calmer surfaces, colour-blind-safe states ===== */
+:root{--kx-page:#0e1424;--kx-page2:#121a2e;--kx-win:#1b1712;--kx-win-card:#241f17;--kx-win-line:#d4b06a;--kx-ok:#7fb2e5;--kx-warn:#e6a141;--kx-ok-bg:rgba(127,178,229,.14);--kx-warn-bg:rgba(230,161,65,.16)}
+html[data-kx-scheme="light"]{--kx-page:#e4d9c1;--kx-page2:#ddd0b4;--kx-win:#fffcf5;--kx-win-card:#f5eedf;--kx-win-line:#a87b2c;--kx-ok:#2f6aa6;--kx-warn:#a65c00;--kx-ok-bg:rgba(47,106,166,.10);--kx-warn-bg:rgba(166,92,0,.10)}
+body,.app-shell{background:radial-gradient(1200px 700px at 70% -10%,var(--kx-page2),transparent 70%),var(--kx-page) !important}
+html body #inspector.inspector.open{background:var(--kx-win) !important;border-top:2px solid var(--kx-win-line) !important;box-shadow:0 -1px 0 rgba(0,0,0,.25),0 0 0 100vmax rgba(0,0,0,.0) !important}
+html body #inspector.open :is(.veh-card,.kx-card,.desk-card,.hub-card,.lh2-card,.ag-card){background:var(--kx-win-card) !important}
+html[data-kx-scheme="light"] body #inspector.open :is(.veh-card,.kx-card,.desk-card,.hub-card,.lh2-card,.ag-card){border-color:#e2d2ae !important}
+.veh-badge.veh-over,.veh-badge.veh-overdue,.veh-badge.veh-late{color:var(--kx-warn) !important;background:var(--kx-warn-bg) !important;border-color:color-mix(in srgb,var(--kx-warn) 55%,transparent) !important}
+.veh-badge.veh-ok{color:var(--kx-ok) !important;background:var(--kx-ok-bg) !important;border-color:color-mix(in srgb,var(--kx-ok) 50%,transparent) !important}
+.veh-badge.veh-over::before,.veh-badge.veh-overdue::before,.veh-badge.veh-late::before{content:"⚠ "}.veh-badge.veh-ok::before{content:"✓ "}
+.kx-neg,.kx-fin-sumtab td.kx-neg,.kx-fin-sumtab td.kx-neg b{color:var(--kx-warn) !important}.kx-pos,.kx-fin-sumtab td.kx-pos,.kx-fin-sumtab td.kx-pos b{color:var(--kx-ok) !important}
+html[data-kx-scheme="light"] body #inspector.open .veh-card,html[data-kx-scheme="light"] body #inspector.open .veh-card :is(header b,header small,.pet-care li b,.pet-care li small,.veh-head b,.veh-head small,p,span:not(.veh-badge):not(.lhg-main)){color:#2a2213 !important}
+html[data-kx-scheme="light"] body #inspector.open .veh-card :is(header small,.pet-care li small){color:#6a5a3c !important}
+html[data-kx-scheme="light"] body #inspector.open .pet-care li{background:#fffaf0 !important;border-color:#e6d6b2 !important}
+html body #inspector.open .veh-badge.veh-overdue,html body .content .veh-badge.veh-overdue{color:var(--kx-warn) !important;background:var(--kx-warn-bg) !important;border-color:color-mix(in srgb,var(--kx-warn) 55%,transparent) !important}
+html body #inspector.open .veh-badge.veh-ok,html body .content .veh-badge.veh-ok{color:var(--kx-ok) !important;background:var(--kx-ok-bg) !important}
+html[data-kx-scheme="light"] body :is(#inspector.open,.content) .veh-badge.veh-soon{color:#7a4f0e !important;background:rgba(168,123,44,.13) !important;border-color:rgba(168,123,44,.45) !important;opacity:1 !important}
+html[data-kx-scheme="light"] body :is(#inspector.open,.content) .veh-badge.veh-overdue{color:#8f4f00 !important;background:rgba(166,92,0,.13) !important;border-color:rgba(166,92,0,.5) !important;opacity:1 !important}
+html[data-kx-scheme="light"] body :is(#inspector.open,.content) .veh-badge.veh-ok{color:#24588c !important;opacity:1 !important}
+html[data-kx-scheme="light"] body #inspector.open .veh-card :is(b,strong,h3,h4){color:#2a2213 !important}
+@media (max-width:760px){html body #inspector.inspector.inspector.open{bottom:calc(58px + env(safe-area-inset-bottom,0px)) !important}}
