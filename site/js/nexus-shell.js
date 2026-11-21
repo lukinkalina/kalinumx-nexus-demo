@@ -1579,6 +1579,28 @@ var KXAPP;
     catch { } kxSensCache.set(key, { v, at: Date.now() }); return v; }
     function kxCalSensSweep() { document.querySelectorAll('.content .kx-pk-it[data-pk-open]:not([data-kx-sens-done])').forEach(b => { b.dataset.kxSensDone = '1'; void kxIsSensitiveLink(String(b.dataset.pkOpen || '')).then(on => { if (!on)
         return; const time = b.querySelector('b')?.outerHTML || ''; b.innerHTML = `${time}🔒 ${esc(TL('sens.masked'))}`; b.title = TL('sens.maskedHint'); b.classList.add('kx-sens-masked'); }); }); }
+    /* N2.6b+ (user: calmer screens for the family) – advanced table tools (density, saved views, help toggle, copy for AI) behind one “⚙ Zobrazení” button; search, filter and CSV stay */
+    function kxTableToolsSweep() {
+        document.querySelectorAll('select[data-kxt-density]:not([data-kx-tt])').forEach(sel => {
+            sel.dataset.kxTt = '1';
+            const bar = sel.parentElement;
+            if (!bar)
+                return;
+            const on = localStorage.getItem('kx.table.adv') === '1';
+            bar.classList.toggle('kxt-adv-off', !on);
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn ghost compact kxt-adv-toggle';
+            b.dataset.kxtAdvToggle = '1';
+            b.title = TL('tt.help');
+            b.textContent = (on ? '▾ ' : '⚙ ') + TL('tt.label');
+            sel.before(b);
+            b.onclick = (e) => { e.stopPropagation(); const now = !bar.classList.contains('kxt-adv-off'); const next = !now; try {
+                localStorage.setItem('kx.table.adv', next ? '1' : '0');
+            }
+            catch { } document.querySelectorAll('.kxt-adv-toggle').forEach(x => { x.parentElement?.classList.toggle('kxt-adv-off', !next); x.textContent = (next ? '▾ ' : '⚙ ') + TL('tt.label'); }); };
+        });
+    }
     function kxHubMoreSweep() {
         document.querySelectorAll('#inspector.open [data-hub-issues]:not([data-kx-hubmore-done])').forEach(iss => {
             iss.dataset.kxHubmoreDone = '1';
@@ -1743,6 +1765,9 @@ var KXAPP;
     }
     catch { } try {
         kxHubMoreSweep();
+    }
+    catch { } try {
+        kxTableToolsSweep();
     }
     catch { } try {
         kxCalSensSweep();
@@ -16040,7 +16065,7 @@ var KXAPP;
         const head = cols.map((f) => `<th draggable="true" data-kxt-col="${esc(f.key)}" style="padding:${pad};text-align:left;white-space:nowrap;${f.width ? `width:${f.width}px;` : ''}position:relative"${f.custom ? ' data-kxt-custom="1"' : ''}>${f.pinned ? '📌 ' : ''}<span data-kxt-label data-kxt-sort="${esc(f.key)}" style="cursor:pointer" title="Seřadit">${esc(f.label)}</span>${sort?.key === f.key ? (sort.dir === 'desc' ? ' ▼' : ' ▲') : ''}${eff.showHelp && (f.info || f.help) ? ` <span data-kxt-info title="${esc([f.info, f.help].filter(Boolean).join(' — '))}" aria-label="${esc(f.info || f.help)}" style="cursor:help">ⓘ</span>` : ''} <button class="icon-btn" data-kxt-colmenu="${esc(f.key)}" aria-haspopup="menu" title="Možnosti sloupce" style="width:18px;height:18px;font-size:11px">⋮</button></th>`).join('');
         const body = cfg.rows.map((r) => {
             const id = cfg.rowId(r);
-            return `<tr data-kxt-row="${esc(id)}" style="border-bottom:1px solid var(--border)"><td style="padding:${pad};width:22px"><input type="checkbox" data-kxt-sel="${esc(id)}" ${sel.has(id) ? 'checked' : ''} aria-label="Vybrat"></td>${cols.map((f) => f.custom
+            return `<tr data-kxt-row="${esc(id)}" style="border-bottom:1px solid var(--border)"><td style="padding:${pad};width:22px"><input type="checkbox" data-kxt-sel="${esc(id)}" ${sel.has(id) ? 'checked' : ''} aria-label="Vybrat">${r?.data?.kxControls?.sensitive === true ? `<span class="kxt-sens" title="${esc(TL('sens.hint'))}">🔒</span>` : ''}</td>${cols.map((f) => f.custom
                 ? `<td style="padding:${pad}"><input data-kxt-value="${esc(f.key)}" data-kxt-rec="${esc(id)}" value="${esc(String(cfg.value(r, f) ?? ''))}" ${f.type === 'NUMBER' ? 'inputmode="decimal"' : ''} list="kxt-${esc(f.key)}" style="width:100%;font-size:inherit;padding:0 2px"></td>`
                 : cfg.editable?.(f, r) ? (() => {
                     const v = cfg.editValue ? cfg.editValue(r, f) : cfg.value(r, f);
@@ -16195,7 +16220,17 @@ var KXAPP;
             re();
         } }; });
         const tableSettings = { key: 'table-settings', label: '⚙ Nastavení tabulky…', run: () => void settingsCenter('fields:' + cfg.scope) };
-        const rowItems = (r) => [...cfg.rowMenu(r), tableSettings];
+        /* N2.6b+ (user, R23): every table row that is a record can be marked sensitive */
+        const sensRow = (r) => { const id = String(cfg.rowId(r) || ''); if (!/^ENT\./.test(id) || !Number.isInteger(r?.revision))
+            return []; const on = r?.data?.kxControls?.sensitive === true; return [{ key: 'sens', group: TL('sens.group'), label: on ? `🔓 ${TL('sens.off')}` : `🔒 ${TL('sens.on')}`, hint: TL('sens.hint'), run: async () => { try {
+                    await runtime.actions.invoke('ACTION.CORE.RECORD.SENSITIVITY.SET', { id, expectedRevision: r.revision, sensitive: !on }, { ...hubNavActionContext(), appCode: 'APP.KX.NEXUS', permissions: [...(hubNavActionContext().permissions || []), 'CORE.ENTITY.EDIT'], confirmed: true });
+                    toast(on ? TL('sens.offDone') : TL('sens.onDone'));
+                    re();
+                }
+                catch (er) {
+                    toast(String(er?.message || er));
+                } } }]; };
+        const rowItems = (r) => [...cfg.rowMenu(r), ...sensRow(r), tableSettings];
         host.querySelectorAll('[data-kxt-rowmenu]').forEach((b) => b.onclick = () => { const r = cfg.rows.find((x) => cfg.rowId(x) === b.dataset.kxtRowmenu); if (r)
             kxMoreMenu(b, rowItems(r)); });
         host.querySelectorAll('tr[data-kxt-row]').forEach((tr) => { const r = cfg.rows.find((x) => cfg.rowId(x) === tr.dataset.kxtRow); if (r)

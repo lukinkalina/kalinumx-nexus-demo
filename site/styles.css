@@ -2137,3 +2137,5 @@ html[data-kx-scheme="light"] body #inspector.open .veh-card :is(b,strong,h3,h4){
 html body .pet-care li .veh-actions .kit-next-in>label{font-size:12px !important;color:inherit}
 
 .kx-pk-it.kx-sens-masked{font-style:italic;opacity:.9}
+
+.kxt-adv-off :is(select[data-kxt-density],select[data-kxt-view],[data-kxt-view-save],[data-kxt-view-del],label:has([data-kxt-help]),[data-kxt-help],[data-kxt-ai]){display:none !important}
