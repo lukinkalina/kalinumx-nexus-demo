@@ -2135,3 +2135,5 @@ html[data-kx-scheme="light"] body #inspector.open .veh-card :is(b,strong,h3,h4){
 
 .kit-next[open]>.kit-next-in{display:grid;gap:8px;min-width:240px}.kit-next-in>label{display:grid;gap:3px}.kit-next-in .kit-sens{font-size:13px !important;opacity:1}.kit-next-in .kit-sens::after{content:attr(title);font-size:12px;margin-left:6px;white-space:normal}
 html body .pet-care li .veh-actions .kit-next-in>label{font-size:12px !important;color:inherit}
+
+.kx-pk-it.kx-sens-masked{font-style:italic;opacity:.9}

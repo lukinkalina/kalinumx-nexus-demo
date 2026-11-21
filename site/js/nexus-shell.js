@@ -755,6 +755,52 @@ var KXAPP;
         catch (e) {
             console.warn('agDash agenda', e);
         }
+        /* N2.6b+ (user, R23): sensitive records / items never show on My day (they stay in their hub) */
+        try {
+            const keep = [];
+            for (const x of items) {
+                let hide = false;
+                try {
+                    if (x.kind === 'CALENDAR_EVENT') {
+                        const ce = await runtime.calendar.get(String(x.id || '').split('@')[0]);
+                        if (ce?.sensitive === true)
+                            hide = true;
+                        if (!hide && ce?.sourceEntityId) {
+                            const se = await runtime.entities.get(String(ce.sourceEntityId));
+                            if (se?.data?.kxControls?.sensitive === true)
+                                hide = true;
+                        }
+                    }
+                    if (!hide && x.kind === 'TASK') {
+                        const tk = await runtime.tasks.get(String(x.id || ''));
+                        if (tk?.sensitive === true)
+                            hide = true;
+                        if (!hide && tk?.sourceEntityId) {
+                            const se = await runtime.entities.get(String(tk.sourceEntityId));
+                            if (se?.data?.kxControls?.sensitive === true)
+                                hide = true;
+                        }
+                    }
+                    const r = hide ? null : await runtime.entities.get(String(x.id || ''));
+                    const c = r?.data?.kxControls;
+                    if (c?.sensitive === true)
+                        hide = true;
+                    const src = String(r?.data?.sourceRef || r?.data?.source?.ref || '');
+                    if (!hide && src.includes('#')) {
+                        const [sid, iid] = src.split('#');
+                        const sr = await runtime.entities.get(sid);
+                        const sc = sr?.data?.kxControls;
+                        if (sc?.sensitive === true || sc?.items?.[iid] === true)
+                            hide = true;
+                    }
+                }
+                catch { }
+                if (!hide)
+                    keep.push(x);
+            }
+            items = keep;
+        }
+        catch { }
         try {
             const pp = await agPlannedPays(day0, agUi.horizon);
             const names = pp.map((x) => String(x.title || '').toLowerCase());
@@ -1516,6 +1562,23 @@ var KXAPP;
     function kxTopHeight() { const tb = document.querySelector('.topbar'); const b = Math.max(0, Math.round(tb?.getBoundingClientRect().bottom || 0)); if (b)
         document.documentElement.style.setProperty('--kx-top-h', b + 'px'); document.body.classList.toggle('kx-hub-open', !!document.querySelector('#inspector.open')); }
     window.addEventListener('resize', () => kxTopHeight());
+    /* N2.6b+ (user, R23): in the Calendar a sensitive event / task stays visible (it is its home) but masked as “🔒 Soukromé” – the title only after opening */
+    const kxSensCache = new Map();
+    async function kxIsSensitiveLink(link) { const m = link.match(/^kx:\/\/(calendar_event|task)\/([^?#]+)/i); if (!m)
+        return false; const key = m[1] + ':' + m[2]; const c = kxSensCache.get(key); if (c && Date.now() - c.at < 5000)
+        return c.v; let v = false; try {
+        const row = m[1].toLowerCase() === 'task' ? await runtime.tasks.get(m[2]) : await runtime.calendar.get(m[2]);
+        if (row?.sensitive === true)
+            v = true;
+        if (!v && row?.sourceEntityId) {
+            const se = await runtime.entities.get(String(row.sourceEntityId));
+            if (se?.data?.kxControls?.sensitive === true)
+                v = true;
+        }
+    }
+    catch { } kxSensCache.set(key, { v, at: Date.now() }); return v; }
+    function kxCalSensSweep() { document.querySelectorAll('.content .kx-pk-it[data-pk-open]:not([data-kx-sens-done])').forEach(b => { b.dataset.kxSensDone = '1'; void kxIsSensitiveLink(String(b.dataset.pkOpen || '')).then(on => { if (!on)
+        return; const time = b.querySelector('b')?.outerHTML || ''; b.innerHTML = `${time}🔒 ${esc(TL('sens.masked'))}`; b.title = TL('sens.maskedHint'); b.classList.add('kx-sens-masked'); }); }); }
     function kxHubMoreSweep() {
         document.querySelectorAll('#inspector.open [data-hub-issues]:not([data-kx-hubmore-done])').forEach(iss => {
             iss.dataset.kxHubmoreDone = '1';
@@ -1680,6 +1743,9 @@ var KXAPP;
     }
     catch { } try {
         kxHubMoreSweep();
+    }
+    catch { } try {
+        kxCalSensSweep();
     }
     catch { } try {
         kxTopHeight();
@@ -3371,6 +3437,7 @@ var KXAPP;
             d.setMonth(d.getMonth() + months); return d.toISOString(); };
         const dl = (iso) => new Date(iso).toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ');
         kxMoreMenu(b, [
+            { key: 'sens', group: TL('sens.group'), label: t.sensitive === true ? `🔓 ${TL('sens.off')}` : `🔒 ${TL('sens.on')}`, hint: TL('sens.hint'), run: () => save({ sensitive: !(t.sensitive === true) }, t.sensitive === true ? TL('sens.offDone') : TL('sens.onDone')) },
             { key: 'd1', group: TL('tq.move'), label: `📅 ${TL('tq.tomorrow')}`, hint: dl(at(1)), run: () => save({ dueAt: at(1) }, TL('tq.moved').replace('{d}', dl(at(1)))) },
             { key: 'd7', group: TL('tq.move'), label: `📅 ${TL('tq.week')}`, hint: dl(at(7)), run: () => save({ dueAt: at(7) }, TL('tq.moved').replace('{d}', dl(at(7)))) },
             { key: 'm1', group: TL('tq.move'), label: `📅 ${TL('tq.month')}`, hint: dl(at(0, 1)), run: () => save({ dueAt: at(0, 1) }, TL('tq.moved').replace('{d}', dl(at(0, 1)))) },
@@ -3447,6 +3514,14 @@ var KXAPP;
                     await mv(shift(null, v)); } });
         }
         items.push({ key: 'cal', label: `⌂ ${TL('eq.open')}`, run: () => { state.activeSection = 'calendar'; render(); } });
+        items.unshift({ key: 'sens', group: TL('sens.group'), label: ev.sensitive === true ? `🔓 ${TL('sens.off')}` : `🔒 ${TL('sens.on')}`, hint: TL('sens.hint'), run: async () => { try {
+                await runtime.actions.invoke('ACTION.CORE.CALENDAR.SAVE', { ...ev, sensitive: !(ev.sensitive === true), expectedRevision: ev.revision }, EC);
+                toast(ev.sensitive === true ? TL('sens.offDone') : TL('sens.onDone'));
+                kxAgRefresh();
+            }
+            catch (er) {
+                toast(String(er?.message || er));
+            } } });
         kxMoreMenu(b, items);
     }
     document.addEventListener('click', (e) => { const b = e.target?.closest?.('[data-ag-emenu]'); if (!b)
@@ -4338,15 +4413,7 @@ var KXAPP;
         root.querySelectorAll('[data-nav-app]').forEach(x => x.onclick = e => { e.stopPropagation(); const hubCode = String(x.dataset.navApp || ''); if (hubCode === 'APP.KX.NOTES') {
             void notesTool();
             return;
-        } /* N2.3b: the Notes hub opens its window */ /* N2.3b: the Notes hub opens its window */ if (hubCode === 'APP.KX.SHIPPING' || hubCode === 'APP.KX.FOOD') {
-            const host = document.querySelector('#hubNavHost');
-            if (host) {
-                host.innerHTML = '<div id="kxShippingFoodPanel"></div>';
-                const slot = host.querySelector('#kxShippingFoodPanel');
-                void KXShippingFoodHubPanel.mount(slot, hubCode === 'APP.KX.SHIPPING' ? 'SHIPPING' : 'FOOD', undefined, { actorId: CURRENT_USER_ID });
-            }
-            return;
-        } agentHostUi.context = { kind: 'HUB', appCode: x.dataset.navApp }; agentHostUi.agentCode = ''; hydrateAgentHost(); openRecordInspector(runtime.deepLinks.build({ kind: 'APP', id: x.dataset.navApp })); });
+        } /* N2.3b: the Notes hub opens its window */ /* N2.6b+ (bug found in the family review): Food / Shipping open as normal hubs – the old panel without a reader wiped the Apps page with “waiting for trusted login” */ /* N2.3b: the Notes hub opens its window */ /* N2.6b+ (bug found in the family review): Food / Shipping open as normal hubs – the old panel without a reader wiped the Apps page with “waiting for trusted login” */ agentHostUi.context = { kind: 'HUB', appCode: x.dataset.navApp }; agentHostUi.agentCode = ''; hydrateAgentHost(); openRecordInspector(runtime.deepLinks.build({ kind: 'APP', id: x.dataset.navApp })); });
         root.querySelectorAll('[data-nav-core]').forEach(x => x.onclick = e => { e.stopPropagation(); const target = x.dataset.navCore; const section = target === 'CORE.FILE' ? 'files' : target === 'CORE.CALENDAR.EVENT' ? 'calendar' : target === 'CORE.TASK' || target === 'CORE.PERSONAL_HOME' ? 'today' : null; if (section) {
             state.activeSection = section;
             render();
@@ -11279,7 +11346,49 @@ var KXAPP;
             void openRecordInspector(runtime.deepLinks.build({ kind: 'APP', id: it.ownerApp }));
         else
             render(); };
-        void (String(it.kind).startsWith('HUB_') ? hubQuickActions(it, after) : itemQuickActions(it, after)).then(items => kxMoreMenu(b, [...items.map((x) => ({ ...x, label: String(x.label || '').replace(/^(\S+)\s+\1(\s)/u, '$1$2') })), { key: 'qr-share', label: `📱 ${TL('qr2.menu')}`, run: () => void agItemQr(it) }]));
+        /* N2.6b+ (user): SENSITIVE per single item everywhere – the record itself, or one term / item inside a record (R23) */
+        const sensItem = async () => {
+            try {
+                if (it.kind === 'TASK') {
+                    const tk = await runtime.tasks.get(String(it.id || ''));
+                    if (!tk)
+                        return [];
+                    const on = tk.sensitive === true;
+                    return [{ key: 'sens', label: on ? `🔓 ${TL('sens.off')}` : `🔒 ${TL('sens.on')}`, hint: TL('sens.hint'), run: async () => { try {
+                                await runtime.actions.invoke('ACTION.CORE.TASK.SAVE', { ...tk, sensitive: !on, expectedRevision: tk.revision }, { ...hubNavActionContext(), appCode: tk.ownerApp || 'APP.NEXUS', permissions: [...(hubNavActionContext().permissions || []), 'CORE.TASK.EDIT'], confirmed: true });
+                                toast(on ? TL('sens.offDone') : TL('sens.onDone'));
+                                after();
+                            }
+                            catch (er) {
+                                toast(String(er?.message || er));
+                            } } }];
+                }
+                const raw = String(it.id || '');
+                const [eid, itemId] = raw.includes('#') ? raw.split('#') : [raw, ''];
+                if (!eid)
+                    return [];
+                const r = await runtime.entities.get(eid);
+                if (!r || String(r.type).startsWith('CORE.IDENTITY.'))
+                    return [];
+                const c = r.data?.kxControls || {};
+                const whole = c.sensitive === true;
+                const on = itemId ? (whole || c.items?.[itemId] === true) : whole;
+                if (itemId && whole)
+                    return [{ key: 'sens', label: `🔒 ${TL('sens.byRecord')}`, hint: TL('sens.byRecordHint'), disabled: TL('sens.byRecordHint'), run: () => { } }];
+                return [{ key: 'sens', label: on ? `🔓 ${TL('sens.off')}` : `🔒 ${TL('sens.on')}`, hint: TL('sens.hint'), run: async () => { try {
+                            await runtime.actions.invoke('ACTION.CORE.RECORD.SENSITIVITY.SET', itemId ? { id: eid, expectedRevision: r.revision, items: { [itemId]: !on } } : { id: eid, expectedRevision: r.revision, sensitive: !on }, { ...hubNavActionContext(), appCode: 'APP.KX.NEXUS', permissions: [...(hubNavActionContext().permissions || []), 'CORE.ENTITY.EDIT'], confirmed: true });
+                            toast(on ? TL('sens.offDone') : TL('sens.onDone'));
+                            after();
+                        }
+                        catch (er) {
+                            toast(String(er?.message || er));
+                        } } }];
+            }
+            catch {
+                return [];
+            }
+        };
+        void Promise.all([(String(it.kind).startsWith('HUB_') ? hubQuickActions(it, after) : itemQuickActions(it, after)), sensItem()]).then(([items, sens]) => kxMoreMenu(b, [...items.map((x) => ({ ...x, label: String(x.label || '').replace(/^(\S+)\s+\1(\s)/u, '$1$2') })), ...sens, { key: 'qr-share', label: `📱 ${TL('qr2.menu')}`, run: () => void agItemQr(it) }]));
     }, true);
     const itemMenuAttr = (it) => esc(JSON.stringify({ kind: it.kind, id: it.id, ownerApp: it.ownerApp, deepLink: it.deepLink, status: it.status, title: String(it.title || '').slice(0, 80) }));
     // ---------------- N2.3l (R75): one HUB BAR in every hub, same place, same order – 🔍 search · Vše / Osobní / Rodina / Firma · ＋ Nový · 📖 · ⚙ · 🔔 ----------------
