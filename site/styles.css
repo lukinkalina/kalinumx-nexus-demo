@@ -2082,3 +2082,13 @@ html[data-kx-scheme="light"] [data-nav-app] .hub-nav-glyph:not(.kx-glyph-gold){b
 [data-nav-app] .hub-nav-glyph:not(.kx-glyph-gold),[data-nav-app] .hub-nav-glyph.kx-glyph-gold{margin-right:0 !important}
 [data-nav-app] .hub-nav-glyph.kx-glyph-gold{width:44px !important;flex:0 0 44px}
 [data-nav-app] .hub-nav-glyph.kx-glyph-gold svg.kx-gold{width:34px !important;height:34px !important}
+
+/* N2.6b+ (user: calmer, clearer hub cards for the family) – term rows: ✓ Hotovo prominent, date behind 📅, remove as a quiet 🗑, archive not red */
+.pet-care li .veh-actions{display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.kit-next{position:relative;display:inline-block}.kit-next>summary{list-style:none;cursor:pointer}.kit-next>summary::-webkit-details-marker{display:none}
+.kit-next[open]>.kit-next-in{position:absolute;right:0;top:calc(100% + 4px);z-index:30;display:grid;gap:4px;padding:8px 10px;border-radius:10px;background:var(--surface2,#121824);border:1px solid color-mix(in srgb,var(--accent,#f2c869) 35%,transparent);box-shadow:0 10px 24px rgba(0,0,0,.35);font-size:12px;white-space:nowrap}
+html[data-kx-scheme="light"] .kit-next[open]>.kit-next-in{background:#fffaf0}
+.btn.kit-done{background:linear-gradient(180deg,#f6d585,#c9963c) !important;color:#14100a !important;border-color:#b07f2a !important;font-weight:700}
+.btn.kit-remove{opacity:.7}.btn.kit-remove:hover{opacity:1;color:#ff8a8d !important;border-color:#ff8a8d !important}
+.btn.kit-archive:hover{color:#ff8a8d !important;border-color:#ff8a8d !important}
+.kit-sens{display:inline-flex;align-items:center;gap:2px;font-size:13px;cursor:pointer;opacity:.8}.kit-sens input{margin:0}
