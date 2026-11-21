@@ -24,7 +24,7 @@ var KXShop;
             noItems: 'Žádné termíny', empty: 'Zatím žádný produkt.', notInstalled: 'Doménová služba Produkty není nainstalovaná.', subtitle: (d) => `${KIND[d.kind] || d.kind || ''}${d.sku ? ` · ${d.sku}` : ''}${d.price ? ` · ${(() => { const x = Number(String(d.price).replace(/\s/g, '').replace(',', '.')); return Number.isFinite(x) ? new Intl.NumberFormat('cs-CZ').format(x) + ' Kč' : String(d.price); })()}` : ''}${d.vatPct ? ` (DPH ${d.vatPct} %)` : ''}`,
             historyText: { CREATED: 'Založeno', UPDATED: 'Upraveno', DEADLINE_ADDED: 'Přidán termín', DEADLINE_DONE: 'Termín splněn', DEADLINE_REMOVED: 'Termín odebrán', ARCHIVED: 'Archivováno' },
             savedToast: 'Uloženo', itemAddedToast: 'Termín přidán', itemDoneToast: 'Termín zapsán', itemRemovedToast: 'Termín odebrán', archivedToast: 'Archivováno',
-            confirmRemove: 'Odebrat termín? Záznam zůstane v historii revizí.', confirmArchive: 'Archivovat? Data i historie zůstanou v revizích Core.' }
+            confirmRemove: 'Odebrat termín? V historii zůstane záznam, že byl odebrán.', confirmArchive: 'Archivovat? Nic se nesmaže – data i historie zůstanou uložené.' }
     });
     const METHODS = ['LASER', 'PRINT3D', 'BOUGHT', 'MANUAL', 'OTHER'];
     const num = (v, def = 0) => { const n = Number(String(v ?? '').replace(',', '.')); return Number.isFinite(n) ? n : def; };

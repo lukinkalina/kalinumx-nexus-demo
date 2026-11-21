@@ -2132,3 +2132,6 @@ html[data-kx-scheme="light"] body :is(#inspector.open,.content) .veh-badge.veh-o
 html[data-kx-scheme="light"] body :is(#inspector.open,.content) .veh-badge.veh-ok{color:#24588c !important;opacity:1 !important}
 html[data-kx-scheme="light"] body #inspector.open .veh-card :is(b,strong,h3,h4){color:#2a2213 !important}
 @media (max-width:760px){html body #inspector.inspector.inspector.open{bottom:calc(58px + env(safe-area-inset-bottom,0px)) !important}}
+
+.kit-next[open]>.kit-next-in{display:grid;gap:8px;min-width:240px}.kit-next-in>label{display:grid;gap:3px}.kit-next-in .kit-sens{font-size:13px !important;opacity:1}.kit-next-in .kit-sens::after{content:attr(title);font-size:12px;margin-left:6px;white-space:normal}
+html body .pet-care li .veh-actions .kit-next-in>label{font-size:12px !important;color:inherit}

@@ -25,7 +25,7 @@ var KXSchool;
             subtitle: (d) => `${LEVELS[d.level] || d.level}${d.className ? ` · ${d.className}` : ''}${d.school ? ` · ${d.school}` : ''}`,
             historyText: { CREATED: 'Založeno', UPDATED: 'Upraveno', AGENDA_ADDED: 'Přidán termín', AGENDA_DONE: 'Splněno', AGENDA_REMOVED: 'Termín odebrán', ARCHIVED: 'Archivováno' },
             savedToast: 'Uloženo', itemAddedToast: 'Termín přidán', itemDoneToast: 'Splněno', itemRemovedToast: 'Termín odebrán', archivedToast: 'Archivováno',
-            confirmRemove: 'Odebrat termín? Záznam zůstane v historii revizí.', confirmArchive: 'Archivovat studenta/kurz? Data i historie zůstanou v revizích Core.' }
+            confirmRemove: 'Odebrat termín? V historii zůstane záznam, že byl odebrán.', confirmArchive: 'Archivovat studenta/kurz? Nic se nesmaže – data i historie zůstanou uložené.' }
     });
     Object.assign(KXSchool, domain);
 })(KXSchool || (KXSchool = {}));

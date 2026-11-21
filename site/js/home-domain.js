@@ -24,7 +24,7 @@ var KXHome;
             subtitle: (d) => `${KINDS[d.kind] || d.kind}${d.location ? ` · ${d.location}` : ''}`,
             historyText: { CREATED: 'Založeno', UPDATED: 'Upraveno', MAINT_ADDED: 'Přidána údržba', MAINT_DONE: 'Údržba provedena', MAINT_REMOVED: 'Údržba odebrána', ARCHIVED: 'Archivováno' },
             savedToast: 'Nemovitost uložena', itemAddedToast: 'Údržba přidána', itemDoneToast: 'Údržba zapsána', itemRemovedToast: 'Údržba odebrána', archivedToast: 'Nemovitost archivována',
-            confirmRemove: 'Odebrat položku údržby? Záznam zůstane v historii revizí.', confirmArchive: 'Archivovat nemovitost? Data i historie zůstanou v revizích Core.' }
+            confirmRemove: 'Odebrat položku údržby? V historii zůstane záznam, že byl odebrán.', confirmArchive: 'Archivovat nemovitost? Nic se nesmaže – data i historie zůstanou uložené.' }
     });
     Object.assign(KXHome, domain);
 })(KXHome || (KXHome = {}));

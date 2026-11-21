@@ -256,7 +256,7 @@ var KXVehicles;
         if (!root)
             return;
         if (!svc) {
-            root.innerHTML = '<div class="desk-empty" role="alert">Doménová služba Vozidla není nainstalovaná.</div>';
+            root.innerHTML = '<div class="desk-empty" role="alert">Vozidla se nepodařilo načíst – zkuste stránku obnovit.</div>';
             return;
         }
         const ui = { form: false, error: '', expanded: '', draft: {} };
@@ -353,7 +353,7 @@ var KXVehicles;
             all('[data-veh-share-family]').forEach(b => b.onchange = async (e) => { e.stopPropagation(); const id = b.dataset.vehShareFamily; await rcRun('ACTION.CORE.RECORD.SHARE', { id, expectedRevision: rev(id), family: b.checked }); });
             all('[data-veh-share-company]').forEach(b => b.onchange = async (e) => { e.stopPropagation(); const id = b.dataset.vehShareCompany; await rcRun('ACTION.CORE.RECORD.SHARE', { id, expectedRevision: rev(id), company: b.checked }); });
             all('[data-veh-history]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); const id = b.dataset.vehHistory; ui.expanded = ui.expanded === id ? '' : id; await render(); });
-            all('[data-veh-archive]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); const id = b.dataset.vehArchive; if (!confirm('Archivovat vozidlo? Data i historie zůstanou v revizích Core.'))
+            all('[data-veh-archive]').forEach(b => b.onclick = async (e) => { e.stopPropagation(); const id = b.dataset.vehArchive; if (!confirm('Archivovat vozidlo? Nic se nesmaže – data i historie zůstanou uložené.'))
                 return; await run('ACTION.VEHICLES.VEHICLE.ARCHIVE', { id, expectedRevision: rev(id) }, 'Vozidlo archivováno'); });
         }
         await render();

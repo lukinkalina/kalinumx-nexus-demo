@@ -25,7 +25,7 @@ var KXPets;
             subtitle: (d, fmt) => `${SPECIES[d.species] || d.species}${d.birthDate ? ` · nar. ${fmt(d.birthDate)}` : ''}${d.chipId ? ` · čip ${d.chipId}` : ''}`,
             historyText: { CREATED: 'Založeno', UPDATED: 'Upraveno', CARE_ADDED: 'Přidána péče', CARE_DONE: 'Péče provedena', CARE_REMOVED: 'Péče odebrána', ARCHIVED: 'Archivováno' },
             savedToast: 'Zvíře uloženo', itemAddedToast: 'Péče přidána', itemDoneToast: 'Péče zapsána', itemRemovedToast: 'Péče odebrána', archivedToast: 'Zvíře archivováno',
-            confirmRemove: 'Odebrat položku péče? Záznam zůstane v historii revizí.', confirmArchive: 'Archivovat zvíře? Data i historie zůstanou v revizích Core.' }
+            confirmRemove: 'Odebrat položku péče? V historii zůstane záznam, že byl odebrán.', confirmArchive: 'Archivovat zvíře? Nic se nesmaže – data i historie zůstanou uložené.' }
     });
     Object.assign(KXPets, domain, { normalizePet: domain.normalizeSubject, normalizeCare: domain.normalizeItem, PetsDomainService: domain.Service });
 })(KXPets || (KXPets = {}));
