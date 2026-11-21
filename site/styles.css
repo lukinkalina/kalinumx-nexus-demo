@@ -2052,3 +2052,21 @@ label.search-marked{display:flex !important;align-items:center;gap:8px;font-size
 .kxh-edit>[data-kxh-id]{outline:1px dashed color-mix(in srgb,var(--accent,#f2c869) 55%,transparent);outline-offset:3px;border-radius:12px}.kxh-edit>.kxh-off{opacity:.42}.kxh-over{outline:2px solid var(--accent,#f2c869) !important}
 .kxh-tools{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:4px 6px;margin-bottom:6px;border-radius:10px;background:color-mix(in srgb,var(--accent,#f2c869) 10%,transparent)}.kxh-tools .chip{padding:1px 8px}.kxh-drag{cursor:grab;font-size:18px;padding:0 4px;user-select:none}.kxh-name{margin-left:auto;font-size:12px;color:var(--accent,#f2c869)}
 .kxh-grid > [hidden]{display:none !important}
+/* N2.6b+ light mode contrast fixes (automatic audit: WCAG 4.5:1 for small text) */
+html[data-kx-scheme="light"] th{color:#6b4e12}
+html[data-kx-scheme="light"] .icon-btn.on{background:linear-gradient(180deg,#f6d585,#c9963c) !important;color:#14100a !important;border-color:#b07f2a !important}
+html[data-kx-scheme="light"] .kx-demo-banner,html[data-kx-scheme="light"] .kx-demo-banner b{color:#1d160a !important}
+.kx-demo-banner b{color:#111}
+html[data-kx-scheme="light"] .hub-nav-context-badge{color:#7a5512 !important;border-color:#b98a35 !important}
+html[data-kx-scheme="light"] .inspector.hub-full table :is(th),html[data-kx-scheme="light"] .ag-live-table th,html[data-kx-scheme="light"] .ag-combo-g{color:#6b4e12 !important}
+html[data-kx-scheme="light"] .inspector.hub-full .kx-lf > span:first-child,html[data-kx-scheme="light"] .inspector.hub-full label.kx-lf{color:#6b4e12 !important}
+html[data-kx-scheme="light"] body .kx-demo-banner,html[data-kx-scheme="light"] body .kx-demo-banner *{color:#1d160a !important;text-shadow:none !important}
+/* the DEMO banner has no picture – the light “hero banner” text rule must not make its text light */
+html[data-kx-scheme="light"] body div.kx-demo-banner.kx-demo-banner :is(h1,h2,h3,b,small,span),html[data-kx-scheme="light"] body div.kx-demo-banner.kx-demo-banner{color:#1d160a !important;text-shadow:none !important}
+/* light mode: ghost buttons and code (QR / SOS, Vault) – dark text on the light surface */
+html[data-kx-scheme="light"] body .inspector :is(.btn.ghost,button.btn.ghost):not(.danger){color:#2a2213 !important}
+html[data-kx-scheme="light"] body .inspector code{color:#3a2c10 !important;background:#f1e5c9 !important}
+html[data-kx-scheme="light"] body #inspector :is(.btn.ghost,.btn,.chip) :is(.ag-ico,.icon-btn),html[data-kx-scheme="light"] body #modal :is(.btn.ghost,.btn,.chip) :is(.ag-ico,.icon-btn){color:inherit !important}
+html[data-kx-scheme="light"] body #inspector .btn.ghost:not(.danger),html[data-kx-scheme="light"] body #modal .btn.ghost:not(.danger),html[data-kx-scheme="light"] body #inspector .ag-ico,html[data-kx-scheme="light"] body #modal .ag-ico{color:#2a2213 !important}
+/* light mode: text-style buttons that also carry .ag-ico (QR / SOS print, Vault reveal) – beats the dark-theme icon rule (1 id + 9 classes) with 1 id + 11 classes */
+html[data-kx-scheme="light"] body :is(#inspector,#modal).open .btn.ag-ico.ag-ico:not(.danger):not(.primary):not(.on):not(.active):not([hidden]):not(.tb-overflow),html[data-kx-scheme="light"] body #modal .btn.ag-ico.ag-ico.ag-ico:not(.danger):not(.primary):not(.on):not(.active):not([hidden]):not(.tb-overflow){color:#2a2213 !important}

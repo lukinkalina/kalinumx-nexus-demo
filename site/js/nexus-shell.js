@@ -840,8 +840,19 @@ var KXAPP;
             if (c)
                 c.textContent = `(${f === 'all' ? up.length : up.filter(x => kindOf(x) === f).length})`;
         }
-        const doneAt = (x) => Date.parse(x.completedAt || x.doneAt || x.updatedAt || '') || 0;
-        const recentDone = items.filter(x => x.kind === 'TASK' && !open(x) && doneAt(x) >= Date.now() - 7 * D && (agUi.filter === 'all' || kindOf(x) === agUi.filter)).sort((a, b) => doneAt(b) - doneAt(a)).slice(0, 5);
+        const doneAt = (x) => Date.parse(x.completedAt || x.doneAt || x.updatedAt || '') || 0; /* N2.6b+ fix: the agenda returns open tasks only – completed ones come straight from the core task list (7 days, max 5, area + filter respected) */
+        let doneExtra = [];
+        try {
+            if (agUi.filter === 'all' || agUi.filter === 'task') {
+                const sc = String(agUi.scope || 'ALL');
+                const inScope = (t) => sc === 'ALL' || (t.spaceIds || []).some((x) => sc === 'COMPANY' ? /COMPANY/.test(x) : /FAMILY|PERSONAL/.test(x));
+                doneExtra = (await runtime.tasks.list()).filter((t) => !t.archivedAt && t.status === 'DONE' && doneAt(t) >= Date.now() - 7 * D && inScope(t)).map((t) => ({ ...t, kind: 'TASK' }));
+            }
+        }
+        catch { }
+        const seenDone = new Set();
+        const recentDone = [...items.filter(x => x.kind === 'TASK' && !open(x) && doneAt(x) >= Date.now() - 7 * D && (agUi.filter === 'all' || kindOf(x) === agUi.filter)), ...doneExtra].filter((x) => { const k = String(x.id || x.entityId || ''); if (seenDone.has(k))
+            return false; seenDone.add(k); return true; }).sort((a, b) => doneAt(b) - doneAt(a)).slice(0, 5);
         const pl = host.querySelector('[data-ag-plan]');
         if (pl) {
             const rows = up.filter(x => agUi.filter === 'all' || kindOf(x) === agUi.filter);
