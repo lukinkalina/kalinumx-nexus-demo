@@ -718,7 +718,7 @@ var KXAPP;
         return `<section class="ag-dash" data-ag-dash>
       <div class="ag-hero"><div><h2 class="ag-hero-title">👨‍👩‍👧 ${esc(TL('agd.title'))}</h2><b>${esc(TL('agd.subtitle'))}</b><small>${esc(TL('agd.subtitleEn'))}</small></div><div class="ag-motto"><i>${esc(TL('agd.motto1'))}</i><i>${esc(TL('agd.motto2'))}</i><small>${esc(TL('agd.mottoEn'))}</small></div></div>
       <div class="ag-bar"><div class="ag-scope">${sc.map(([k, l, sub, ic]) => `<button type="button" class="${agUi.scope === k ? 'on' : ''}" data-ag-scope="${k}"><span>${ic}</span><b>${esc(TL(l))}</b><small>${esc(TL(sub))}</small></button>`).join('')}</div>
-      <div class="ag-hz"><small>${esc(TL('agd.horizon'))}<br>${esc(TL('agd.horizonEn'))}</small>${[7, 14, 30, 60, 90, 180, 365, 730].map(d => `<button type="button" class="${agUi.horizon === d ? 'on' : ''}" data-ag-hz="${d}">${d === 180 ? esc(TL('agd.halfYear')) : d === 365 ? esc(TL('agd.year1')) : d === 730 ? esc(TL('agd.year2')) : `${d} ${esc(TL('agd.days'))}`}</button>`).join('')}</div></div>
+      <div class="ag-hz"><small title="${esc(TL('agd.horizonHelp'))}">${esc(TL('agd.horizon'))}</small>${[7, 14, 30, 60, 90, 180, 365, 730].map(d => `<button type="button" class="${agUi.horizon === d ? 'on' : ''}" data-ag-hz="${d}">${d === 180 ? esc(TL('agd.halfYear')) : d === 365 ? esc(TL('agd.year1')) : d === 730 ? esc(TL('agd.year2')) : `${d} ${esc(TL('agd.days'))}`}</button>`).join('')}</div></div>
       <div class="ag-kpis">${kpi('payday', '👛', 'green')}${kpi('topay', '🧾', 'red')}${kpi('free', '🪙', 'blue')}${kpi('reserve', '🛡', 'orange')}${kpi('today', '📆', 'violet')}</div>
       <div class="ag-row">${(() => { const cur = String(agUi.chart || "all"); return `<div class="ag-card ag-chart-one" data-ag-chart-one><div class="ag-card-h ag-ch-head"><b>💰 ${esc(TL("agd.ch.money"))}</b><span class="ag-ch-tabs">${["fam", "com", "all"].map(k => `<button type="button" class="${k === cur ? "active" : ""}" data-ag-ch-tab="${k}">${k === "all" ? "◔" : k === "fam" ? "👨‍👩‍👧" : "💼"} ${esc(TL("agd.ch.tab." + k))}</button>`).join("")}</span><button type="button" class="btn ghost compact" data-ag-ch-open title="${esc(TL("agd.ch.openHint"))}">${esc(TL("agd.ch.open"))} ›</button></div>${["fam", "com", "all"].map(k => `<div class="ag-ch-pane${k === cur ? " on" : ""}" data-ag-chart="${k}" data-ag-ch-pane="${k}"><div class="ag-ch-sub"><small>${esc(TL("agd.ch." + k))}</small><span class="ag-delta" data-ag-delta="${k}"></span></div><div class="ag-svg" data-ag-svg="${k}" title="${esc(TL("agd.ch.openHint"))}"></div></div>`).join("")}</div>`; })()}<div class="ag-card ag-acts"><div class="ag-card-h"><b>☑ ${esc(TL('agd.acts'))}</b><small>${esc(TL('agd.actsEn'))}</small><button type="button" class="ag-mini" data-section-jump="calendar">${esc(TL('agd.showAll'))} ›</button></div>
       <div class="ag-tabs">${[['today', 'agd.t.today'], ['week', 'agd.t.week'], ['late', 'agd.t.late']].map(([k, l]) => `<button type="button" class="${agUi.tab === k ? 'on' : ''}" data-ag-tab="${k}">${esc(TL(l))} <span data-ag-cnt="${k}"></span></button>`).join('')}</div><div class="ag-list" data-ag-list><small>…</small></div></div></div>
@@ -1601,6 +1601,31 @@ var KXAPP;
             catch { } document.documentElement.classList.toggle('kxt-adv-off', !next); document.querySelectorAll('.kxt-adv-toggle').forEach(x => { x.textContent = (next ? '▾ ' : '⚙ ') + TL('tt.label'); }); };
         });
     }
+    /* N2.6b+ (family review): in Czech the English twin sub-labels of My day (“Shared overview”, “Time to next income”…) are noise – hide them; the twins come from the catalogue (keys ending “.en”) */
+    let kxEnTwins = null;
+    function kxEnSubSweep() {
+        const lang = String(document.documentElement.lang || 'cs').slice(0, 2);
+        if (lang !== 'cs')
+            return;
+        if (!kxEnTwins) {
+            kxEnTwins = new Set();
+            try {
+                const UI = globalThis.KXI18n?.UI || {};
+                for (const [k, v] of Object.entries(UI)) {
+                    if (/(\.en|En)$/.test(k) && v?.cs)
+                        kxEnTwins.add(String(v.cs).trim());
+                    else if (/^(agd|ag)\./.test(k) && v?.en && v?.cs && String(v.en).trim() !== String(v.cs).trim() && /^[A-Za-z][A-Za-z \-]{2,40}$/.test(String(v.en).trim()))
+                        kxEnTwins.add(String(v.en).trim());
+                }
+            }
+            catch { }
+        }
+        if (!kxEnTwins.size)
+            return;
+        document.querySelectorAll('.content :is(small,span,i,em,.ag-en):not([data-kx-en])').forEach(el => { el.dataset.kxEn = '1'; if (el.children.length)
+            return; if (kxEnTwins.has((el.textContent || '').trim()))
+            el.style.display = 'none'; });
+    }
     function kxHubMoreSweep() {
         document.querySelectorAll('#inspector.open [data-hub-issues]:not([data-kx-hubmore-done])').forEach(iss => {
             iss.dataset.kxHubmoreDone = '1';
@@ -1765,6 +1790,9 @@ var KXAPP;
     }
     catch { } try {
         kxHubMoreSweep();
+    }
+    catch { } try {
+        kxEnSubSweep();
     }
     catch { } try {
         kxTableToolsSweep();

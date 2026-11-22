@@ -2147,3 +2147,8 @@ html body .pet-care li .veh-actions .kit-next-in>label{font-size:12px !important
 html.kxt-adv-off :is(select[data-kxt-density],select[data-kxt-view],[data-kxt-view-save],[data-kxt-view-del],label:has([data-kxt-help]),[data-kxt-help],[data-kxt-ai]),html.kxt-adv-off select[data-kxt-density] + .kx-seg,html.kxt-adv-off select[data-kxt-view] + .kx-seg{display:none !important}
 html.kxt-adv-off body :is(#inspector,#modal,.content) :is([data-kxt-view-save],[data-kxt-view-del]).icon-btn.icon-btn{display:none !important}
 html body :is(#inspector,.content) :is(.kx-pos,td.kx-pos,td.kx-pos b,b.kx-pos){color:var(--kx-cbok) !important}html body :is(#inspector,.content) :is(.kx-neg,td.kx-neg,td.kx-neg b,b.kx-neg){color:var(--kx-cbwarn) !important}
+
+/* My day for the colour-sensitive son: no red / green pairs */
+html body .content .ag-red strong,html body .content .ag-it em{color:var(--kx-cbwarn) !important}
+html body .content .ag-tag.red{color:var(--kx-cbwarn) !important;background:var(--kx-cbwarn-bg) !important;border-color:color-mix(in srgb,var(--kx-cbwarn) 50%,transparent) !important}
+html body .content .ag-tag.green{color:var(--muted) !important;background:transparent !important;border-color:color-mix(in srgb,var(--muted) 45%,transparent) !important}html body .content .ag-tag.green::before{content:"✓ "}
