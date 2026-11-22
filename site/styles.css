@@ -2139,3 +2139,10 @@ html body .pet-care li .veh-actions .kit-next-in>label{font-size:12px !important
 .kx-pk-it.kx-sens-masked{font-style:italic;opacity:.9}
 
 .kxt-adv-off :is(select[data-kxt-density],select[data-kxt-view],[data-kxt-view-save],[data-kxt-view-del],label:has([data-kxt-help]),[data-kxt-help],[data-kxt-ai]){display:none !important}
+
+/* Finance for the family: compact category tiles, import behind one button */
+.kx-fin-cats[data-fin-cats]{display:flex !important;flex-wrap:wrap;gap:6px;margin:6px 0}.kx-fin-cats[data-fin-cats]>*{display:inline-flex !important;align-items:center;gap:6px;width:auto !important;grid-template-columns:none !important;padding:4px 10px;border-radius:999px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 30%,transparent);font-size:12.5px}
+.kx-fin-imp{display:inline-block;position:relative}.kx-fin-imp>summary{list-style:none;cursor:pointer}.kx-fin-imp>summary::-webkit-details-marker{display:none}.kx-fin-imp[open]{display:block;width:100%;margin-top:6px}
+
+html.kxt-adv-off :is(select[data-kxt-density],select[data-kxt-view],[data-kxt-view-save],[data-kxt-view-del],label:has([data-kxt-help]),[data-kxt-help],[data-kxt-ai]),html.kxt-adv-off select[data-kxt-density] + .kx-seg,html.kxt-adv-off select[data-kxt-view] + .kx-seg{display:none !important}
+html.kxt-adv-off body :is(#inspector,#modal,.content) :is([data-kxt-view-save],[data-kxt-view-del]).icon-btn.icon-btn{display:none !important}

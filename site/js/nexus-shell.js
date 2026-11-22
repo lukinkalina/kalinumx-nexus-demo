@@ -1587,7 +1587,7 @@ var KXAPP;
             if (!bar)
                 return;
             const on = localStorage.getItem('kx.table.adv') === '1';
-            bar.classList.toggle('kxt-adv-off', !on);
+            document.documentElement.classList.toggle('kxt-adv-off', !on);
             const b = document.createElement('button');
             b.type = 'button';
             b.className = 'btn ghost compact kxt-adv-toggle';
@@ -1595,10 +1595,10 @@ var KXAPP;
             b.title = TL('tt.help');
             b.textContent = (on ? '▾ ' : '⚙ ') + TL('tt.label');
             sel.before(b);
-            b.onclick = (e) => { e.stopPropagation(); const now = !bar.classList.contains('kxt-adv-off'); const next = !now; try {
+            b.onclick = (e) => { e.stopPropagation(); const now = !document.documentElement.classList.contains('kxt-adv-off'); const next = !now; try {
                 localStorage.setItem('kx.table.adv', next ? '1' : '0');
             }
-            catch { } document.querySelectorAll('.kxt-adv-toggle').forEach(x => { x.parentElement?.classList.toggle('kxt-adv-off', !next); x.textContent = (next ? '▾ ' : '⚙ ') + TL('tt.label'); }); };
+            catch { } document.documentElement.classList.toggle('kxt-adv-off', !next); document.querySelectorAll('.kxt-adv-toggle').forEach(x => { x.textContent = (next ? '▾ ' : '⚙ ') + TL('tt.label'); }); };
         });
     }
     function kxHubMoreSweep() {
