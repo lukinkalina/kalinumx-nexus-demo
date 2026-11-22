@@ -738,7 +738,7 @@ var KXAPP;
         const host = document.querySelector('[data-ag-dash]');
         if (!host || !runtime)
             return;
-        host.querySelectorAll('[data-ag-scope]').forEach(b => b.onclick = () => { agUi.scope = String(b.dataset.agScope); kxAgSync(); });
+        host.querySelectorAll('[data-ag-scope]').forEach(b => b.onclick = () => { agUi.scope = String(b.dataset.agScope); kxAgSync(); /* the money chart follows the scope */ /* the money chart follows the scope */ const tab = agUi.scope === 'COMPANY' ? 'com' : agUi.scope === 'FAMILY' ? 'fam' : 'all'; setTimeout(() => document.querySelector(`[data-ag-ch-tab="${tab}"]`)?.click(), 60); });
         host.querySelectorAll('[data-ag-hz]').forEach(b => b.onclick = () => { agUi.horizon = Number(b.dataset.agHz); kxAgSync(); });
         host.querySelectorAll('[data-ag-tab]').forEach(b => b.onclick = () => { agUi.tab = String(b.dataset.agTab); kxAgSync(); });
         host.querySelectorAll('[data-section-jump]').forEach(b => b.onclick = () => { state.activeSection = String(b.dataset.sectionJump); render(); });
@@ -802,7 +802,9 @@ var KXAPP;
         }
         catch { }
         try {
-            const pp = await agPlannedPays(day0, agUi.horizon);
+            const ppAll = await agPlannedPays(day0, agUi.horizon);
+            const scIds = await agScopeSpaceIds();
+            const pp = ppAll.filter((x) => !scIds || scIds.includes(String(x.spaceId || ''))); /* N2.6b+ (user): money follows Shared / Family / Company */
             const names = pp.map((x) => String(x.title || '').toLowerCase());
             items = items.filter((x) => !(x.kind === 'TASK' && !/^\s*🔔/.test(String(x.title || '')) && names.some((n) => n && String(x.title || '').toLowerCase().includes(n.replace(/^demo\s*·\s*/, '')) && /k\u010d|plat/i.test(String(x.title || '')))));
             items = items.concat(pp.filter((x) => Date.parse(x.dueAt) >= day0 && Date.parse(x.dueAt) < day0 + agUi.horizon * D));
@@ -822,8 +824,15 @@ var KXAPP;
         const payday = items.filter(x => /výplat|mzd|salary/i.test(String(x.title || '')) && at(x) >= day0).sort((a, b) => at(a) - at(b))[0];
         set('payday', payday ? `${Math.ceil((at(payday) - day0) / D)} ${TL('agd.days')}` : '—', payday ? new Date(at(payday)).toLocaleDateString('cs-CZ') : TL('agd.setPayday'));
         try {
-            const r = await runtime.actions.invoke('ACTION.FINANCE.ACCOUNT.BALANCES', {}, lyCtx());
-            const accs = (Array.isArray(r) ? r : (r?.accounts || [])).filter((a) => (a.kind || a.data?.kind) !== 'SAVINGS' && (a.kind || a.data?.kind) !== 'LOAN');
+            const scB = await agScopeSpaceIds();
+            const lists = [];
+            for (const sid of (scB || [undefined])) {
+                const r = await runtime.actions.invoke('ACTION.FINANCE.ACCOUNT.BALANCES', sid ? { spaceId: sid } : {}, lyCtx());
+                lists.push(...(Array.isArray(r) ? r : (r?.accounts || [])));
+            }
+            const seenA = new Set();
+            const accs = lists.filter((a) => { const k = String(a.id || a.accountId || a.name || Math.random()); if (seenA.has(k))
+                return false; seenA.add(k); return true; }).filter((a) => (a.kind || a.data?.kind) !== 'SAVINGS' && (a.kind || a.data?.kind) !== 'LOAN');
             let free = 0;
             for (const a of accs) {
                 const v = Number(a.balance ?? a.amount ?? a.data?.balance ?? 0);
@@ -839,8 +848,13 @@ var KXAPP;
             set('free', locked ? '🔒' : '—', locked ? TL('agd.locked') : TL('agd.addAccounts'));
         }
         try {
-            const g = await runtime.actions.invoke('ACTION.FINANCE.GOALS', {}, lyCtx());
-            const res = (Array.isArray(g) ? g : (g?.goals || [])).find((x) => /rezerv|reserve/i.test(String(x.name || x.data?.name || '')));
+            const scG = await agScopeSpaceIds();
+            const gl = [];
+            for (const sid of (scG || [undefined])) {
+                const g = await runtime.actions.invoke('ACTION.FINANCE.GOALS', sid ? { spaceId: sid } : {}, lyCtx());
+                gl.push(...(Array.isArray(g) ? g : (g?.goals || [])));
+            }
+            const res = gl.find((x) => /rezerv|reserve/i.test(String(x.name || x.data?.name || '')));
             if (res) {
                 const v = Number(res.saved ?? res.data?.saved ?? res.data?.start ?? 0);
                 const monthly = items.filter(x => open(x) && at(x) >= day0 && at(x) < day0 + 30 * D).reduce((a, x) => a + amt(x), 0);
@@ -3393,6 +3407,16 @@ var KXAPP;
         }
     }
     /* planned payments from Finance for My day (real occurrences with plan id / date / moved-from) */
+    /* the spaces of the chosen My day scope (null = all): Family = family + personal, Company = company */
+    async function agScopeSpaceIds() { const sc = String(agUi.scope || 'ALL'); if (sc === 'ALL')
+        return null; try {
+        const sps = await runtime.memberships.listSpaces();
+        const kindOf = (s) => String(s.kind || s.data?.kind || s.id || '').toUpperCase();
+        return sps.filter(s => sc === 'COMPANY' ? /COMPANY/.test(kindOf(s)) : /FAMILY|PERSONAL/.test(kindOf(s))).map(s => String(s.id));
+    }
+    catch {
+        return null;
+    } }
     async function agPlannedPays(fromMs, days) {
         const out = [];
         const FC = { actorId: CURRENT_USER_ID, appCode: 'APP.KX.FINANCE', deviceId: activeDevice?.id, permissions: [], confirmed: true };
