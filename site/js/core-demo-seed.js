@@ -150,7 +150,7 @@ var KXDemoSeed;
     const MARK4 = 'CORE.DEMO_SEED.MARKER.V4';
     const NAMES = { 'APP.KX.PETS': ['Rex (pes)', 'Micka (kočka)', 'Kuba (papoušek)'], 'APP.KX.HOME': ['Kotel a topení', 'Elektro a bezpečnost', 'Voda a vzduchotechnika'], 'APP.KX.HOBBY': ['RC model Buggy', 'Dron DJI', 'Kolo Specialized'],
         'APP.KX.SCHOOL': ['Lukášek – 3. třída', 'Veronika – gymnázium', 'Kroužek angličtiny'], 'APP.KX.HEALTH': ['Lukáš', 'Helena', 'Lukášek'], 'APP.KX.GARDEN': ['Rajčata', 'Jabloň', 'Levandule'], 'APP.KX.VEHICLES': ['Škoda Octavia', 'Dodávka Transit', 'Vozík'],
-        'APP.KX.CERTIFY': ['Revize elektro dílna', 'Hasicí přístroje', 'Kalibrace laseru'], 'APP.KX.CONTRACTS': ['Nájem dílny', 'Smlouva s dodavatelem dřeva', 'Pojištění firmy'], 'APP.KX.SUBSCRIPTIONS': ['Adobe CC', 'Shopify', 'LightBurn'],
+        'APP.KX.CERTIFY': ['Revize elektro dílna', 'Hasicí přístroje', 'Kalibrace laseru'], 'APP.KX.CONTRACTS': ['Nájem dílny', 'Smlouva s dodavatelem dřeva', 'Pojištění domácnosti'], 'APP.KX.SUBSCRIPTIONS': ['Adobe CC', 'LightBurn', 'Netflix'],
         'APP.KX.WARRANTY': ['Laser MOPA 60 W', 'Notebook Dell', 'Pračka Bosch'], 'APP.KX.PRINT3D': ['Prusa MK4', 'Bambu X1C', 'Filament PETG'], 'APP.KX.SHOP': ['Dřevěná krabička', 'Gravírovaná deska', 'Svícen'], 'APP.KX.ASSETS': ['Televize Samsung', 'Sedací souprava', 'Šicí stroj'], 'APP.KX.MAINTENANCE': ['Laser MOPA 60 W', 'Odsávání dílny', 'Kompresor dílny'], 'APP.KX.SERVICE': ['Oprava gravírky zákazníka', 'Výměna zdroje laseru', 'Oprava kávovaru'], 'APP.KX.PROJECTS': ['Vánoční kolekce 2026', 'Nový e-shop', 'Rekonstrukce koupelny'], 'APP.KX.HR': ['Petra – brigáda', 'Martin – externista', 'Jana – účetní'], 'APP.KX.ENERGY': ['Elektřina – dům', 'Plyn – dům', 'Elektřina – dílna'], 'APP.KX.RENTAL': ['Vrtačka sousedovi', 'Přívěs od tchána', 'Pronájem stánku na trhu'], 'APP.KX.DOCUMENTS': ['Pas Lukáš', 'Řidičák Helena', 'Manuál laseru MOPA'], 'APP.KX.FOOD': ['Mléko', 'Kuřecí prsa', 'Rajčata'], 'APP.KX.SALES': ['Kavárna U Mlýna', 'Jan Novák', 'Svatební salon Bella'], 'APP.KX.BUILD': ['Pergola na zahradě', 'Nová kuchyň', 'Plot u silnice'], 'APP.KX.STOCK': ['Dub 4 mm', 'Plexi čiré 3 mm', 'Dárkové krabičky'], 'APP.KX.INVENTORY': ['Aku vrtačka Makita', 'Notebook Dell', 'Žebřík 3 m'], 'APP.KX.FORMS': ['Předávací protokol zakázky', 'Kontrola laseru před směnou', 'Žádost o dovolenou'], 'APP.KX.GUIDE': ['Gravírování dřeva', 'Bezpečnost u laseru', 'Výměna filtru odsávání'], 'APP.KX.SHIPPING': ['Objednávka e-shop #1042', 'Dodávka plexi', 'Vratka – svícen'], 'APP.KX.PRINT': ['Svatební visačky 120 ks', 'Firemní dárky – gravírování', 'Náhradní díl – 3D tisk'], 'APP.KX.GRAPHICS': ['Logo kavárny U Mlýna', 'Vizitky DEMO', 'Podklad – svícen se jménem'] };
     const COMPANY_OWNERS = new Set(['APP.KX.PRINT', 'APP.KX.GRAPHICS', 'APP.KX.SALES', 'APP.KX.STOCK', 'APP.KX.INVENTORY', 'APP.KX.FORMS', 'APP.KX.GUIDE', 'APP.KX.SHIPPING', 'APP.KX.MAINTENANCE', 'APP.KX.SERVICE', 'APP.KX.PROJECTS', 'APP.KX.HR', 'APP.KX.CERTIFY', 'APP.KX.CONTRACTS', 'APP.KX.SUBSCRIPTIONS', 'APP.KX.WARRANTY', 'APP.KX.SHOP', 'APP.KX.PRINT3D', 'APP.KX.LASER', 'APP.KX.ADS', 'APP.KX.PURCHASE']);
     async function seed4(core, actorId) {
@@ -202,13 +202,20 @@ var KXDemoSeed;
         const out = { subjects: 0, items: 0, hubs: 0, errors: [] };
         for (const d of doms) {
             const C = { actorId, appCode: d.owner, permissions: d.permission ? [d.permission] : [], confirmed: true };
-            const space = COMPANY_OWNERS.has(d.owner) ? com : fam;
+            const mem = ((globalThis.KX_NAVIGATION_CONTEXT_CONTRACT?.defaults || []).find((x) => x.itemCode === d.owner)?.membership) || (COMPANY_OWNERS.has(d.owner) ? 'WORK' : 'HOME'); /* N2.6b+ (user split 2026-11-22): company-only → Firma, family-only → Rodina, both → samples in both areas */
+            const AREA = { 'APP.KX.CONTRACTS': 'CCF', 'APP.KX.SUBSCRIPTIONS': 'CCF', 'APP.KX.WARRANTY': 'CFF', 'APP.KX.PRINT3D': 'FCF' }; /* area per sample index: C = Firma, F = Rodina */
+            const BIZ = /firm|díln|dodavatel|s\.r\.o|zakáz|faktur|e-shop|obchod|laser|stroj|sklad|výrob|zákazn|kancel/i;
+            const spaceFor = (i, ov) => { if (mem === 'WORK')
+                return com; if (mem === 'HOME')
+                return fam; const nm = String((NAMES[d.owner] || [])[i] || ''); const a = (AREA[d.owner] || '')[i]; if (a)
+                return a === 'C' ? com : fam; return BIZ.test(nm + ' ' + JSON.stringify(ov || {})) ? com : fam; }; /* both hubs: explicit area per sample (user split) */ /* both hubs: the area follows what the sample is about */
+            const space = spaceFor(0);
             let made = 0;
             const SF = d.subjectFields || {};
             const nameField = SF[d.nameKey] ? d.nameKey : (SF.name ? 'name' : SF.title ? 'title' : (Object.keys(SF).find(k => SF[k].kind === 'text' && SF[k].required) || d.nameKey));
             for (let i = 0; i < 3; i++) {
-                const f = { spaceIds: [space] };
-                const OV = (DEMO_FIELDS[String(d.type || '')] || [])[i] || {}; /* N2.6b+: concrete sample fields per record type (beats the generic placeholder) */
+                const OV = (DEMO_FIELDS[String(d.type || '')] || [])[i] || {};
+                const f = { spaceIds: [spaceFor(i, OV)] }; /* N2.6b+: concrete sample fields per record type (beats the generic placeholder) */
                 for (const [key, def] of Object.entries(SF)) {
                     if (OV[key] === null)
                         continue; /* null = leave this field empty in the sample */
