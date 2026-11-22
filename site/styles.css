@@ -2155,3 +2155,5 @@ html body .content .ag-tag.green{color:var(--muted) !important;background:transp
 
 .ag-prow.ag-flash{outline:2px solid var(--accent,#f2c869);outline-offset:2px;border-radius:10px;animation:kxFlash 1.2s ease-in-out 3}@keyframes kxFlash{50%{background:color-mix(in srgb,var(--accent,#f2c869) 22%,transparent)}}
 @media (prefers-reduced-motion:reduce){.ag-prow.ag-flash{animation:none}}
+
+.kx-ct-area{display:inline-flex;gap:14px;align-items:center}

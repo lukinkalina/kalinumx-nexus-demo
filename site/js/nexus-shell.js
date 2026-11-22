@@ -2520,7 +2520,7 @@ var KXAPP;
         return `${n} B`; if (n < 1024 * 1024)
         return `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KB`; if (n < 1024 * 1024 * 1024)
         return `${(n / 1024 / 1024).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`; return `${(n / 1024 / 1024 / 1024).toFixed(1)} GB`; };
-    function files() { return pageSimple('Průzkumník souborů', 'Všechny soubory a dokumenty, ke kterým máte přístup', `<div class="file-toolbar"><button class="btn" data-file-import>＋ Importovat</button><input id="fileImportInput" type="file" multiple hidden><input id="fileSearch" placeholder="Hledat název, popis nebo štítek…" value="${esc(fileExplorerUi.text)}"><select id="fileCollection"><option value="">Všechny kolekce</option></select><select id="fileSort"><option value="UPDATED_DESC" ${fileExplorerUi.sort === 'UPDATED_DESC' ? 'selected' : ''}>Naposledy změněné</option><option value="NAME_ASC" ${fileExplorerUi.sort === 'NAME_ASC' ? 'selected' : ''}>Název A–Z</option><option value="SIZE_DESC" ${fileExplorerUi.sort === 'SIZE_DESC' ? 'selected' : ''}>Největší</option></select><label class="file-toggle"><input id="filePinnedOnly" type="checkbox" ${fileExplorerUi.pinnedOnly ? 'checked' : ''}> Připnuté</label></div><div id="fileExplorerSummary" class="file-summary">Načítám oprávněné soubory…</div><div class="file-table"><div class="tr th"><span>Název</span><span>Kolekce</span><span>Prostor</span><span>Změněno</span></div><div id="fileExplorerLive"><div class="empty">Načítám…</div></div></div>`); }
+    function files() { return pageSimple('Průzkumník souborů', 'Všechny soubory a dokumenty, ke kterým máte přístup', `<div class="file-toolbar"><button class="btn" data-file-import>＋ Importovat</button><input id="fileImportInput" type="file" multiple hidden><input id="fileSearch" placeholder="Hledat název, popis nebo štítek…" value="${esc(fileExplorerUi.text)}"><select id="fileCollection"><option value="">Všechny kolekce</option></select><select id="fileSort"><option value="UPDATED_DESC" ${fileExplorerUi.sort === 'UPDATED_DESC' ? 'selected' : ''}>Naposledy změněné</option><option value="NAME_ASC" ${fileExplorerUi.sort === 'NAME_ASC' ? 'selected' : ''}>Název A–Z</option><option value="SIZE_DESC" ${fileExplorerUi.sort === 'SIZE_DESC' ? 'selected' : ''}>Největší</option></select><label class="file-toggle"><input id="filePinnedOnly" type="checkbox" ${fileExplorerUi.pinnedOnly ? 'checked' : ''}> Připnuté</label></div><div id="fileExplorerSummary" class="file-summary">Načítám oprávněné soubory…</div><div class="file-table"><div class="tr th"><span>Název</span><span>Kolekce</span><span>Oblast</span><span>Změněno</span></div><div id="fileExplorerLive"><div class="empty">Načítám…</div></div></div>`); }
     async function visibleFileCollections() { const rows = await runtime.fileLibrary.listCollections(), out = []; for (const c of rows) {
         if (c.scopeType === 'USER' && c.scopeId === CURRENT_USER_ID) {
             out.push(c);
@@ -8519,7 +8519,7 @@ var KXAPP;
             <div class="kx-ct-rel-row"><select data-cr-new-ref data-keep-select><option value="">${esc(TL('ct.relAdd'))}</option>${rows.filter((c) => c.id !== cur.id).map((c) => `<option value="${esc(c.ref)}">${esc(c.label || c.name)}</option>`).join('')}</select><select data-cr-new-kind data-keep-select>${REL.map((k) => `<option value="${k}" ${k === 'RELATED' ? 'selected' : ''}>${esc(TL('ct.rel.' + k))}</option>`).join('')}</select></div></details>`;
         })()}
            <label class="kx-lf"><span>${esc(TL('ct.f.tags'))}</span><input data-ce="tags" value="${esc(cur.tags.join(', '))}"></label>
-          <label><input type="checkbox" data-ce="favorite" ${cur.favorite ? 'checked' : ''}> ⭐ ${esc(TL('ct.favorite'))}</label>
+          <div class="kx-lf" data-ct-area><span>${esc(TL('cc.area'))}</span><small class="muted">…</small></div><label><input type="checkbox" data-ce="favorite" ${cur.favorite ? 'checked' : ''}> ⭐ ${esc(TL('ct.favorite'))}</label>
           <div><button class="btn compact" data-ct-save>${esc(TL('laser.save'))}</button> <button class="btn ghost compact" data-ct-cancel>${esc(TL('ct.cancel'))}</button> <span class="kx-lf-help" data-ct-msg></span></div></div>`
             : `<div data-ct-detail="${esc(cur.id)}"><h3>${cur.favorite ? '⭐ ' : ''}${esc(cur.label || cur.name)} ${cp(cur.label || cur.name)}</h3><p class="muted">${esc([cur.subtype ? TL('ct.st.' + cur.subtype) : TL('ct.k.' + cur.kind), cur.position, cur.ico ? `${TL('ct.f.ico')} ${cur.ico}${cur.icoValid === false ? ' ⚠' : ''}` : '', cur.bankCode ? `${TL('ct.f.bankCode')} ${cur.bankCode}` : ''].filter(Boolean).join(' · '))}</p>
           ${cur.phones.map((x) => `<div class="kx-ct-field" data-ct-field="phone"><span>${lbl(x.label)}${x.primary ? ' ⭐' : ''}</span><b>${esc(x.value)}</b> <a class="btn ghost compact" href="tel:${esc(x.value)}">📞</a> <a class="btn ghost compact" href="sms:${esc(x.value)}">💬</a> ${cp(x.value)}</div>`).join('')}
@@ -8627,6 +8627,30 @@ var KXAPP;
             catch (e) {
                 box.textContent = String(e?.message || e);
             } });
+            /* N2.6b+ (user split): a contact can belong to Rodina, Firma or both – shared through the record controls */
+            void (async () => {
+                const host = m.querySelector('[data-ct-area]');
+                if (!host || !cur?.id)
+                    return;
+                try {
+                    const rc = runtime.recordControls;
+                    const sp = rc ? await rc.contextSpaces(CURRENT_USER_ID) : null;
+                    const ent = await runtime.entities.get(String(cur.id));
+                    if (!ent || !sp)
+                        return;
+                    const has = (k) => !!sp[k] && (ent.spaceIds || []).includes(sp[k].id);
+                    host.innerHTML = `<span>${esc(TL('cc.area'))}</span><span class="kx-ct-area">${sp.FAMILY ? `<label><input type="checkbox" data-ct-share="family" ${has('FAMILY') ? 'checked' : ''}> 👪 ${esc(TL('rc2.family'))}</label>` : ''}${sp.COMPANY ? `<label><input type="checkbox" data-ct-share="company" ${has('COMPANY') ? 'checked' : ''}> 🏢 ${esc(TL('rc2.company'))}</label>` : ''}</span><small class="muted">${esc(TL('ct.areaHelp'))}</small>`;
+                    host.querySelectorAll('[data-ct-share]').forEach(cb => cb.onchange = async () => { const e2 = await runtime.entities.get(String(cur.id)); try {
+                        await runtime.actions.invoke('ACTION.CORE.RECORD.SHARE', { id: String(cur.id), expectedRevision: e2?.revision, [String(cb.dataset.ctShare)]: cb.checked }, { ...hubNavActionContext(), appCode: 'APP.KX.NEXUS', permissions: [...(hubNavActionContext().permissions || []), 'CORE.ENTITY.EDIT'], confirmed: true });
+                        toast(TL('ct.areaSaved'));
+                    }
+                    catch (er) {
+                        cb.checked = !cb.checked;
+                        toast(String(er?.message || er).includes('NEEDS_ONE') ? TL('ct.areaOne') : String(er?.message || er));
+                    } });
+                }
+                catch { }
+            })();
             m.querySelector('[data-ct-save]')?.addEventListener('click', async () => {
                 const v = (k) => m.querySelector(`[data-ce="${k}"]`)?.value ?? '';
                 const msg = m.querySelector('[data-ct-msg]');
