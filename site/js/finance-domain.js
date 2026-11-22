@@ -568,6 +568,8 @@ var KXFinanceHub;
             st.navCtx = navCtx;
             st.space = '';
         } /* the context changed – choose its default space again */
+        if (!st.space && spaces.length > 1)
+            st.space = '__SUM__'; /* N2.6b+ (family first): open on the Σ summary when several areas are visible */
         if (!st.space || (st.space === '__SUM__' && spaces.length < 2) || (st.space !== '__SUM__' && !spaces.some((s) => s.id === st.space)))
             st.space = (navCtx === 'HOME' ? spaces.find((s) => s.kind === 'FAMILY') : navCtx === 'WORK' ? spaces.find((s) => s.kind === 'COMPANY') : null)?.id || spaces[0]?.id || '';
         const sp = spaces.find((s) => s.id === st.space);

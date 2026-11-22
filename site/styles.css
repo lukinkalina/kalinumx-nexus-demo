@@ -2112,21 +2112,21 @@ html body .pet-care li .veh-actions label.kit-sens{font-size:14px !important;lin
   html body #inspector.open > .kx-rz{display:none !important}
 }
 /* ===== N2.6b+ (user: keep luxury; son is colour-sensitive) – layers by LIGHTNESS, calmer surfaces, colour-blind-safe states ===== */
-:root{--kx-page:#0e1424;--kx-page2:#121a2e;--kx-win:#1b1712;--kx-win-card:#241f17;--kx-win-line:#d4b06a;--kx-ok:#7fb2e5;--kx-warn:#e6a141;--kx-ok-bg:rgba(127,178,229,.14);--kx-warn-bg:rgba(230,161,65,.16)}
-html[data-kx-scheme="light"]{--kx-page:#e4d9c1;--kx-page2:#ddd0b4;--kx-win:#fffcf5;--kx-win-card:#f5eedf;--kx-win-line:#a87b2c;--kx-ok:#2f6aa6;--kx-warn:#a65c00;--kx-ok-bg:rgba(47,106,166,.10);--kx-warn-bg:rgba(166,92,0,.10)}
+:root{--kx-page:#0e1424;--kx-page2:#121a2e;--kx-win:#1b1712;--kx-win-card:#241f17;--kx-win-line:#d4b06a;--kx-cbok:#7fb2e5;--kx-cbwarn:#e6a141;--kx-cbok-bg:rgba(127,178,229,.14);--kx-cbwarn-bg:rgba(230,161,65,.16)}
+html[data-kx-scheme="light"]{--kx-page:#e4d9c1;--kx-page2:#ddd0b4;--kx-win:#fffcf5;--kx-win-card:#f5eedf;--kx-win-line:#a87b2c;--kx-cbok:#2f6aa6;--kx-cbwarn:#a65c00;--kx-cbok-bg:rgba(47,106,166,.10);--kx-cbwarn-bg:rgba(166,92,0,.10)}
 body,.app-shell{background:radial-gradient(1200px 700px at 70% -10%,var(--kx-page2),transparent 70%),var(--kx-page) !important}
 html body #inspector.inspector.open{background:var(--kx-win) !important;border-top:2px solid var(--kx-win-line) !important;box-shadow:0 -1px 0 rgba(0,0,0,.25),0 0 0 100vmax rgba(0,0,0,.0) !important}
 html body #inspector.open :is(.veh-card,.kx-card,.desk-card,.hub-card,.lh2-card,.ag-card){background:var(--kx-win-card) !important}
 html[data-kx-scheme="light"] body #inspector.open :is(.veh-card,.kx-card,.desk-card,.hub-card,.lh2-card,.ag-card){border-color:#e2d2ae !important}
-.veh-badge.veh-over,.veh-badge.veh-overdue,.veh-badge.veh-late{color:var(--kx-warn) !important;background:var(--kx-warn-bg) !important;border-color:color-mix(in srgb,var(--kx-warn) 55%,transparent) !important}
-.veh-badge.veh-ok{color:var(--kx-ok) !important;background:var(--kx-ok-bg) !important;border-color:color-mix(in srgb,var(--kx-ok) 50%,transparent) !important}
+.veh-badge.veh-over,.veh-badge.veh-overdue,.veh-badge.veh-late{color:var(--kx-cbwarn) !important;background:var(--kx-cbwarn-bg) !important;border-color:color-mix(in srgb,var(--kx-cbwarn) 55%,transparent) !important}
+.veh-badge.veh-ok{color:var(--kx-cbok) !important;background:var(--kx-cbok-bg) !important;border-color:color-mix(in srgb,var(--kx-cbok) 50%,transparent) !important}
 .veh-badge.veh-over::before,.veh-badge.veh-overdue::before,.veh-badge.veh-late::before{content:"⚠ "}.veh-badge.veh-ok::before{content:"✓ "}
-.kx-neg,.kx-fin-sumtab td.kx-neg,.kx-fin-sumtab td.kx-neg b{color:var(--kx-warn) !important}.kx-pos,.kx-fin-sumtab td.kx-pos,.kx-fin-sumtab td.kx-pos b{color:var(--kx-ok) !important}
+.kx-neg,.kx-fin-sumtab td.kx-neg,.kx-fin-sumtab td.kx-neg b{color:var(--kx-cbwarn) !important}.kx-pos,.kx-fin-sumtab td.kx-pos,.kx-fin-sumtab td.kx-pos b{color:var(--kx-cbok) !important}
 html[data-kx-scheme="light"] body #inspector.open .veh-card,html[data-kx-scheme="light"] body #inspector.open .veh-card :is(header b,header small,.pet-care li b,.pet-care li small,.veh-head b,.veh-head small,p,span:not(.veh-badge):not(.lhg-main)){color:#2a2213 !important}
 html[data-kx-scheme="light"] body #inspector.open .veh-card :is(header small,.pet-care li small){color:#6a5a3c !important}
 html[data-kx-scheme="light"] body #inspector.open .pet-care li{background:#fffaf0 !important;border-color:#e6d6b2 !important}
-html body #inspector.open .veh-badge.veh-overdue,html body .content .veh-badge.veh-overdue{color:var(--kx-warn) !important;background:var(--kx-warn-bg) !important;border-color:color-mix(in srgb,var(--kx-warn) 55%,transparent) !important}
-html body #inspector.open .veh-badge.veh-ok,html body .content .veh-badge.veh-ok{color:var(--kx-ok) !important;background:var(--kx-ok-bg) !important}
+html body #inspector.open .veh-badge.veh-overdue,html body .content .veh-badge.veh-overdue{color:var(--kx-cbwarn) !important;background:var(--kx-cbwarn-bg) !important;border-color:color-mix(in srgb,var(--kx-cbwarn) 55%,transparent) !important}
+html body #inspector.open .veh-badge.veh-ok,html body .content .veh-badge.veh-ok{color:var(--kx-cbok) !important;background:var(--kx-cbok-bg) !important}
 html[data-kx-scheme="light"] body :is(#inspector.open,.content) .veh-badge.veh-soon{color:#7a4f0e !important;background:rgba(168,123,44,.13) !important;border-color:rgba(168,123,44,.45) !important;opacity:1 !important}
 html[data-kx-scheme="light"] body :is(#inspector.open,.content) .veh-badge.veh-overdue{color:#8f4f00 !important;background:rgba(166,92,0,.13) !important;border-color:rgba(166,92,0,.5) !important;opacity:1 !important}
 html[data-kx-scheme="light"] body :is(#inspector.open,.content) .veh-badge.veh-ok{color:#24588c !important;opacity:1 !important}
@@ -2146,3 +2146,4 @@ html body .pet-care li .veh-actions .kit-next-in>label{font-size:12px !important
 
 html.kxt-adv-off :is(select[data-kxt-density],select[data-kxt-view],[data-kxt-view-save],[data-kxt-view-del],label:has([data-kxt-help]),[data-kxt-help],[data-kxt-ai]),html.kxt-adv-off select[data-kxt-density] + .kx-seg,html.kxt-adv-off select[data-kxt-view] + .kx-seg{display:none !important}
 html.kxt-adv-off body :is(#inspector,#modal,.content) :is([data-kxt-view-save],[data-kxt-view-del]).icon-btn.icon-btn{display:none !important}
+html body :is(#inspector,.content) :is(.kx-pos,td.kx-pos,td.kx-pos b,b.kx-pos){color:var(--kx-cbok) !important}html body :is(#inspector,.content) :is(.kx-neg,td.kx-neg,td.kx-neg b,b.kx-neg){color:var(--kx-cbwarn) !important}
