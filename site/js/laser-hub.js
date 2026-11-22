@@ -2416,10 +2416,33 @@ var KXLaserHub;
             if (!st.seedChecked) {
                 st.seedChecked = true;
                 try {
-                    const sp = opts.defaultSpaceId ? [opts.defaultSpaceId] : [(await core.propagate.spaces(opts.actorId)).find((x) => x.kind === 'PERSONAL').id];
+                    const sp = opts.defaultSpaceId ? [opts.defaultSpaceId] : [((await core.propagate.spaces(opts.actorId)).find((x) => x.kind === 'COMPANY') || (await core.propagate.spaces(opts.actorId)).find((x) => x.kind === 'PERSONAL')).id] /* N2.6b+ (user split): Laser = company */;
                     const n = await seed(core, opts, sp);
                     if (n.length)
-                        st.seededNow = n.length;
+                        st.seededNow = n.length; /* N2.6b+ (user split 2026-11-22): one-time move of existing laser records into the company area */
+                    try {
+                        if (localStorage.getItem('kx.laser.toCompany.v1') !== '1') {
+                            const comp = (await core.propagate.spaces(opts.actorId)).find((x) => x.kind === 'COMPANY');
+                            if (comp) {
+                                const all0 = await core.laserDomain.list();
+                                let moved = 0;
+                                for (const x of all0) {
+                                    if (x.archivedAt || (x.spaceIds || []).includes(comp.id))
+                                        continue;
+                                    const act = 'ACTION.' + String(x.type).replace(/^APP\./, '') + '.SAVE';
+                                    try {
+                                        await core.actions.invoke(act, { id: x.id, expectedRevision: x.revision, spaceIds: [comp.id], data: x.data }, { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['LASER.READ', 'LASER.CONFIG.EDIT', 'LASER.PROJECT.EDIT', 'LASER.TEST.EDIT', 'LASER.IMPORT.EDIT', 'CORE.ENTITY.CREATE'], confirmed: true });
+                                        moved++;
+                                    }
+                                    catch { }
+                                }
+                                localStorage.setItem('kx.laser.toCompany.v1', '1');
+                                if (moved)
+                                    opts.onToast?.(TL('laser.toCompany', 'Laser records moved to the company area') + ': ' + moved);
+                            }
+                        }
+                    }
+                    catch { }
                     const nm = await seedMaterials(core, opts, sp);
                     if (nm)
                         st.seededMat = nm;
@@ -3151,7 +3174,7 @@ var KXLaserHub;
             } again(); };
             root.querySelector('[data-lh-cols-save]')?.addEventListener('click', () => { const v = Array.from(root.querySelectorAll('[data-lh-colchk]')).filter(x => x.checked).map(x => String(x.dataset.lhColchk)); void saveCols(v.join(',')); });
             root.querySelector('[data-lh-cols-reset]')?.addEventListener('click', () => void saveCols(''));
-            const space = async () => opts.defaultSpaceId ? [opts.defaultSpaceId] : [(await core.propagate.spaces(opts.actorId)).find((s) => s.kind === 'PERSONAL').id];
+            const space = async () => opts.defaultSpaceId ? [opts.defaultSpaceId] : [((await core.propagate.spaces(opts.actorId)).find((s) => s.kind === 'COMPANY') || (await core.propagate.spaces(opts.actorId)).find((s) => s.kind === 'PERSONAL')).id] /* N2.6b+ (user split): Laser = company */;
             root.querySelectorAll('[data-lh-toggle]').forEach(h => h.onclick = (e) => { if (e.target.closest('[data-lh-dup]'))
                 return; st.open = st.open === h.dataset.lhToggle ? '' : h.dataset.lhToggle; again(); });
             root.querySelector('[data-lh-seed]')?.addEventListener('click', async () => { try {

@@ -383,7 +383,16 @@ const PROP_T = () => globalThis.KXI18n?.UI?.['propagate.title']?.cs || 'Propagat
                     ui.draft.space = opts.defaultSpaceId; /* N2.3m (R72 V1): the hub bar context (Rodina / Firma) preselects the space of a new record */
                 const rc = core.recordControls;
                 const ctxSpaces = rc ? await rc.contextSpaces(opts.actorId) : null;
-                const famId = ctxSpaces?.FAMILY?.id || '', comId = ctxSpaces?.COMPANY?.id || '';
+                const famId = ctxSpaces?.FAMILY?.id || '', comId = ctxSpaces?.COMPANY?.id || ''; /* N2.6b+ (user split 2026-11-22): a family-only hub preselects Rodina, a company-only hub Firma for a new record; “both” hubs follow the hub bar */
+                if (ui.form && !ui.draft.space) {
+                    try {
+                        const mem = (globalThis.KX_NAVIGATION_CONTEXT_CONTRACT?.defaults || []).find((x) => x.itemCode === cfg.owner)?.membership;
+                        const pick = mem === 'HOME' ? famId : mem === 'WORK' ? comId : '';
+                        if (pick && spaces.some((s) => s.id === pick))
+                            ui.draft.space = pick;
+                    }
+                    catch { }
+                }
                 const badge = (x) => `<span class="veh-badge veh-${esc(x.state.toLowerCase())}">${esc(x.label)} · ${x.state === 'OVERDUE' ? 'po termínu' : 'blíží se'} · ${esc(fmtDate(x.dueAt))}</span>`;
                 root.innerHTML = `<section class="veh-hub ${esc(P)}-hub" data-${P}-hub><header class="veh-head"><div><b>${esc(cfg.label)}</b><small>${esc(ov.subjects.length)} ${esc(U.countWord)} · ${esc(ov.overdue)} po termínu · ${esc(ov.soon)} blíží se (${esc(cfg.soonDays)} dní)</small></div><button class="btn" data-${P}-add>${ui.form ? 'Zavřít formulář' : esc(U.addLabel)}</button></header>`
                     + (ui.error ? `<div class="ph-error veh-error" role="alert" data-${P}-error>${esc(ui.error)}</div>` : '')
