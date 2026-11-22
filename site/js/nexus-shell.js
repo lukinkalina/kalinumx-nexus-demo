@@ -926,6 +926,17 @@ var KXAPP;
             }
             const lbl = (k) => k === day0 ? TL('agd.t.today') : k === day0 + D ? TL('agd.tomorrow') : new Date(k).toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'numeric' });
             pl.innerHTML = rows.length ? [...by.entries()].slice(0, 6).map(([k, arr]) => `<div class="ag-pday"><div class="ag-pdate"><b>${esc(lbl(k))}</b><small>${new Date(k).toLocaleDateString('cs-CZ')}</small><em>● ${arr.length} ${esc(TL('agd.items'))}</em></div><div class="ag-prows">${arr.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow"><span>${kd === 'pay' ? '💳' : kd === 'task' ? '☑' : '📅'}</span><b>${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : kd === 'task' ? 'blue' : 'teal'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em>${x.kind === 'CALENDAR_EVENT' ? `<button type="button" class="ag-done ag-tmenu" data-ag-emenu data-ag-eid="${esc(String(x.id || ''))}" data-ag-eat="${esc(String(x.at || ''))}" title="${esc(TL('eq.more'))}">⋯</button>` : x.kind === 'PLANNED_PAY' ? `${x.movedFrom ? `<small class="ag-moved">↪ ${esc(TL('pq.movedFrom'))} ${esc(new Date(x.movedFrom + 'T12:00:00').toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}</small>` : ''}<button type="button" class="ag-done ag-pmenu" data-ag-pmenu data-ag-pid="${esc(x.plannedId)}" data-ag-date="${esc(x.date)}" data-ag-amt="${esc(String(x.amount))}" data-ag-name="${esc(String(x.title || ''))}" data-ag-sp="${esc(x.spaceId)}">${esc(TL('pq.btn'))} ▾</button>` : x.kind === 'TASK' ? `<button type="button" class="ag-done ag-tmenu" data-ag-tmenu data-ag-tid="${esc(String(x.id || x.entityId || ''))}" title="${esc(TL('tq.more'))}">⋯</button><button type="button" class="ag-done" data-ag-done="${esc(String(x.id || x.entityId || ''))}">✓ ${esc(TL(kd === 'pay' ? 'agd.paid' : 'agd.done'))}</button>` : '<span></span>'}</div>`; }).join('')}</div></div>`).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
+            {
+                const ch = agChanges();
+                if (ch.length) {
+                    const cb = document.createElement('div');
+                    cb.className = 'ag-recent-done ag-recent-ch';
+                    const dd = (x) => x ? new Date(x + 'T12:00:00').toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ') : '';
+                    const what = (x) => x.k === 'PAID' ? `✓ ${TL('chg.paid')}` : x.k === 'MOVE' || x.k === 'TASK_MOVE' ? `→ ${TL('chg.moved').replace('{a}', dd(x.from)).replace('{b}', dd(x.to))}` : x.k === 'SKIP' ? `✕ ${TL('chg.skipped').replace('{a}', dd(x.from))}` : x.k === 'PAUSE' ? `⏸ ${TL('chg.paused').replace('{a}', dd(x.from))}` : `⛔ ${TL('chg.stopped').replace('{a}', dd(x.from))}`;
+                    cb.innerHTML = `<div class="ag-done-sep"><span>↻ ${esc(TL('chg.title'))}</span></div>${ch.map((x) => `<div class="ag-prow ag-prow-done ag-prow-ch"><span>${x.k === 'TASK_MOVE' ? '☑' : '💳'}</span><b>${esc(String(x.title || '').replace(/^DEMO\s*·\s*/, 'DEMO · '))}</b><i class="ag-tag violet">${esc(what(x))}</i><em>${x.amount ? esc(fmt(Number(x.amount))) : '–'}</em><small class="ag-done-when">${esc(new Date(Number(x.at)).toLocaleString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }))}</small></div>`).join('')}`;
+                    pl.appendChild(cb);
+                }
+            }
             if (recentDone.length) {
                 const box = document.createElement('div');
                 box.className = 'ag-recent-done';
@@ -1804,6 +1815,9 @@ var KXAPP;
     }
     catch { } try {
         kxHubMoreSweep();
+    }
+    catch { } try {
+        agFlashSweep();
     }
     catch { } try {
         kxEnSubSweep();
@@ -3437,6 +3451,25 @@ var KXAPP;
         }
         return out;
     }
+    /* N2.6b+ (user): a confirmed / moved plan item never just disappears – recent changes stay visible for 7 days and a moved item flashes at its new place */
+    function agChanges() { try {
+        return (JSON.parse(localStorage.getItem('kx.ag.changes') || '[]') || []).filter((x) => Date.now() - Number(x.at || 0) < 7 * 86400000);
+    }
+    catch {
+        return [];
+    } }
+    function agChangePush(x) { try {
+        const L = [{ ...x, at: Date.now() }, ...agChanges()].slice(0, 8);
+        localStorage.setItem('kx.ag.changes', JSON.stringify(L));
+    }
+    catch { } if (x.k === 'MOVE' || x.k === 'TASK_MOVE')
+        globalThis.__kxAgFlash = { title: String(x.title || ''), to: String(x.to || ''), until: Date.now() + 9000, done: false }; }
+    function agFlashSweep() { const f = globalThis.__kxAgFlash; if (!f || f.done || Date.now() > f.until)
+        return; const core = String(f.title || '').replace(/^demo\s*·\s*/i, '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, '').trim().toLowerCase(); if (!core)
+        return; const cand = Array.from(document.querySelectorAll('[data-ag-plan] .ag-prow:not(.ag-prow-done)')).filter(r => (r.textContent || '').toLowerCase().includes(core)); /* the moved occurrence = same name AND the new date (payments carry it); a task only when unique */ /* the moved occurrence = same name AND the new date (payments carry it); a task only when unique */ const row = cand.find(r => f.to && r.querySelector(`[data-ag-date="${f.to}"]`)) || (cand.length === 1 && !cand[0].querySelector('[data-ag-date]') ? cand[0] : null); if (!row)
+        return; f.done = true; row.classList.add('ag-flash'); row.scrollIntoView({ block: 'center', behavior: 'smooth' }); setTimeout(() => row.classList.remove('ag-flash'), 4500); }
+    async function agAskMoveDate(fromIso) { const base = new Date(fromIso + 'T12:00:00'); const add = (d, m = 0) => { const x = new Date(base); x.setDate(x.getDate() + d); x.setMonth(x.getMonth() + m); return x.toISOString().slice(0, 10); }; const v = await kxForm(TL('mv.title'), [{ k: 'when', label: TL('mv.when'), type: 'select', value: 'm1', options: [['d1', TL('mv.d1') + ' · ' + new Date(add(1) + 'T12:00:00').toLocaleDateString('cs-CZ')], ['d7', TL('mv.d7') + ' · ' + new Date(add(7) + 'T12:00:00').toLocaleDateString('cs-CZ')], ['m1', TL('mv.m1') + ' · ' + new Date(add(0, 1) + 'T12:00:00').toLocaleDateString('cs-CZ')], ['own', TL('mv.own')]] }, { k: 'date', label: TL('mv.date'), type: 'date', value: add(0, 1) }]); if (!v)
+        return null; return v.when === 'd1' ? add(1) : v.when === 'd7' ? add(7) : v.when === 'm1' ? add(0, 1) : String(v.date || '') || null; }
     async function agPayAction(b) {
         const pid = String(b.dataset.agPid), date = String(b.dataset.agDate), amount = Number(b.dataset.agAmt || 0), name = String(b.dataset.agName || ''), sp = String(b.dataset.agSp || '');
         const FC = { actorId: CURRENT_USER_ID, appCode: 'APP.KX.FINANCE', deviceId: activeDevice?.id, permissions: [], confirmed: true };
@@ -3455,15 +3488,17 @@ var KXAPP;
             { key: 'pay', label: `✓ ${TL('pq.pay')}`, hint: TL('pq.payHint'), run: async () => {
                     if (!await agConfirm(TL('pq.payT'), TL('pq.payQ').replace('{a}', kc).replace('{n}', name), `✓ ${TL('pq.pay')}`))
                         return;
+                    agChangePush({ k: 'PAID', title: name, amount, from: date });
                     await ok(async () => { const today = new Date().toISOString().slice(0, 10); const mv = await runtime.actions.invoke('ACTION.FINANCE.MOVEMENT.SAVE', { spaceId: sp, data: { kind: 'EXPENSE', date: today, amount, currency: 'CZK', category: 'OTHER', counterparty: name, note: TL('pq.note').replace('{d}', dl) } }, FC); await CH({ op: 'PAID', date, movementId: mv?.id || null }); }, TL('pq.paid'));
                 } },
-            { key: 'move', label: `→ ${TL('pq.move')}`, hint: TL('pq.moveHint'), run: () => ok(() => CH({ op: 'MOVE', date }), TL('pq.moved')) },
+            { key: 'move', label: `→ ${TL('pq.move')}`, hint: TL('pq.moveHint'), run: async () => { const to = await agAskMoveDate(date); if (!to)
+                    return; await ok(async () => { await CH({ op: 'MOVE', date, to }); agChangePush({ k: 'MOVE', title: name, amount, from: date, to }); }, TL('mv.done').replace('{d}', new Date(to + 'T12:00:00').toLocaleDateString('cs-CZ')) + (Date.parse(to + 'T12:00:00') > Date.now() + agUi.horizon * 86400000 ? ' · ' + TL('mv.outside') : '')); } },
             { key: 'pause', label: `⏸ ${TL('pq.pause')}`, hint: TL('pq.pauseHint'), run: async () => { if (!await agConfirm(TL('pq.pauseT'), TL('pq.pauseQ').replace('{n}', name).replace('{d}', dl), `⏸ ${TL('pq.pause')}`))
-                    return; await ok(() => CH({ op: 'PAUSE', from: date }), TL('pq.paused')); } },
+                    return; await ok(async () => { await CH({ op: 'PAUSE', from: date }); agChangePush({ k: 'PAUSE', title: name, amount, from: date }); }, TL('pq.paused')); } },
             { key: 'skip', label: `✕ ${TL('pq.skip')}`, hint: TL('pq.skipHint'), danger: true, run: async () => { if (!await agConfirm(TL('pq.skipT'), TL('pq.skipQ').replace('{n}', name).replace('{d}', dl), `✕ ${TL('pq.skip')}`, true))
-                    return; await ok(() => CH({ op: 'SKIP', date }), TL('pq.skipped')); } },
+                    return; await ok(async () => { await CH({ op: 'SKIP', date }); agChangePush({ k: 'SKIP', title: name, amount, from: date }); }, TL('pq.skipped')); } },
             { key: 'stop', label: `⛔ ${TL('pq.stop')}`, hint: TL('pq.stopHint'), danger: true, run: async () => { if (!await agConfirm(TL('pq.stopT'), TL('pq.stopQ').replace('{n}', name).replace('{d}', dl), `⛔ ${TL('pq.stop')}`, true))
-                    return; await ok(() => CH({ op: 'STOP', date }), TL('pq.stopped')); } },
+                    return; await ok(async () => { await CH({ op: 'STOP', date }); agChangePush({ k: 'STOP', title: name, amount, from: date }); }, TL('pq.stopped')); } },
             { key: 'totask', group: TL('cv.group'), label: `☑ ${TL('cv.payToTask')}`, hint: TL('cv.payToTaskHint'), run: async () => {
                     const v = await kxForm(TL('cv.payToTask'), [{ k: 'title', label: TL('cv.name'), value: name }, { k: 'when', label: TL('cv.when'), type: 'select', value: '0', options: [['0', TL('cv.sameDay')], ['1', TL('cv.dayBefore')], ['3', TL('cv.3days')]] }]);
                     if (!v)
@@ -3501,7 +3536,8 @@ var KXAPP;
             toast(TL('tq.missing'));
             return;
         }
-        const save = async (patch, msg) => { try {
+        const save = async (patch, msg) => { if (patch?.dueAt && patch.dueAt !== t.dueAt)
+            agChangePush({ k: 'TASK_MOVE', title: t.title, from: String(t.dueAt || '').slice(0, 10), to: String(patch.dueAt).slice(0, 10) }); try {
             await runtime.actions.invoke('ACTION.CORE.TASK.SAVE', { id, title: t.title, ownerApp: t.ownerApp, spaceIds: t.spaceIds, expectedRevision: t.revision, ...patch }, TC);
             toast(msg);
             kxAgRefresh();
