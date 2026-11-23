@@ -876,8 +876,9 @@ var KXAPP;
         }
         const list = agUi.tab === 'week' ? week : agUi.tab === 'late' ? late : todayItems;
         const L = host.querySelector('[data-ag-list]');
+        const itKinds = await kxSpaceKinds();
         if (L)
-            L.innerHTML = list.length ? list.slice(0, 6).map((x) => { const isTask = x.kind === 'TASK'; const a = amt(x); return `<div class="ag-it"><span>${isTask ? '☑' : '📅'}</span><b>${esc(String(x.title || ''))}</b>${a ? `<em>${esc(fmt(a))}</em>` : ''}<i class="ag-tag ${isTask ? (open(x) ? 'red' : 'green') : 'blue'}">${esc(isTask ? (open(x) ? (at(x) < day0 ? TL('agd.late') : TL('agd.todo')) : TL('agd.done')) : TL('agd.event'))}</i></div>`; }).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
+            L.innerHTML = list.length ? list.slice(0, 6).map((x) => { const isTask = x.kind === 'TASK'; const a = amt(x); return `<div class="ag-it"><span>${isTask ? '☑' : '📅'}</span><b>${kxAreaBadge(x.spaceIds || (x.spaceId ? [x.spaceId] : []), itKinds)}${esc(String(x.title || ''))}</b>${a ? `<em>${esc(fmt(a))}</em>` : ''}<i class="ag-tag ${isTask ? (open(x) ? 'red' : 'green') : 'blue'}">${esc(isTask ? (open(x) ? (at(x) < day0 ? TL('agd.late') : TL('agd.todo')) : TL('agd.done')) : TL('agd.event'))}</i></div>`; }).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
         /* N2.6b: KPI cards use one delegated listener (bound once) – per-card onclick was lost after the plan re-rendered, so only the first card click worked */ void 0;
         /* pás kalendáře 31 dní */
         const cal = host.querySelector('[data-ag-cal]');
@@ -925,7 +926,8 @@ var KXAPP;
                 by.get(k).push(x);
             }
             const lbl = (k) => k === day0 ? TL('agd.t.today') : k === day0 + D ? TL('agd.tomorrow') : new Date(k).toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'numeric' });
-            pl.innerHTML = rows.length ? [...by.entries()].slice(0, 6).map(([k, arr]) => `<div class="ag-pday"><div class="ag-pdate"><b>${esc(lbl(k))}</b><small>${new Date(k).toLocaleDateString('cs-CZ')}</small><em>● ${arr.length} ${esc(TL('agd.items'))}</em></div><div class="ag-prows">${arr.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow"><span>${kd === 'pay' ? '💳' : kd === 'task' ? '☑' : '📅'}</span><b>${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : kd === 'task' ? 'blue' : 'teal'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em>${x.kind === 'CALENDAR_EVENT' ? `<button type="button" class="ag-done ag-tmenu" data-ag-emenu data-ag-eid="${esc(String(x.id || ''))}" data-ag-eat="${esc(String(x.at || ''))}" title="${esc(TL('eq.more'))}">⋯</button>` : x.kind === 'PLANNED_PAY' ? `${x.movedFrom ? `<small class="ag-moved">↪ ${esc(TL('pq.movedFrom'))} ${esc(new Date(x.movedFrom + 'T12:00:00').toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}</small>` : ''}<button type="button" class="ag-done ag-pmenu" data-ag-pmenu data-ag-pid="${esc(x.plannedId)}" data-ag-date="${esc(x.date)}" data-ag-amt="${esc(String(x.amount))}" data-ag-name="${esc(String(x.title || ''))}" data-ag-sp="${esc(x.spaceId)}">${esc(TL('pq.btn'))} ▾</button>` : x.kind === 'TASK' ? `<button type="button" class="ag-done ag-tmenu" data-ag-tmenu data-ag-tid="${esc(String(x.id || x.entityId || ''))}" title="${esc(TL('tq.more'))}">⋯</button><button type="button" class="ag-done" data-ag-done="${esc(String(x.id || x.entityId || ''))}">✓ ${esc(TL(kd === 'pay' ? 'agd.paid' : 'agd.done'))}</button>` : '<span></span>'}</div>`; }).join('')}</div></div>`).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
+            const agKinds = await kxSpaceKinds();
+            pl.innerHTML = rows.length ? [...by.entries()].slice(0, 6).map(([k, arr]) => `<div class="ag-pday"><div class="ag-pdate"><b>${esc(lbl(k))}</b><small>${new Date(k).toLocaleDateString('cs-CZ')}</small><em>● ${arr.length} ${esc(TL('agd.items'))}</em></div><div class="ag-prows">${arr.map((x) => { const kd = kindOf(x); const a = amt(x); return `<div class="ag-prow"><span>${kd === 'pay' ? '💳' : kd === 'task' ? '☑' : '📅'}</span><b>${kxAreaBadge(x.spaceIds || (x.spaceId ? [x.spaceId] : []), agKinds)}${esc(String(x.title || '').replace(/\s*[–-]\s*\d[\d\s\u00a0]*\s*K\u010d\s*$/, ''))}</b><i class="ag-tag ${kd === 'pay' ? 'violet' : kd === 'task' ? 'blue' : 'teal'}">${esc(TL('agd.k2.' + kd))}</i><em>${a ? esc(fmt(a)) : '–'}</em>${x.kind === 'CALENDAR_EVENT' ? `<button type="button" class="ag-done ag-tmenu" data-ag-emenu data-ag-eid="${esc(String(x.id || ''))}" data-ag-eat="${esc(String(x.at || ''))}" title="${esc(TL('eq.more'))}">⋯</button>` : x.kind === 'PLANNED_PAY' ? `${x.movedFrom ? `<small class="ag-moved">↪ ${esc(TL('pq.movedFrom'))} ${esc(new Date(x.movedFrom + 'T12:00:00').toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}</small>` : ''}<button type="button" class="ag-done ag-pmenu" data-ag-pmenu data-ag-pid="${esc(x.plannedId)}" data-ag-date="${esc(x.date)}" data-ag-amt="${esc(String(x.amount))}" data-ag-name="${esc(String(x.title || ''))}" data-ag-sp="${esc(x.spaceId)}">${esc(TL('pq.btn'))} ▾</button>` : x.kind === 'TASK' ? `<button type="button" class="ag-done ag-tmenu" data-ag-tmenu data-ag-tid="${esc(String(x.id || x.entityId || ''))}" title="${esc(TL('tq.more'))}">⋯</button><button type="button" class="ag-done" data-ag-done="${esc(String(x.id || x.entityId || ''))}">✓ ${esc(TL(kd === 'pay' ? 'agd.paid' : 'agd.done'))}</button>` : '<span></span>'}</div>`; }).join('')}</div></div>`).join('') : `<small class="ag-empty">${esc(TL('agd.empty'))}</small>`;
             {
                 const ch = agChanges();
                 if (ch.length) {
@@ -1602,7 +1604,19 @@ var KXAPP;
         }
     }
     catch { } kxSensCache.set(key, { v, at: Date.now() }); return v; }
-    function kxCalSensSweep() { document.querySelectorAll('.content .kx-pk-it[data-pk-open]:not([data-kx-sens-done])').forEach(b => { b.dataset.kxSensDone = '1'; void kxIsSensitiveLink(String(b.dataset.pkOpen || '')).then(on => { if (!on)
+    function kxCalSensSweep() { document.querySelectorAll('.content .kx-pk-it[data-pk-open]:not([data-kx-sens-done])').forEach(b => { b.dataset.kxSensDone = '1'; void (async () => { const m = String(b.dataset.pkOpen || '').match(/^kx:\/\/(calendar_event|task)\/([^?#@]+)/i); if (!m || b.querySelector('.kx-area-badge'))
+        return; try {
+        const row = m[1].toLowerCase() === 'task' ? await runtime.tasks.get(m[2]) : await runtime.calendar.get(m[2]);
+        const html = kxAreaBadge(row?.spaceIds || [], await kxSpaceKinds());
+        if (html && !b.querySelector('.kx-area-badge')) {
+            const tb = b.querySelector('b');
+            if (tb)
+                tb.insertAdjacentHTML('afterend', html);
+            else
+                b.insertAdjacentHTML('afterbegin', html);
+        }
+    }
+    catch { } })(); void kxIsSensitiveLink(String(b.dataset.pkOpen || '')).then(on => { if (!on)
         return; const time = b.querySelector('b')?.outerHTML || ''; b.innerHTML = `${time}🔒 ${esc(TL('sens.masked'))}`; b.title = TL('sens.maskedHint'); b.classList.add('kx-sens-masked'); }); }); }
     /* N2.6b+ (user: calmer screens for the family) – advanced table tools (density, saved views, help toggle, copy for AI) behind one “⚙ Zobrazení” button; search, filter and CSV stay */
     function kxTableToolsSweep() {
@@ -1651,6 +1665,19 @@ var KXAPP;
             return; if (kxEnTwins.has((el.textContent || '').trim()))
             el.style.display = 'none'; });
     }
+    /* N2.6b+ (user): where Rodina and Firma are shown together, every item says where it belongs */
+    let kxSpKinds = null;
+    async function kxSpaceKinds() { if (!kxSpKinds) {
+        try {
+            kxSpKinds = new Map((await runtime.memberships.listSpaces()).map((s) => [String(s.id), String(s.kind || '')]));
+        }
+        catch {
+            kxSpKinds = new Map();
+        }
+        setTimeout(() => { kxSpKinds = null; }, 30000);
+    } return kxSpKinds; }
+    function kxAreaBadge(spaceIds, kinds) { const ks = (spaceIds || []).map(id => kinds.get(String(id)) || ''); const fam = ks.some(k => ['FAMILY', 'HOME', 'PERSONAL', 'SHARED'].includes(k)), com = ks.some(k => ['COMPANY', 'WORKSHOP', 'SHARED'].includes(k)); if (!fam && !com)
+        return ''; const ic = fam && com ? '👪🏢' : fam ? '👪' : '🏢'; const tt = fam && com ? TL('ab.both') : fam ? TL('ab.family') : TL('ab.company'); return `<span class="kx-area-badge ${fam && com ? 'both' : fam ? 'fam' : 'com'}" title="${esc(tt)}">${ic}</span>`; }
     function kxHubMoreSweep() {
         document.querySelectorAll('#inspector.open [data-hub-issues]:not([data-kx-hubmore-done])').forEach(iss => {
             iss.dataset.kxHubmoreDone = '1';
@@ -2409,7 +2436,7 @@ var KXAPP;
         m.className = 'modal-wrap open';
         const defaultAt = new Date(Date.now() + 60 * 60 * 1000);
         const localAt = new Date(defaultAt.getTime() - defaultAt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-        m.innerHTML = `<div class="modal small"><div class="drawer-head"><div><b>Nová položka</b><small>Vytvoří canonical Event / Task / Alarm přes ActionBus</small></div><button class="icon-btn" data-close>×</button></div><div class="ins-section"><label>Typ<select id="calendarCreateType"><option value="CALENDAR_EVENT">Událost</option><option value="TASK">Úkol</option><option value="ALARM">Alarm</option></select></label><label data-et-wrap>${esc(TL('et.label'))}<select id="calendarCreateEType" data-keep-select><option value="">${esc(TL('et.none'))}</option>${(await eventTypes()).map((x) => `<option value="${esc(x.code)}">${esc(x.icon)} ${esc(x.name)}</option>`).join('')}</select></label><label>${esc(TL('cc.title'))}<input id="calendarCreateTitle" placeholder="Název položky"></label><label>${esc(TL('cc.area'))}<select id="calendarCreateSpace" title="${esc(TL('cc.areaHelp'))}">${editable.map(x => `<option value="${esc(x.id)}" title="${esc(x.kind)}" ${x.id === (agUi.scope === 'COMPANY' ? (editable.find((e) => e.kind === 'COMPANY') || preferred).id : agUi.scope === 'FAMILY' ? (editable.find((e) => e.kind === 'FAMILY') || preferred).id : preferred.id) ? 'selected' : ''}>${x.kind === 'FAMILY' ? '👪 ' : x.kind === 'COMPANY' ? '🏢 ' : x.kind === 'PERSONAL' ? '👤 ' : ''}${esc(x.name)}</option>`).join('')}${editable.some((x) => x.kind === 'FAMILY') && editable.some((x) => x.kind === 'COMPANY') ? `<option value="__BOTH__">👪 + 🏢 ${esc(TL('cc.both'))}</option>` : ''}</select></label><label>${esc(TL('cc.owner'))}<select id="calendarCreateOwner" data-calendar-create-owner>${plannerOwnerOptions().map(([code, label]) => `<option value="${esc(code)}">${esc(label)}</option>`).join('')}</select></label><label>${esc(TL('rep.dateTime'))}<input id="calendarCreateAt" type="datetime-local" value="${localAt}"></label><label>${esc(TL('rep.label'))}<select id="calendarCreateRepeat" data-kx-recur><option value="">${esc(TL('rep.none'))}</option><option value="FREQ=WEEKLY">${esc(TL('rep.weekly'))}</option><option value="FREQ=MONTHLY">${esc(TL('rep.monthly'))}</option><option value="FREQ=YEARLY">${esc(TL('rep.yearly'))}</option></select></label><span data-kx-draft-own hidden></span>${reminderPickerHtml()}<button class="btn" data-calendar-create-save>${esc(TL('cc.create'))}</button> <button class="btn ghost" data-calendar-create-draft>💾 ${esc(TL('draft.save'))}</button></div></div>`;
+        m.innerHTML = `<div class="modal small"><div class="drawer-head"><div><b>Nová položka</b><small>Vytvoří canonical Event / Task / Alarm přes ActionBus</small></div><button class="icon-btn" data-close>×</button></div><div class="ins-section"><label>Typ<select id="calendarCreateType"><option value="CALENDAR_EVENT">Událost</option><option value="TASK">Úkol</option><option value="ALARM">Alarm</option></select></label><label data-et-wrap>${esc(TL('et.label'))}<select id="calendarCreateEType" data-keep-select><option value="">${esc(TL('et.none'))}</option>${(await eventTypes()).map((x) => `<option value="${esc(x.code)}">${esc(x.icon)} ${esc(x.name)}</option>`).join('')}</select></label><label>${esc(TL('cc.title'))}<input id="calendarCreateTitle" placeholder="Název položky"></label><label>${esc(TL('cc.area'))}<select id="calendarCreateSpace" title="${esc(TL('cc.areaHelp'))}">${editable.map(x => `<option value="${esc(x.id)}" title="${esc(x.kind)}" ${x.id === (agUi.scope === 'COMPANY' ? (editable.find((e) => e.kind === 'COMPANY') || preferred).id : agUi.scope === 'FAMILY' ? (editable.find((e) => e.kind === 'FAMILY') || preferred).id : preferred.id) ? 'selected' : ''}>${x.kind === 'SHARED' ? '👪🏢 ' : (x.kind === 'FAMILY' || x.kind === 'HOME') ? '👪 ' : (x.kind === 'COMPANY' || x.kind === 'WORKSHOP') ? '🏢 ' : x.kind === 'PERSONAL' ? '👤 ' : ''}${esc(x.name)}</option>`).join('')}${editable.some((x) => x.kind === 'FAMILY') && editable.some((x) => x.kind === 'COMPANY') ? `<option value="__BOTH__">👪 + 🏢 ${esc(TL('cc.both'))}</option>` : ''}</select></label><label>${esc(TL('cc.owner'))}<select id="calendarCreateOwner" data-calendar-create-owner>${plannerOwnerOptions().map(([code, label]) => `<option value="${esc(code)}">${esc(label)}</option>`).join('')}</select></label><label>${esc(TL('rep.dateTime'))}<input id="calendarCreateAt" type="datetime-local" value="${localAt}"></label><label>${esc(TL('rep.label'))}<select id="calendarCreateRepeat" data-kx-recur><option value="">${esc(TL('rep.none'))}</option><option value="FREQ=WEEKLY">${esc(TL('rep.weekly'))}</option><option value="FREQ=MONTHLY">${esc(TL('rep.monthly'))}</option><option value="FREQ=YEARLY">${esc(TL('rep.yearly'))}</option></select></label><span data-kx-draft-own hidden></span>${reminderPickerHtml()}<button class="btn" data-calendar-create-save>${esc(TL('cc.create'))}</button> <button class="btn ghost" data-calendar-create-draft>💾 ${esc(TL('draft.save'))}</button></div></div>`;
         /* N2.4y: drafts – „Uložit jako návrh“, auto-save when the form is closed with content, continue prefilled */
         const vals = () => ({ type: el('#calendarCreateType')?.value, title: el('#calendarCreateTitle')?.value || '', spaceId: el('#calendarCreateSpace')?.value, owner: el('#calendarCreateOwner')?.value, at: el('#calendarCreateAt')?.value, repeat: m.querySelector('#calendarCreateRepeat')?.value || '' });
         /* the window element is reused – flags of the previous use must not survive (else a second draft would never be saved) */ delete m.dataset.created;
@@ -2542,7 +2569,7 @@ var KXAPP;
     function agFilesGrid(root, rows) {
         agThumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
         root.closest('.file-table')?.classList.add('ag-grid-mode');
-        root.innerHTML = `<div class="ag-fgrid">${rows.map(({ file, pinned }, i) => { const k = agFileKind(file.mime || '', file.name || ''); const link = runtime.deepLinks.build({ kind: 'FILE', id: file.id }); const sps = globalThis.__kxFileSpaces || []; const kinds = (file.spaceIds || []).map((id) => sps.find((s) => s.id === id)?.kind).filter(Boolean); const areaIc = [kinds.includes('FAMILY') ? '👪' : '', kinds.includes('COMPANY') ? '🏢' : '', kinds.includes('PERSONAL') ? '👤' : ''].join(''); return `<div class="ag-fcard">${areaIc ? `<span class="ag-farea" title="${esc(TL('cc.area'))}: ${esc((file.spaceIds || []).map((id) => sps.find((s) => s.id === id)?.name || id).join(', '))}">${areaIc}</span>` : ''}<button type="button" class="ag-fthumb ag-k-${k}" data-ag-fprev="${i}" title="${esc(TL('agd.pv.open'))}">${k === 'img' ? `<img alt="" data-ag-thumb="${esc(file.id)}">` : `<i>${AG_FILE_IC[k]}</i>`}</button><button type="button" class="ag-fname" data-file-link="${esc(link)}" title="${esc(TL('agd.pv.detail'))}"><b>${pinned ? '★ ' : ''}${esc(file.name)}</b><small>${formatBytes(file.size)} · ${esc(new Date(file.updatedAt).toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}</small></button></div>`; }).join('')}</div>`;
+        root.innerHTML = `<div class="ag-fgrid">${rows.map(({ file, pinned }, i) => { const k = agFileKind(file.mime || '', file.name || ''); const link = runtime.deepLinks.build({ kind: 'FILE', id: file.id }); const sps = globalThis.__kxFileSpaces || []; const kinds = (file.spaceIds || []).map((id) => sps.find((s) => s.id === id)?.kind).filter(Boolean); const areaIc = [kinds.some((k) => ['FAMILY', 'HOME', 'SHARED'].includes(k)) ? '👪' : '', kinds.some((k) => ['COMPANY', 'WORKSHOP', 'SHARED'].includes(k)) ? '🏢' : '', kinds.includes('PERSONAL') ? '👤' : ''].join(''); return `<div class="ag-fcard">${areaIc ? `<span class="ag-farea" title="${esc(TL('cc.area'))}: ${esc((file.spaceIds || []).map((id) => sps.find((s) => s.id === id)?.name || id).join(', '))}">${areaIc}</span>` : ''}<button type="button" class="ag-fthumb ag-k-${k}" data-ag-fprev="${i}" title="${esc(TL('agd.pv.open'))}">${k === 'img' ? `<img alt="" data-ag-thumb="${esc(file.id)}">` : `<i>${AG_FILE_IC[k]}</i>`}</button><button type="button" class="ag-fname" data-file-link="${esc(link)}" title="${esc(TL('agd.pv.detail'))}"><b>${pinned ? '★ ' : ''}${esc(file.name)}</b><small>${formatBytes(file.size)} · ${esc(new Date(file.updatedAt).toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}</small></button></div>`; }).join('')}</div>`;
         root.querySelectorAll('img[data-ag-thumb]').forEach(async (im) => { try {
             const b = await runtime.files.getBlob(String(im.dataset.agThumb));
             if (b) {
@@ -2583,6 +2610,31 @@ var KXAPP;
         ov.innerHTML = `<div class="ag-pv-box" role="dialog" aria-label="${esc(f.name)}"><header><b>${esc(f.name)}</b><small>${esc(f.mime || '')} · ${formatBytes(f.size)}</small><span><button type="button" class="btn ghost compact" data-ag-pv="detail">${esc(TL('agd.pv.detail'))}</button><button type="button" class="icon-btn" data-ag-pv="close" title="${esc(TL('agd.pv.close'))}">×</button></span></header><div class="ag-pv-body"><div class="empty">…</div></div>${i > 0 ? '<button type="button" class="ag-pv-nav l" data-ag-pv="prev">‹</button>' : ''}${i < rows.length - 1 ? '<button type="button" class="ag-pv-nav r" data-ag-pv="next">›</button>' : ''}</div>`;
         ov.onclick = (e) => { if (e.target === ov)
             close(); };
+        /* N2.6b+ (user split): change the area of an uploaded file right in the preview */
+        void (async () => {
+            try {
+                const sps = await runtime.memberships.listSpaces();
+                const fam = sps.find((s) => s.kind === 'FAMILY'), com = sps.find((s) => s.kind === 'COMPANY');
+                const hd = ov.querySelector('header span');
+                if (!hd || (!fam && !com))
+                    return;
+                let cur = await runtime.files.get(f.id);
+                const draw = () => {
+                    hd.querySelector('.ag-pv-area')?.remove();
+                    hd.insertAdjacentHTML('afterbegin', `<span class="ag-pv-area" title="${esc(TL('cc.areaHelp'))}">${fam ? `<button type="button" class="chip ${cur.spaceIds.includes(fam.id) ? 'active' : ''}" data-ag-pv-area="${esc(fam.id)}">👪 ${esc(TL('rc2.family'))}</button>` : ''}${com ? `<button type="button" class="chip ${cur.spaceIds.includes(com.id) ? 'active' : ''}" data-ag-pv-area="${esc(com.id)}">🏢 ${esc(TL('rc2.company'))}</button>` : ''}</span>`);
+                    hd.querySelectorAll('[data-ag-pv-area]').forEach(b => b.onclick = async (ev) => { ev.stopPropagation(); const sid = String(b.dataset.agPvArea); const next = cur.spaceIds.includes(sid) ? cur.spaceIds.filter((x) => x !== sid) : [...cur.spaceIds, sid]; try {
+                        cur = await runtime.actions.invoke('ACTION.CORE.FILE.SPACES', { fileId: f.id, spaceIds: next, expectedRevision: cur.revision }, { ...hubNavActionContext(), appCode: 'APP.NEXUS', permissions: [...(hubNavActionContext().permissions || []), 'CORE.FILE.IMPORT'], confirmed: true });
+                        toast(TL('fa.saved'));
+                        draw();
+                    }
+                    catch (er) {
+                        toast(String(er?.message || er).includes('NEEDS_ONE') ? TL('fa.one') : String(er?.message || er));
+                    } });
+                };
+                draw();
+            }
+            catch { }
+        })();
         ov.querySelectorAll('[data-ag-pv]').forEach(b => b.onclick = (e) => { e.stopPropagation(); const a = b.dataset.agPv; if (a === 'close')
             close();
         else if (a === 'prev') {
@@ -3427,7 +3479,7 @@ var KXAPP;
         return null; try {
         const sps = await runtime.memberships.listSpaces();
         const kindOf = (s) => String(s.kind || s.data?.kind || s.id || '').toUpperCase();
-        return sps.filter(s => sc === 'COMPANY' ? /COMPANY/.test(kindOf(s)) : /FAMILY|PERSONAL/.test(kindOf(s))).map(s => String(s.id));
+        return sps.filter(s => sc === 'COMPANY' ? /COMPANY|WORKSHOP|SHARED/.test(kindOf(s)) : /FAMILY|PERSONAL|HOME|SHARED/.test(kindOf(s))).map(s => String(s.id)); /* house = Rodina, workshop = Firma, shared = both */
     }
     catch {
         return null;
@@ -6562,7 +6614,7 @@ var KXAPP;
     /* N2.5r (user): PLANNERS shared by all calendars – week (default), day, month; item = kind chip + title + area; side panel of the chosen day */
     const PK_ICON = { CALENDAR_EVENT: 'calendar', TASK: 'check', ALARM: 'bell' };
     const isAllDay = (x) => String(x.subtitle || '') === 'Celý den';
-    const pkItem = (x, cls = '') => { const a = areaOf(x.ownerApp); const et = x.eventTypeCode ? etOf(x.eventTypeCode) : null; const t = isAllDay(x) ? '' : new Date(x.at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }) + ' '; return `<button type="button" class="kx-pk-it ${cls}" style="border-left-color:${et ? esc(et.color) : a.color}" data-pk-open="${esc(x.deepLink || '')}" title="${esc((x.title || '') + ' · ' + (et ? et.name + ' · ' : '') + a.label)}">${et ? esc(et.icon) : KXTags.iconSvg(PK_ICON[x.kind] || 'calendar', 10)} <b>${esc(t)}</b>${esc(String(x.title || '').replace(/^DEMO\s*[·:–-]\s*/, ''))}</button>`; };
+    const pkItem = (x, cls = '') => { const a = areaOf(x.ownerApp); const et = x.eventTypeCode ? etOf(x.eventTypeCode) : null; const t = isAllDay(x) ? '' : new Date(x.at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }) + ' '; return `<button type="button" class="kx-pk-it ${cls}" style="border-left-color:${et ? esc(et.color) : a.color}" data-pk-open="${esc(x.deepLink || '')}" title="${esc((x.title || '') + ' · ' + (et ? et.name + ' · ' : '') + a.label)}">${et ? esc(et.icon) : KXTags.iconSvg(PK_ICON[x.kind] || 'calendar', 10)} <b>${esc(t)}</b>${kxSpKinds && (x.spaceIds || []).length ? kxAreaBadge(x.spaceIds, kxSpKinds) : ''}${esc(String(x.title || '').replace(/^DEMO\s*[·:–-]\s*/, ''))}</button>`; };
     const weekStart = (d) => { const x = new Date(d + 'T12:00:00'); const off = (x.getDay() + 6) % 7; return addDaysValue(d, -off); };
     /* N2.5r (user): „＋ Nový ▾“ and „🔎 Co má Kaira najít?“ in every calendar – choices like in New item / Where is it */
     const newMenuHtml = (day) => `<span class="kx-nm"><button type="button" class="btn compact" data-nm-open>＋ ${esc(TL('nm.new'))} ▾</button><span class="kx-nm-list" data-nm-list hidden>${['CALENDAR_EVENT', 'TASK', 'ALARM'].map(k => `<button type="button" class="chip" data-nm-type="${k}|${day}">${KXTags.iconSvg(PK_ICON[k], 12)} ${esc(TL('pk2.k.' + k))}</button>`).join('')}${(etCache || []).map((x) => `<button type="button" class="chip" data-nm-et="${esc(x.code)}|${day}">${esc(x.icon)} ${esc(x.name)}</button>`).join('')}<button type="button" class="chip" data-nm-pay>💰 ${esc(TL('nm.pay'))}</button><button type="button" class="chip" data-nm-anniv>🎂 ${esc(TL('nm.anniv'))}</button><button type="button" class="chip" data-ics-open>⬆ ${esc(TL('ics.import'))}</button></span></span><button type="button" class="btn ghost compact" data-nm-find>🔎 ${esc(TL('gs.title').replace(/^🔎\s*/, ''))}</button>`;

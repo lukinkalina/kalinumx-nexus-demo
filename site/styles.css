@@ -2161,3 +2161,9 @@ html body .content .ag-tag.green{color:var(--muted) !important;background:transp
 .kx-file-area{display:inline-flex;align-items:center;gap:6px;font-size:12.5px}
 
 .ag-fcard{position:relative}.ag-farea{position:absolute;top:6px;right:6px;z-index:2;font-size:13px;padding:1px 6px;border-radius:999px;background:color-mix(in srgb,var(--surface2,#121824) 85%,transparent);border:1px solid color-mix(in srgb,var(--accent,#f2c869) 30%,transparent)}
+
+.ag-pv-area{display:inline-flex;gap:4px;margin-right:8px}
+
+.kx-area-badge{display:inline-flex;align-items:center;justify-content:center;min-width:22px;padding:0 4px;margin:0 4px 0 2px;border-radius:999px;font-size:11px;line-height:18px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 35%,transparent);background:color-mix(in srgb,var(--accent,#f2c869) 8%,transparent)}
+
+html body .content .ag-prow > em{color:var(--kx-cbwarn) !important}.ag-prow b .kx-area-badge,.ag-it b .kx-area-badge{margin:0 6px 0 0;vertical-align:1px}

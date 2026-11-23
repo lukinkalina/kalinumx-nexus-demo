@@ -18,13 +18,13 @@ var KXDemoSeed;
         const out = { tasks: 0, events: 0, comparisons: 0 };
         for (const [t, d] of [['DEMO: objednat materiál na gravírování', 1], ['DEMO: připravit kampaň na Vánoce', 3], ['DEMO: servis laseru MOPA', 7]])
             try {
-                await core.actions.invoke('ACTION.CORE.TASK.SAVE', { title: t, ownerApp: 'APP.NEXUS', spaceIds: [personal], dueAt: day(d) }, C);
+                await core.actions.invoke('ACTION.CORE.TASK.SAVE', { title: t, ownerApp: 'APP.NEXUS', spaceIds: [company] /* N2.6b+ (user split): business tasks belong to Firma */, dueAt: day(d) }, C);
                 out.tasks++;
             }
             catch { }
         for (const [t, d] of [['DEMO: schůzka s dodavatelem', 2], ['DEMO: veletrh', 14]])
             try {
-                await core.actions.invoke('ACTION.CORE.CALENDAR.SAVE', { title: t, ownerApp: 'APP.NEXUS', spaceIds: [personal], startsAt: day(d), allDay: false, attendeeIds: [], status: 'CONFIRMED' }, C);
+                await core.actions.invoke('ACTION.CORE.CALENDAR.SAVE', { title: t, ownerApp: 'APP.NEXUS', spaceIds: [company], /* business events belong to Firma */ startsAt: day(d), allDay: false, attendeeIds: [], status: 'CONFIRMED' }, C);
                 out.events++;
             }
             catch { }

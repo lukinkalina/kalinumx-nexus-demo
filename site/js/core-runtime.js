@@ -3939,6 +3939,28 @@ var KX;
             blockers.push('PHYSICAL_TAURI_HOST_PROOF_REQUIRED', 'HOST_TRANSACTIONAL_COMPENSATION_PROOF_REQUIRED', 'PRODUCTION_NATIVE_OWNER_PURGE_ACTION_UNPUBLISHED');
             return { contract: 'KX.CORE_TRASH_NATIVE_MANAGED_PURGE_EXECUTION_PREFLIGHT/1', mode: 'READ_ONLY_COMPOSED_EVIDENCE', readOnly: true, bounded: true, maxEntries: 64, requested: rows.length, selected: readback.selected, generatedAt: now(), liveReadbackVerified, deleteProtocolBoundaryVerified: true, isolatedCommitVerified, isolatedRollbackVerified, liveStorageUnchanged, liveDeleteRevisionCalls: 0, productionReady: false, productionExecutionAllowed: false, ownerActionPublished: false, physicalTauriHostProof: false, aggregateOwnerActionsCriterionMutated: false, aggregateStorageAdaptersCriterionMutated: false, aggregatePurgeTransactionCriterionMutated: false, blockers: [...new Set(blockers)], evidence: { readbackContract: 'KX.CORE_TRASH_NATIVE_MANAGED_STORAGE_READBACK/1', deleteProtocolContract: 'KX.CORE_TRASH_NATIVE_MANAGED_DELETE_PROTOCOL/1', transactionSandboxContract: 'KX.CORE_TRASH_NATIVE_MANAGED_PURGE_TRANSACTION_SANDBOX/1', isolatedExecutorContract: 'KX.CORE_TRASH_NATIVE_MANAGED_ISOLATED_DELETE_EXECUTOR/1' }, safeguards: ['READ_ONLY_PUBLIC_ACTION', 'EXACT_VISIBLE_SELECTION_REQUIRED', 'MAX_64_UNIQUE_ENTRIES', 'COMPOSED_D084_D085_D086_D087_EVIDENCE', 'NO_LIVE_DELETE_REVISION_CALL', 'LIVE_STORAGE_HASH_PARITY_REQUIRED', 'PHYSICAL_TAURI_HOST_PROOF_REQUIRED', 'PRODUCTION_NATIVE_FILE_PURGE_UNPUBLISHED', 'NO_PRODUCTION_OWNER_ACTION', 'NO_AGGREGATE_CRITERION_PROMOTION'] };
         }
+        /* N2.6b+ (user split): change the area(s) of an already uploaded file – same atomic pattern as trash (revision, audit, outbox, search row); edit access is required on the file AND on the new areas */
+        async setSpaces(id, spaceIds, ctx, expectedRevision) {
+            const old = await this.get(id);
+            if (!old)
+                throw new Error(`Unknown file ${id}`);
+            if (old.trashedAt)
+                throw new Error(`File ${id} is in Trash`);
+            if (expectedRevision !== undefined && old.revision !== expectedRevision)
+                throw new Error(`Revision conflict for ${id}: expected ${expectedRevision}, actual ${old.revision}`);
+            const next = [...new Set((spaceIds || []).map(String).filter(Boolean))];
+            if (!next.length)
+                throw new Error('FILE_NEEDS_ONE_SPACE');
+            if (next.length === old.spaceIds.length && next.every(x => old.spaceIds.includes(x)))
+                return old;
+            await this.mutationAccess?.assertFile(old, ctx, 'EDIT');
+            const at = now(), root = rootId(ctx);
+            const row = { ...old, spaceIds: next, revision: old.revision + 1, updatedAt: at, updatedBy: ctx.actorId };
+            await this.mutationAccess?.assertFile(row, ctx, 'EDIT');
+            const rev = this.revisions.make('CORE.FILE', id, row.revision, row, { ...ctx, rootChangeId: root }), audit = this.audit.make({ actorId: ctx.actorId, appCode: ctx.appCode, actionCode: 'CORE.FILE.SPACES', entityType: 'CORE.FILE', entityId: id, rootChangeId: root, deviceId: ctx.deviceId, result: 'OK', detail: { revision: row.revision, from: old.spaceIds, to: next } }), out = this.outbox.make({ changeType: 'UPSERT', resourceType: 'CORE.FILE', resourceId: id, revision: row.revision, ownerApp: row.ownerApp, rootChangeId: root, payload: { spaceIds: next } });
+            await casAtomic(this.repo, casPre('files', row.id, old.revision, ctx), [{ store: 'files', value: row }, { store: 'revisions', value: rev }, { store: 'audit', value: audit }, { store: 'outbox', value: out }, { store: 'fileSearch', value: this.searchRow(row) }]);
+            return row;
+        }
         async trash(id, ctx, expectedRevision) {
             const old = await this.get(id);
             if (!old)
@@ -4943,7 +4965,7 @@ var KX;
             if (await this.memberships.roleFor(space.id, userId))
                 visible.push(space); if (scope === 'CUSTOM')
             return custom.filter(id => visible.some(x => x.id === id)); if (scope === 'ALL')
-            return visible.map(x => x.id); const kind = scope === 'PERSONAL' ? 'PERSONAL' : scope === 'FAMILY' ? 'FAMILY' : scope === 'COMPANY' ? 'COMPANY' : 'SHARED'; return visible.filter(x => x.kind === kind && (scope !== 'PERSONAL' || x.ownerUserId === userId)).map(x => x.id); }
+            return visible.map(x => x.id); /* N2.6b+ (user decision 2026-11-22): Rodina = FAMILY + HOME (house) + SHARED, Firma = COMPANY + WORKSHOP + SHARED */ /* N2.6b+ (user decision 2026-11-22): Rodina = FAMILY + HOME (house) + SHARED, Firma = COMPANY + WORKSHOP + SHARED */ const kinds = scope === 'PERSONAL' ? ['PERSONAL'] : scope === 'FAMILY' ? ['FAMILY', 'HOME', 'SHARED'] : scope === 'COMPANY' ? ['COMPANY', 'WORKSHOP', 'SHARED'] : ['SHARED']; return visible.filter(x => kinds.includes(String(x.kind)) && (scope !== 'PERSONAL' || x.ownerUserId === userId)).map(x => x.id); }
         target(kind, row) { return { kind, id: row.id, ownerApp: row.ownerApp, spaceIds: row.spaceIds }; }
         async snapshot(input) {
             const scope = input.scope || 'ALL', spaceIds = await this.scopeSpaces(input.userId, scope, input.spaceIds || []), types = input.types?.length ? [...new Set(input.types)] : ['CALENDAR_EVENT', 'TASK', 'ALARM'], limit = Math.max(1, Math.min(5000, input.limit || 250));
@@ -5693,6 +5715,7 @@ var KX;
                     throw new Error('Invalid DocumentService restore owner payload'); return this.documents.restoreTrash(p.resourceId, ctx); } });
             this.actions.register({ code: 'ACTION.CORE.DOCUMENT.TRASH.PURGE', ownerApp: 'APP.NEXUS', risk: 'DESTRUCTIVE', permission: 'CORE.TRASH.OWNER.INTERNAL', handler: (p, ctx) => { if (p.resourceType !== 'CORE.DOCUMENT' || p.mode !== 'PURGE')
                     throw new Error('Invalid DocumentService purge owner payload'); return this.documents.purgeTrash(p.resourceId, ctx); } });
+            this.actions.register({ code: 'ACTION.CORE.FILE.SPACES', ownerApp: 'APP.NEXUS', risk: 'SAFE_WRITE', permission: 'CORE.FILE.IMPORT', handler: async (p, ctx) => this.files.setSpaces(String(p.fileId), Array.isArray(p.spaceIds) ? p.spaceIds : [], ctx, p.expectedRevision) });
             this.actions.register({ code: 'ACTION.CORE.FILE.IMPORT', ownerApp: 'APP.NEXUS', risk: 'SAFE_WRITE', permission: 'CORE.FILE.IMPORT', handler: (p, ctx) => this.files.importBlob(p.blob, p.name, p.mime, p.ownerApp, p.spaceIds, ctx, { tags: p.tags, description: p.description }) });
             this.actions.register({ code: 'ACTION.CORE.FILE.TRASH', ownerApp: 'APP.NEXUS', risk: 'SENSITIVE_WRITE', permission: 'CORE.FILE.TRASH', handler: async (p, ctx) => { const staged = await this.files.trash(p.fileId, ctx, p.expectedRevision); try {
                     const trashEntry = await this.trashRetention.index({ title: staged.file.name, description: staged.file.description, sourceOwnerApp: 'APP.NEXUS', ownerService: 'FileService', resourceType: 'CORE.FILE', resourceId: staged.file.id, stableIdentity: staged.file.id, deletedAt: staged.file.trashedAt, deletedBy: ctx.actorId, sourceDevice: ctx.deviceId, originalDeepLink: this.deepLinks.build({ kind: 'FILE', id: staged.file.id, appCode: staged.file.ownerApp }), storageTargetId: staged.file.storageKind === 'NATIVE_FILE' ? 'NATIVE_MANAGED' : 'BROWSER_BLOB', logicalBytes: staged.file.size, physicalBytes: staged.reclaimableBytes, reclaimableBytes: staged.reclaimableBytes, retainUntil: p.retainUntil, dependencyCount: staged.dependencyCount, dependencySummary: staged.dependencySummary, backupRequired: true, backupEvidence: [...(p.backupEvidence || [])], protected: !!p.protected, holdReason: p.holdReason, metadata: { fileOwnerApp: staged.file.ownerApp, fileRevision: staged.file.revision, contentRevision: staged.file.contentRevision, storageKind: staged.file.storageKind } }, ctx);
