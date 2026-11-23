@@ -2157,3 +2157,7 @@ html body .content .ag-tag.green{color:var(--muted) !important;background:transp
 @media (prefers-reduced-motion:reduce){.ag-prow.ag-flash{animation:none}}
 
 .kx-ct-area{display:inline-flex;gap:14px;align-items:center}
+
+.kx-file-area{display:inline-flex;align-items:center;gap:6px;font-size:12.5px}
+
+.ag-fcard{position:relative}.ag-farea{position:absolute;top:6px;right:6px;z-index:2;font-size:13px;padding:1px 6px;border-radius:999px;background:color-mix(in srgb,var(--surface2,#121824) 85%,transparent);border:1px solid color-mix(in srgb,var(--accent,#f2c869) 30%,transparent)}

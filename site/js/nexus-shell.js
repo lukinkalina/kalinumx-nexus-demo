@@ -2520,7 +2520,7 @@ var KXAPP;
         return `${n} B`; if (n < 1024 * 1024)
         return `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KB`; if (n < 1024 * 1024 * 1024)
         return `${(n / 1024 / 1024).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`; return `${(n / 1024 / 1024 / 1024).toFixed(1)} GB`; };
-    function files() { return pageSimple('Průzkumník souborů', 'Všechny soubory a dokumenty, ke kterým máte přístup', `<div class="file-toolbar"><button class="btn" data-file-import>＋ Importovat</button><input id="fileImportInput" type="file" multiple hidden><input id="fileSearch" placeholder="Hledat název, popis nebo štítek…" value="${esc(fileExplorerUi.text)}"><select id="fileCollection"><option value="">Všechny kolekce</option></select><select id="fileSort"><option value="UPDATED_DESC" ${fileExplorerUi.sort === 'UPDATED_DESC' ? 'selected' : ''}>Naposledy změněné</option><option value="NAME_ASC" ${fileExplorerUi.sort === 'NAME_ASC' ? 'selected' : ''}>Název A–Z</option><option value="SIZE_DESC" ${fileExplorerUi.sort === 'SIZE_DESC' ? 'selected' : ''}>Největší</option></select><label class="file-toggle"><input id="filePinnedOnly" type="checkbox" ${fileExplorerUi.pinnedOnly ? 'checked' : ''}> Připnuté</label></div><div id="fileExplorerSummary" class="file-summary">Načítám oprávněné soubory…</div><div class="file-table"><div class="tr th"><span>Název</span><span>Kolekce</span><span>Oblast</span><span>Změněno</span></div><div id="fileExplorerLive"><div class="empty">Načítám…</div></div></div>`); }
+    function files() { return pageSimple('Průzkumník souborů', 'Všechny soubory a dokumenty, ke kterým máte přístup', `<div class="file-toolbar"><button class="btn" data-file-import>＋ Importovat</button><input id="fileImportInput" type="file" multiple hidden><label class="kx-file-area" title="${esc(TL('cc.areaHelp'))}">${esc(TL('cc.area'))} <select id="fileImportArea" data-keep-select><option value="PERSONAL" ${agUi.scope === 'ALL' ? 'selected' : ''}>👤 ${esc(TL('fa.me'))}</option><option value="FAMILY" ${agUi.scope === 'FAMILY' ? 'selected' : ''}>👪 ${esc(TL('rc2.family'))}</option><option value="COMPANY" ${agUi.scope === 'COMPANY' ? 'selected' : ''}>🏢 ${esc(TL('rc2.company'))}</option><option value="BOTH">👪 + 🏢 ${esc(TL('cc.both'))}</option></select></label><input id="fileSearch" placeholder="Hledat název, popis nebo štítek…" value="${esc(fileExplorerUi.text)}"><select id="fileCollection"><option value="">Všechny kolekce</option></select><select id="fileSort"><option value="UPDATED_DESC" ${fileExplorerUi.sort === 'UPDATED_DESC' ? 'selected' : ''}>Naposledy změněné</option><option value="NAME_ASC" ${fileExplorerUi.sort === 'NAME_ASC' ? 'selected' : ''}>Název A–Z</option><option value="SIZE_DESC" ${fileExplorerUi.sort === 'SIZE_DESC' ? 'selected' : ''}>Největší</option></select><label class="file-toggle"><input id="filePinnedOnly" type="checkbox" ${fileExplorerUi.pinnedOnly ? 'checked' : ''}> Připnuté</label></div><div id="fileExplorerSummary" class="file-summary">Načítám oprávněné soubory…</div><div class="file-table"><div class="tr th"><span>Název</span><span>Kolekce</span><span>Oblast</span><span>Změněno</span></div><div id="fileExplorerLive"><div class="empty">Načítám…</div></div></div>`); }
     async function visibleFileCollections() { const rows = await runtime.fileLibrary.listCollections(), out = []; for (const c of rows) {
         if (c.scopeType === 'USER' && c.scopeId === CURRENT_USER_ID) {
             out.push(c);
@@ -2542,7 +2542,7 @@ var KXAPP;
     function agFilesGrid(root, rows) {
         agThumbUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
         root.closest('.file-table')?.classList.add('ag-grid-mode');
-        root.innerHTML = `<div class="ag-fgrid">${rows.map(({ file, pinned }, i) => { const k = agFileKind(file.mime || '', file.name || ''); const link = runtime.deepLinks.build({ kind: 'FILE', id: file.id }); return `<div class="ag-fcard"><button type="button" class="ag-fthumb ag-k-${k}" data-ag-fprev="${i}" title="${esc(TL('agd.pv.open'))}">${k === 'img' ? `<img alt="" data-ag-thumb="${esc(file.id)}">` : `<i>${AG_FILE_IC[k]}</i>`}</button><button type="button" class="ag-fname" data-file-link="${esc(link)}" title="${esc(TL('agd.pv.detail'))}"><b>${pinned ? '★ ' : ''}${esc(file.name)}</b><small>${formatBytes(file.size)} · ${esc(new Date(file.updatedAt).toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}</small></button></div>`; }).join('')}</div>`;
+        root.innerHTML = `<div class="ag-fgrid">${rows.map(({ file, pinned }, i) => { const k = agFileKind(file.mime || '', file.name || ''); const link = runtime.deepLinks.build({ kind: 'FILE', id: file.id }); const sps = globalThis.__kxFileSpaces || []; const kinds = (file.spaceIds || []).map((id) => sps.find((s) => s.id === id)?.kind).filter(Boolean); const areaIc = [kinds.includes('FAMILY') ? '👪' : '', kinds.includes('COMPANY') ? '🏢' : '', kinds.includes('PERSONAL') ? '👤' : ''].join(''); return `<div class="ag-fcard">${areaIc ? `<span class="ag-farea" title="${esc(TL('cc.area'))}: ${esc((file.spaceIds || []).map((id) => sps.find((s) => s.id === id)?.name || id).join(', '))}">${areaIc}</span>` : ''}<button type="button" class="ag-fthumb ag-k-${k}" data-ag-fprev="${i}" title="${esc(TL('agd.pv.open'))}">${k === 'img' ? `<img alt="" data-ag-thumb="${esc(file.id)}">` : `<i>${AG_FILE_IC[k]}</i>`}</button><button type="button" class="ag-fname" data-file-link="${esc(link)}" title="${esc(TL('agd.pv.detail'))}"><b>${pinned ? '★ ' : ''}${esc(file.name)}</b><small>${formatBytes(file.size)} · ${esc(new Date(file.updatedAt).toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}</small></button></div>`; }).join('')}</div>`;
         root.querySelectorAll('img[data-ag-thumb]').forEach(async (im) => { try {
             const b = await runtime.files.getBlob(String(im.dataset.agThumb));
             if (b) {
@@ -2642,6 +2642,7 @@ var KXAPP;
             const space = (sp.find((s) => s.kind === 'COMPANY') || sp[0])?.id;
             if (!space)
                 return;
+            const famSpace = (sp.find((s) => s.kind === 'FAMILY') || sp.find((s) => s.kind === 'COMPANY'))?.id || space;
             const pic = (title, a, b) => new Promise(res => { const c = document.createElement('canvas'); c.width = 1200; c.height = 800; const g = c.getContext('2d'); const gr = g.createLinearGradient(0, 0, 1200, 800); gr.addColorStop(0, a); gr.addColorStop(1, b); g.fillStyle = gr; g.fillRect(0, 0, 1200, 800); g.strokeStyle = '#e9b54f'; g.lineWidth = 14; g.strokeRect(40, 40, 1120, 720); g.fillStyle = '#fff3d6'; g.font = 'bold 64px Georgia'; g.textAlign = 'center'; g.fillText('DEMO', 600, 330); g.font = '48px Georgia'; g.fillText(title, 600, 430); c.toBlob(bb => res(bb), 'image/png'); });
             const pdf = `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n4 0 obj<</Length 120>>stream\nBT /F1 28 Tf 60 760 Td (DEMO - Cenik gravirovani) Tj 0 -50 Td /F1 16 Tf (Gravirovani do 5x5 cm .... 150 Kc) Tj ET\nendstream endobj\n5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF`;
             const DF = KXDemoSeed.DEMO_FILES;
@@ -2653,7 +2654,7 @@ var KXAPP;
                 files.push([x.name, new Blob([x.body], { type: x.mime })]);
             for (const [name, blob] of files) {
                 try {
-                    await runtime.actions.invoke('ACTION.CORE.FILE.IMPORT', { blob, name, mime: blob.type || 'application/octet-stream', ownerApp: 'APP.NEXUS', spaceIds: [space] }, { actorId: CURRENT_USER_ID, appCode: 'APP.NEXUS', deviceId: activeDevice?.id, permissions: ['CORE.FILE.IMPORT'], confirmed: true });
+                    await runtime.actions.invoke('ACTION.CORE.FILE.IMPORT', { blob, name, mime: blob.type || 'application/octet-stream', ownerApp: 'APP.NEXUS', spaceIds: [/zahrad|rodin|dovolen/i.test(name) ? famSpace : space] /* N2.6b+: family pictures to Rodina, business files to Firma */ }, { actorId: CURRENT_USER_ID, appCode: 'APP.NEXUS', deviceId: activeDevice?.id, permissions: ['CORE.FILE.IMPORT'], confirmed: true });
                 }
                 catch (e) {
                     console.warn('DEMO file', e);
@@ -4089,23 +4090,25 @@ var KXAPP;
             const summary = el('#fileExplorerSummary');
             if (summary)
                 summary.innerHTML = `<span><b>${rows.length}</b> oprávněných souborů</span><span><b>${collections.length}</b> dostupných kolekcí</span>${fileExplorerUi.createdByNot ? '<span>filtr <b>Sdílené se mnou</b></span>' : ''}<span>Workspace <b>${esc(activeWorkspace?.name || '')}</b></span>`;
+            globalThis.__kxFileSpaces = spaces;
             if (fileExplorerUi.view !== 'list' && rows.length) {
                 agFilesGrid(root, rows);
-                return;
             }
-            root.innerHTML = rows.length ? rows.map(({ file, pinned, collections: fileCollections }) => { const link = runtime.deepLinks.build({ kind: 'FILE', id: file.id }); const spacesText = file.spaceIds.map(id => spaceNames.get(id) || id).join(', ') || 'Bez prostoru'; return `<button class="tr file-row" data-file-link="${esc(link)}"><span><b>${pinned ? '★ ' : ''}${esc(file.name)}</b><small>${esc(file.mime)} · ${formatBytes(file.size)} · rev ${file.revision}/${file.contentRevision}</small></span><span>${fileCollections.length ? `${fileCollections.length} vazeb` : '—'}</span><span>${esc(spacesText)}</span><span>${esc(new Date(file.updatedAt).toLocaleString())}</span></button>`; }).join('') : '<div class="empty">Žádné oprávněné soubory pro aktuální filtr.</div>';
-            root.querySelectorAll('[data-file-link]').forEach(b => b.onclick = e => { e.stopPropagation(); openRecordInspector(b.dataset.fileLink, { preserveSection: true }); });
-            const search = el('#fileSearch');
-            if (search)
-                search.oninput = () => { fileExplorerUi.text = search.value; clearTimeout(fileSearchTimer); fileSearchTimer = setTimeout(() => hydrateFiles(), 140); };
-            if (collectionSelect)
-                collectionSelect.onchange = () => { fileExplorerUi.collectionId = collectionSelect.value; fileExplorerUi.createdByNot = ''; agentHostUi.context = collectionSelect.value ? { kind: 'COLLECTION', appCode: 'APP.KX.DOCUMENTS', collectionCode: collectionSelect.value } : null; agentHostUi.agentCode = ''; hydrateFiles(); hydrateAgentHost(); };
-            const sort = el('#fileSort');
-            if (sort)
-                sort.onchange = () => { fileExplorerUi.sort = sort.value; hydrateFiles(); };
-            const pinned = el('#filePinnedOnly');
-            if (pinned)
-                pinned.onchange = () => { fileExplorerUi.pinnedOnly = !!pinned.checked; hydrateFiles(); };
+            else { /* N2.6b+ fix: the import below must be wired in the grid view too (it used to return early – uploading did nothing) */
+                root.innerHTML = rows.length ? rows.map(({ file, pinned, collections: fileCollections }) => { const link = runtime.deepLinks.build({ kind: 'FILE', id: file.id }); const spacesText = file.spaceIds.map(id => spaceNames.get(id) || id).join(', ') || 'Bez prostoru'; return `<button class="tr file-row" data-file-link="${esc(link)}"><span><b>${pinned ? '★ ' : ''}${esc(file.name)}</b><small>${esc(file.mime)} · ${formatBytes(file.size)} · rev ${file.revision}/${file.contentRevision}</small></span><span>${fileCollections.length ? `${fileCollections.length} vazeb` : '—'}</span><span>${esc(spacesText)}</span><span>${esc(new Date(file.updatedAt).toLocaleString())}</span></button>`; }).join('') : '<div class="empty">Žádné oprávněné soubory pro aktuální filtr.</div>';
+                root.querySelectorAll('[data-file-link]').forEach(b => b.onclick = e => { e.stopPropagation(); openRecordInspector(b.dataset.fileLink, { preserveSection: true }); });
+                const search = el('#fileSearch');
+                if (search)
+                    search.oninput = () => { fileExplorerUi.text = search.value; clearTimeout(fileSearchTimer); fileSearchTimer = setTimeout(() => hydrateFiles(), 140); };
+                if (collectionSelect)
+                    collectionSelect.onchange = () => { fileExplorerUi.collectionId = collectionSelect.value; fileExplorerUi.createdByNot = ''; agentHostUi.context = collectionSelect.value ? { kind: 'COLLECTION', appCode: 'APP.KX.DOCUMENTS', collectionCode: collectionSelect.value } : null; agentHostUi.agentCode = ''; hydrateFiles(); hydrateAgentHost(); };
+                const sort = el('#fileSort');
+                if (sort)
+                    sort.onchange = () => { fileExplorerUi.sort = sort.value; hydrateFiles(); };
+                const pinned = el('#filePinnedOnly');
+                if (pinned)
+                    pinned.onchange = () => { fileExplorerUi.pinnedOnly = !!pinned.checked; hydrateFiles(); };
+            }
             const picker = el('#fileImportInput'), importButton = el('[data-file-import]');
             if (importButton && picker)
                 importButton.onclick = () => picker.click();
@@ -4116,9 +4119,12 @@ var KXAPP;
                     const inbox = collections.find(c => c.scopeType === 'USER' && c.scopeId === CURRENT_USER_ID && c.kind === 'INBOX');
                     const targetCollection = selectedCollection || inbox;
                     const targetSpace = selectedCollection?.scopeType === 'SPACE' ? selectedCollection.scopeId : CURRENT_PERSONAL_SPACE;
+                    const areaSel = String(el('#fileImportArea')?.value || 'PERSONAL');
+                    const allSp = await runtime.memberships.listSpaces();
+                    const areaIds = selectedCollection?.scopeType === 'SPACE' ? [targetSpace] : areaSel === 'PERSONAL' ? [CURRENT_PERSONAL_SPACE] : areaSel === 'BOTH' ? allSp.filter((s) => s.kind === 'FAMILY' || s.kind === 'COMPANY').map((s) => s.id) : allSp.filter((s) => s.kind === areaSel).map((s) => s.id).slice(0, 1); /* N2.6b+ (user split): the uploader chooses the area – a file can belong to both */
                     let imported = 0;
                     for (const f of selected) {
-                        const row = await runtime.actions.invoke('ACTION.CORE.FILE.IMPORT', { blob: f, name: f.name, mime: f.type || 'application/octet-stream', ownerApp: 'APP.NEXUS', spaceIds: [targetSpace] }, { actorId: CURRENT_USER_ID, appCode: 'APP.NEXUS', deviceId: activeDevice?.id, permissions: ['CORE.FILE.IMPORT'], confirmed: true });
+                        const row = await runtime.actions.invoke('ACTION.CORE.FILE.IMPORT', { blob: f, name: f.name, mime: f.type || 'application/octet-stream', ownerApp: 'APP.NEXUS', spaceIds: areaIds.length ? areaIds : [targetSpace] }, { actorId: CURRENT_USER_ID, appCode: 'APP.NEXUS', deviceId: activeDevice?.id, permissions: ['CORE.FILE.IMPORT'], confirmed: true });
                         if (targetCollection)
                             await runtime.actions.invoke('ACTION.CORE.FILE_COLLECTION.ATTACH', { fileId: row.id, collectionId: targetCollection.id, pinned: targetCollection.kind === 'PINNED' }, { actorId: CURRENT_USER_ID, appCode: 'APP.NEXUS', deviceId: activeDevice?.id, permissions: ['CORE.FILE.COLLECTION.EDIT'], confirmed: true });
                         imported++;
