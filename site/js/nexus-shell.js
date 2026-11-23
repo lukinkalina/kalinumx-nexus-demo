@@ -1678,6 +1678,28 @@ var KXAPP;
     } return kxSpKinds; }
     function kxAreaBadge(spaceIds, kinds) { const ks = (spaceIds || []).map(id => kinds.get(String(id)) || ''); const fam = ks.some(k => ['FAMILY', 'HOME', 'PERSONAL', 'SHARED'].includes(k)), com = ks.some(k => ['COMPANY', 'WORKSHOP', 'SHARED'].includes(k)); if (!fam && !com)
         return ''; const ic = fam && com ? '👪🏢' : fam ? '👪' : '🏢'; const tt = fam && com ? TL('ab.both') : fam ? TL('ab.family') : TL('ab.company'); return `<span class="kx-area-badge ${fam && com ? 'both' : fam ? 'fam' : 'com'}" title="${esc(tt)}">${ic}</span>`; }
+    /* N2.6b+ (user): search results and inbox items say whether they belong to Rodina or Firma */
+    async function kxSpacesOfLink(link) { const m = link.match(/^kx:\/\/([a-z_]+)\/([^?#@]+)/i); if (!m)
+        return []; const k = m[1].toLowerCase(), id = decodeURIComponent(String(m[2]).split('/').filter(Boolean).pop() || ''); try {
+        if (k === 'task')
+            return (await runtime.tasks.get(id))?.spaceIds || [];
+        if (k === 'calendar_event')
+            return (await runtime.calendar.get(id))?.spaceIds || [];
+        if (k === 'file')
+            return (await runtime.files.get(id))?.spaceIds || [];
+        const e = await runtime.entities.get(id);
+        return e?.spaceIds || [];
+    }
+    catch {
+        return [];
+    } }
+    function kxAreaLinkSweep() { document.querySelectorAll('button[data-search-link]:not([data-kx-ab]),[data-inbox-item][data-inbox-link]:not([data-kx-ab])').forEach(b => { b.dataset.kxAb = '1'; const link = String(b.dataset.searchLink || b.dataset.inboxLink || ''); if (!/^kx:\/\/(task|calendar_event|file|entity|record)/i.test(link) && !/^kx:\/\/[a-z_]+\/(ENT|TASK|EVENT|FILE)\./i.test(link))
+        return; void (async () => { const sp = await kxSpacesOfLink(link); if (!sp.length)
+        return; const html = kxAreaBadge(sp, await kxSpaceKinds()); if (!html || b.querySelector('.kx-area-badge'))
+        return; const t = b.querySelector('b'); if (t)
+        t.insertAdjacentHTML('afterbegin', html);
+    else
+        b.insertAdjacentHTML('afterbegin', html); })(); }); }
     function kxHubMoreSweep() {
         document.querySelectorAll('#inspector.open [data-hub-issues]:not([data-kx-hubmore-done])').forEach(iss => {
             iss.dataset.kxHubmoreDone = '1';
@@ -1842,6 +1864,9 @@ var KXAPP;
     }
     catch { } try {
         kxHubMoreSweep();
+    }
+    catch { } try {
+        kxAreaLinkSweep();
     }
     catch { } try {
         agFlashSweep();
