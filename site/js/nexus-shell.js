@@ -501,6 +501,13 @@ var KXAPP;
                         e.preventDefault();
                         document.querySelectorAll('.kx-more-menu').forEach(x => x.remove());
                         profileModal();
+                    } if (e.target?.closest?.('[data-profile-preview]')) {
+                        e.preventDefault();
+                        document.querySelectorAll('.kx-more-menu').forEach(x => x.remove());
+                        void kxPreviewStart();
+                    } if (e.target?.closest?.('[data-preview-end]')) {
+                        e.preventDefault();
+                        void kxPreviewEnd();
                     } if (e.target?.closest?.('[data-profile-demo]')) {
                         e.preventDefault();
                         if (confirm(TL('demo.confirm')))
@@ -11683,7 +11690,10 @@ var KXAPP;
             open = (await runtime.actions.invoke('ACTION.CORE.ISSUES.LIST', { owner: key }, lyCtx())).items.filter((i) => i.state === 'OPEN').length;
         }
         catch { }
-        const ctxs = [['ALL', TL('hubbar.all')], ['PERSONAL', TL('hubbar.personal')], ['FAMILY', TL('hubbar.family')], ['COMPANY', TL('hubbar.company')]];
+        const hubMemB = String(((globalThis.KX_NAVIGATION_CONTEXT_CONTRACT?.defaults || []).find((x) => x.itemCode === key)?.membership) || 'BOTH'); /* N2.6b+ (user split): the area filter offers only what the hub can hold – family-only hubs have no “Firma”, company-only hubs need no filter */
+        const ctxs = [['ALL', TL('hubbar.all')], ['PERSONAL', TL('hubbar.personal')], ['FAMILY', TL('hubbar.family')], ['COMPANY', TL('hubbar.company')]].filter(([k]) => hubMemB === 'HOME' ? k !== 'COMPANY' : hubMemB === 'WORK' ? false : true);
+        if (!ctxs.some(([k]) => k === st.ctx))
+            st.ctx = 'ALL';
         bar.className = 'kx-hub-bar' + (HUB_OWN_SEARCH.has(key) ? ' ag-hide' : '');
         bar.dataset.hubBar = key; /* N2.6b+: hubs with their own search never show the generic one (it used to vanish while typing) */
         bar.innerHTML = `${withData ? `<input data-hub-search placeholder="🔍 ${esc(TL('hubbar.search'))}" value="${esc(st.q)}"><span class="kx-hub-ctx">${ctxs.map(([k, l]) => `<button class="chip ${st.ctx === k ? 'active' : ''}" data-hub-ctx="${k}">${esc(l)}</button>`).join('')}</span><button class="btn compact" data-hub-new>＋ ${esc(TL('hubbar.new'))}</button>` : ''}
@@ -12215,7 +12225,7 @@ var KXAPP;
         m.dataset.profileMenu = '1';
         m.innerHTML = `<div class="kx-pm-head"><b>${esc(userDisplayName)}</b><small>${esc(activeWorkspace?.name || '')}</small></div>
         <label class="kx-pm-row">${esc(TL('ui.language'))}<select data-profile-locale>${(runtime.i18n?.locales() || []).map((l) => `<option value="${esc(l)}" ${l === UI_LOCALE ? 'selected' : ''}>${l === 'cs' ? 'Čeština' : 'English'}</option>`).join('')}</select></label>
-        <label class="kx-pm-row kx-pm-check"><input type="checkbox" data-profile-health ${healthOn ? 'checked' : ''}> ${esc(TL('notify.healthNames'))}</label><label class="kx-pm-row">${esc(TL('a11y.title'))}<select data-profile-a11y>${KXA11y.MODES.map((k) => `<option value="${k}" ${k === (document.documentElement.dataset.colorVision || 'NONE') ? 'selected' : ''}>${esc(TL('a11y.mode.' + k))}</option>`).join('')}</select></label><button type="button" class="row-btn" data-profile-a11y-info>ⓘ ${esc(TL('a11y.explain'))}</button><button type="button" class="row-btn" data-profile-inbox>📥 ${esc(TL('inbox.title'))}${inboxCount ? ` (${inboxCount})` : ''}</button><button type="button" class="row-btn" data-profile-switch-user>👥 ${esc(TL('demo.switchUser'))}</button><button type="button" class="row-btn" data-profile-rights>🛡 ${esc(TL('rights.title'))}</button><button type="button" class="row-btn" data-profile-org>🏢 ${esc(TL('org.title'))}</button><button type="button" class="row-btn" data-profile-contacts>📇 ${esc(TL('ct.title'))}</button><button type="button" class="row-btn" data-profile-lists>📚 ${esc(TL('ls.title'))}</button><button type="button" class="row-btn" data-profile-import>📥 ${esc(TL('imp.ui.open'))}</button><button type="button" class="row-btn" data-profile-camera>📷 ${esc(TL('cam.title'))}</button><button type="button" class="row-btn" data-profile-guides>📘 ${esc(TL('gd.ui.title'))}</button><button type="button" class="row-btn" data-profile-calc3d>🧮 ${esc(TL('p3.title'))}</button><button type="button" class="row-btn" data-profile-restore>🛟 ${esc(TL('bb.title'))}</button><button type="button" class="row-btn" data-profile-designkit>🎨 ${esc(TL('dk.title'))}</button><button type="button" class="row-btn" data-profile-workload>📊 ${esc(TL('wl.title'))}</button><button type="button" class="row-btn" data-profile-myprofile>👤 ${esc(TL('ct.myProfile'))}</button>${activeWorkspace?.mode === 'DEMO' ? `<button type="button" class="row-btn" data-profile-demo-back>↩ ${esc(TL('demo.back'))}</button>` : `<button type="button" class="row-btn" data-profile-demo>🎭 ${esc(TL('demo.show'))}</button>`}
+        <label class="kx-pm-row kx-pm-check"><input type="checkbox" data-profile-health ${healthOn ? 'checked' : ''}> ${esc(TL('notify.healthNames'))}</label><label class="kx-pm-row">${esc(TL('a11y.title'))}<select data-profile-a11y>${KXA11y.MODES.map((k) => `<option value="${k}" ${k === (document.documentElement.dataset.colorVision || 'NONE') ? 'selected' : ''}>${esc(TL('a11y.mode.' + k))}</option>`).join('')}</select></label><button type="button" class="row-btn" data-profile-a11y-info>ⓘ ${esc(TL('a11y.explain'))}</button><button type="button" class="row-btn" data-profile-inbox>📥 ${esc(TL('inbox.title'))}${inboxCount ? ` (${inboxCount})` : ''}</button><button type="button" class="row-btn" data-profile-switch-user>👥 ${esc(TL('demo.switchUser'))}</button><button type="button" class="row-btn" data-profile-preview title="${esc(TL('pv.help'))}">👁 ${esc(TL('pv.menu'))}</button><button type="button" class="row-btn" data-profile-rights>🛡 ${esc(TL('rights.title'))}</button><button type="button" class="row-btn" data-profile-org>🏢 ${esc(TL('org.title'))}</button><button type="button" class="row-btn" data-profile-contacts>📇 ${esc(TL('ct.title'))}</button><button type="button" class="row-btn" data-profile-lists>📚 ${esc(TL('ls.title'))}</button><button type="button" class="row-btn" data-profile-import>📥 ${esc(TL('imp.ui.open'))}</button><button type="button" class="row-btn" data-profile-camera>📷 ${esc(TL('cam.title'))}</button><button type="button" class="row-btn" data-profile-guides>📘 ${esc(TL('gd.ui.title'))}</button><button type="button" class="row-btn" data-profile-calc3d>🧮 ${esc(TL('p3.title'))}</button><button type="button" class="row-btn" data-profile-restore>🛟 ${esc(TL('bb.title'))}</button><button type="button" class="row-btn" data-profile-designkit>🎨 ${esc(TL('dk.title'))}</button><button type="button" class="row-btn" data-profile-workload>📊 ${esc(TL('wl.title'))}</button><button type="button" class="row-btn" data-profile-myprofile>👤 ${esc(TL('ct.myProfile'))}</button>${activeWorkspace?.mode === 'DEMO' ? `<button type="button" class="row-btn" data-profile-demo-back>↩ ${esc(TL('demo.back'))}</button>` : `<button type="button" class="row-btn" data-profile-demo>🎭 ${esc(TL('demo.show'))}</button>`}
         <button type="button" class="row-btn compact" data-pm-go="profile">👤 ${esc(TL('profile.open'))}</button><button type="button" class="row-btn compact" data-pm-go="settings">⚙ ${esc(TL('profile.settings'))}</button><button type="button" class="row-btn compact" data-pm-go="trash">🗑 ${esc(TL('profile.trash'))}</button>`;
         document.body.appendChild(m);
         const r = anchor.getBoundingClientRect();
@@ -13427,6 +13437,60 @@ var KXAPP;
         });
     }
     // N2.1g: switch the Shell to the verified subject. Per-user UI state is reset; data access follows the new actor's ACL.
+    /* N2.6b+ (user): a parent can see NEXUS exactly as a family member (child) sees it – READ ONLY: only actions with risk READ run, everything else is refused */
+    let kxPreview = null;
+    async function kxPreviewStart() {
+        try {
+            const fam = (await runtime.memberships.listSpaces()).find((s) => s.kind === 'FAMILY');
+            if (!fam || await runtime.memberships.roleFor(fam.id, CURRENT_USER_ID) !== 'MANAGE') {
+                toast(TL('pv.parentsOnly'));
+                return;
+            }
+            const mem = (await runtime.memberships.listMemberships(fam.id)).filter((m) => m.userId !== CURRENT_USER_ID);
+            const users = [];
+            for (const m of mem) {
+                const u = await runtime.memberships.getUser?.(m.userId).catch?.(() => null);
+                users.push([m.userId, String(u?.displayName || m.userId)]);
+            }
+            if (!users.length) {
+                toast(TL('pv.none'));
+                return;
+            }
+            const v = await kxForm(TL('pv.menu'), [{ k: 'u', label: TL('pv.who'), type: 'select', value: users[0][0], options: users }]);
+            if (!v?.u)
+                return;
+            await kxPreviewAs(String(v.u), String(users.find(x => x[0] === v.u)?.[1] || v.u));
+        }
+        catch (er) {
+            toast(String(er?.message || er));
+        }
+    }
+    async function kxPreviewAs(userId, name) {
+        const sp = (await runtime.memberships.listSpaces()).find((x) => x.kind === 'PERSONAL' && x.ownerUserId === userId && !x.archivedAt);
+        if (!sp) {
+            toast(TL('pv.none'));
+            return;
+        }
+        const bus = runtime.actions;
+        const orig = bus.invoke.bind(bus);
+        kxPreview = { user: CURRENT_USER_ID, personal: CURRENT_PERSONAL_SPACE, name, orig };
+        bus.invoke = async (code, p, ctx) => { const def = bus.actions?.get?.(code); if (!def || def.risk !== 'READ') {
+            (globalThis.__kxPvBlocked = globalThis.__kxPvBlocked || []).push(code + ':' + (def?.risk || '?'));
+            throw new Error('PREVIEW_READ_ONLY');
+        } return orig(code, p, ctx); };
+        CURRENT_USER_ID = userId;
+        CURRENT_PERSONAL_SPACE = sp.id;
+        aiUi.spaceId = sp.id;
+        personalHomeRestored = false;
+        personalHomeUi.errors = {};
+        document.querySelector('#inspector')?.classList.remove('open');
+        kxPreviewBanner();
+        render();
+    }
+    async function kxPreviewEnd() { if (!kxPreview)
+        return; runtime.actions.invoke = kxPreview.orig; CURRENT_USER_ID = kxPreview.user; CURRENT_PERSONAL_SPACE = kxPreview.personal; aiUi.spaceId = kxPreview.personal; kxPreview = null; personalHomeRestored = false; document.querySelector('[data-preview-bar]')?.remove(); document.querySelector('#inspector')?.classList.remove('open'); render(); }
+    function kxPreviewBanner() { document.querySelector('[data-preview-bar]')?.remove(); if (!kxPreview)
+        return; const b = document.createElement('div'); b.className = 'kx-preview-bar'; b.setAttribute('data-preview-bar', ''); b.innerHTML = `👁 ${esc(TL('pv.bar').replace('{n}', kxPreview.name))} <button type="button" class="btn compact" data-preview-end title="${esc(TL('pv.endHelp'))}">${esc(TL('pv.end'))}</button>`; document.body.appendChild(b); }
     async function switchShellUser(userId) {
         const id = runtime?.identity;
         if (!id || (await id.validate()) !== userId)

@@ -2173,3 +2173,8 @@ html body .content .ag-prow > em{color:var(--kx-cbwarn) !important}.ag-prow b .k
 .kx-fin-xfer[open]>.kx-fin-xfer-f{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;padding:10px;border:1px solid var(--border);border-radius:12px;margin-top:6px}.kx-fin-xfer-f .kx-lf{display:grid;gap:3px;min-width:130px}.kx-fin-xfer-f .kx-lf-wide{min-width:220px;flex:1}
 
 .kx-fin-xplans{flex-basis:100%;display:grid;gap:6px;margin-top:4px}.kx-fin-xplan{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:10px;font-size:13px}.kx-fin-xplan>span{flex:1;min-width:220px}
+
+.kx-preview-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:9999;display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:999px;background:var(--surface2,#14171b);border:2px solid var(--kx-cbwarn,#e6a141);box-shadow:0 6px 24px rgba(0,0,0,.45);font-weight:600}
+
+/* family audit: one way to add – hubs with their own add button hide the generic “＋ Nový” of the hub bar */
+html body #inspector.open:has(.veh-hub .veh-head > .btn) .kx-hub-bar [data-hub-new]{display:none !important}

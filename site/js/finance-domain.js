@@ -693,6 +693,9 @@ var KXFinanceHub;
         for (const s0 of allSpaces0)
             if (await core.financeAccess([s0.id], opts.actorId))
                 allSpaces.push(s0); /* children: only their own finances */
+        const finShared = allSpaces.some((x) => x.kind !== 'PERSONAL');
+        if (!finShared && ['REIMBURSE', 'CAPEX', 'CASE'].includes(String(st.view)))
+            st.view = 'MOVEMENTS';
         let spaces = allSpaces.filter((s) => kindsFor(navCtx).includes(s.kind) && (s.kind !== 'PERSONAL' || !s.ownerUserId || s.ownerUserId === opts.actorId));
         if (!spaces.length)
             spaces = allSpaces.filter((s) => s.kind !== 'PERSONAL' || !s.ownerUserId || s.ownerUserId === opts.actorId); /* N2.6b+ (user): every member keeps his own finances – others never see them */
@@ -770,7 +773,7 @@ var KXFinanceHub;
                 throw e;
         }
         const spaceChips = `<div class="kx-print3d-tabs" data-fin-spaces>${spaces.map((s) => `<button class="chip ${s.id === st.space ? 'active' : ''}" data-fin-space="${esc(s.id)}">${s.kind === 'PERSONAL' ? `👤 ${esc(TL('fin.mine', 'My finances'))}` : (() => { const k = TL('fin.space.' + s.kind, s.kind); const nm = String(s.name || ''); return nm.toLowerCase().startsWith(String(k).toLowerCase()) ? esc(nm) : `${esc(k)} · ${esc(nm)}`; })()}</button>`).join('')}${sumChip}</div>`;
-        const tabBar = `<div class="kx-sf-scope" data-fin-tabs>${TABS.map(([k, l]) => `<button type="button" class="${st.view === k ? 'active' : ''}" data-fin-tab="${k}">${esc(l)}</button>`).join('')}</div>`;
+        const tabBar = `<div class="kx-sf-scope" data-fin-tabs>${TABS.filter(([k]) => finShared || !['REIMBURSE', 'CAPEX', 'CASE'].includes(k) /* N2.6b+: a child sees only personal tabs */).map(([k, l]) => `<button type="button" class="${st.view === k ? 'active' : ''}" data-fin-tab="${k}">${esc(l)}</button>`).join('')}</div>`;
         if (locked) {
             root.innerHTML = `<div class="kx-fin" data-fin-hub data-fin-locked>${spaceChips}<div class="kx-tw-safety">🔒 ${esc(TL('fin.locked', 'Finance is sensitive – sign in to see and record movements.'))} <span class="kx-fix"><button type="button" class="btn ghost compact" data-fix-place="IDENTITY">🔐 ${esc(TL('fix.place.IDENTITY', 'Sign in'))}</button><button type="button" class="btn ghost compact" data-fix-manual="${esc(TL('fix.idManual', 'identity'))}">📘 ${esc(TL('fix.manual', 'Manual'))}</button></span></div></div>`;
             bindSpaces(root, core, opts);

@@ -11,7 +11,7 @@ var KXAccess;
        games, media, SOS … stay visible. Parents switch anything on per hub / tab / folder / file / feature and per child.
        (N2.5a fix: „APP.KX.PEOPLE“ never existed – „Lidé a práce“ is APP.KX.HR.) */
     const CHILD_HIDDEN = [
-        /* money */ 'APP.KX.FINANCE', 'APP.KX.SUBSCRIPTIONS', 'APP.KX.ASSETS',
+        /* money (N2.6b+: Finance is open – it shows a child only his own finances, the rule lives in the finance core) */ 'APP.KX.SUBSCRIPTIONS', 'APP.KX.ASSETS',
         /* company */ 'APP.KX.SHOP', 'APP.KX.SALES', 'APP.KX.PURCHASE', 'APP.KX.STOCK', 'APP.KX.INVENTORY', 'APP.KX.SHIPPING', 'APP.KX.RENTAL', 'APP.KX.SERVICE', 'APP.KX.BUILD', 'APP.KX.ADS', 'APP.KX.HR', 'APP.KX.TIME', 'APP.KX.CONTRACTS', 'APP.KX.CERTIFY', 'APP.KX.LASER', 'APP.KX.PRINT', 'APP.KX.PRINT3D',
         /* sensitive */ 'APP.KX.HEALTH', 'APP.KX.VAULT', 'APP.KX.IDENTITY',
         /* system */ 'APP.KX.INSIGHT', 'APP.KX.ARCHIVE', 'APP.KX.DATA', 'APP.KX.DEV', 'APP.KX.BACKUP', 'APP.KX.AUTOMATE', 'APP.KX.CONNECT', 'APP.KX.LAB'
