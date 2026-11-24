@@ -22,6 +22,8 @@ var KXFinancePlan;
         const readable = async (r, actor) => { try {
             if (!await core.ownerReadGate.allows(r.ownerApp, actor))
                 return false;
+            if (core.financeAccess && !await core.financeAccess(r.spaceIds || [], actor))
+                return false; /* N2.6b+: children see only their own finances */
             return await core.access.can({ kind: 'ENTITY', id: r.id, ownerApp: r.ownerApp, spaceIds: r.spaceIds || [] }, actor, 'READ') === true;
         }
         catch {
@@ -44,6 +46,8 @@ var KXFinancePlan;
             const sp = cur ? cur.spaceIds : [String(p?.spaceId || '')];
             if (!sp[0])
                 throw new Error('FINANCE_PLAN_SPACE');
+            if (core.financeAccess && !await core.financeAccess(sp, ctx.actorId))
+                throw new Error('FINANCE_SPACE'); /* N2.6b+: only parents write shared plans; everybody their own */
             return core.entities.save(cur ? { ...cur, expectedRevision: cur.revision, data } : { type, ownerApp: OWNER, schema: 'KX.' + type + '/1', spaceIds: sp, data }, { ...ctx, appCode: OWNER });
         };
         /* N2.5q: occurrence dates of a planned payment between two dates (any interval) */

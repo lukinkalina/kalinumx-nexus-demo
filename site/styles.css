@@ -2167,3 +2167,9 @@ html body .content .ag-tag.green{color:var(--muted) !important;background:transp
 .kx-area-badge{display:inline-flex;align-items:center;justify-content:center;min-width:22px;padding:0 4px;margin:0 4px 0 2px;border-radius:999px;font-size:11px;line-height:18px;border:1px solid color-mix(in srgb,var(--accent,#f2c869) 35%,transparent);background:color-mix(in srgb,var(--accent,#f2c869) 8%,transparent)}
 
 html body .content .ag-prow > em{color:var(--kx-cbwarn) !important}.ag-prow b .kx-area-badge,.ag-it b .kx-area-badge{margin:0 6px 0 0;vertical-align:1px}
+
+.ag-no-fin :is(.ag-kpi:has([data-ag-val="topay"]),.ag-kpi:has([data-ag-val="free"]),.ag-kpi:has([data-ag-val="reserve"]),.ag-kpi:has([data-ag-val="payday"]),[data-ag-chart-one]){display:none !important}
+
+.kx-fin-xfer[open]>.kx-fin-xfer-f{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;padding:10px;border:1px solid var(--border);border-radius:12px;margin-top:6px}.kx-fin-xfer-f .kx-lf{display:grid;gap:3px;min-width:130px}.kx-fin-xfer-f .kx-lf-wide{min-width:220px;flex:1}
+
+.kx-fin-xplans{flex-basis:100%;display:grid;gap:6px;margin-top:4px}.kx-fin-xplan{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:10px;font-size:13px}.kx-fin-xplan>span{flex:1;min-width:220px}

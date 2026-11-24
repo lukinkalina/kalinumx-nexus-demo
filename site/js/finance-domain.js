@@ -9,8 +9,8 @@ var KXFinance;
     const TRANSFER_TYPES = ['HOUSEHOLD', 'POCKET_MONEY', 'BOARDING', 'SCHOOL', 'SAVINGS', 'LOAN', 'REFUND', 'GIFT', 'OWN', 'OTHER'];
     const REIMB = ['TO_REIMBURSE', 'HELD', 'APPROVED', 'READY_TO_PAY', 'PAID'];
     const CATS = {
-        HOUSEHOLD: ['HOUSING', 'ENERGY', 'FOOD', 'TRANSPORT', 'CAR', 'HEALTH', 'KIDS_SCHOOL', 'PETS', 'HOBBY', 'HOLIDAY', 'GIFTS', 'SUBSCRIPTIONS', 'INSURANCE', 'SAVINGS', 'SALARY', 'OTHER_INCOME', 'OTHER'],
-        COMPANY: ['MATERIAL', 'TOOLS_MACHINES', 'WORKSHOP_ENERGY', 'MARKETING', 'SHIPPING', 'SERVICES', 'SOFTWARE', 'RENT', 'WAGES', 'TAXES_FEES', 'SALES', 'OTHER_INCOME', 'OTHER']
+        HOUSEHOLD: ['HOUSING', 'ENERGY', 'FOOD', 'TRANSPORT', 'CAR', 'HEALTH', 'KIDS_SCHOOL', 'PETS', 'HOBBY', 'HOLIDAY', 'GIFTS', 'SUBSCRIPTIONS', 'INSURANCE', 'SAVINGS', 'SALARY', 'OTHER_INCOME', 'OTHER', 'AREA_TRANSFER'],
+        COMPANY: ['MATERIAL', 'TOOLS_MACHINES', 'WORKSHOP_ENERGY', 'MARKETING', 'SHIPPING', 'SERVICES', 'SOFTWARE', 'RENT', 'WAGES', 'TAXES_FEES', 'SALES', 'OTHER_INCOME', 'OTHER', 'AREA_TRANSFER']
     };
     /* CZ VAT rates valid from 1. 1. 2024 (21 %, 12 %, 0 %) – to verify against the VAT Act when used for accounting */
     const VAT_RATES = [21, 12, 0];
@@ -43,7 +43,8 @@ var KXFinance;
             /* N2.5p (extension of THIS hub): transfer type, reimbursement, saving goal, person */
             transferType: d.kind === 'TRANSFER' && TRANSFER_TYPES.includes(d.transferType) ? d.transferType : (d.kind === 'TRANSFER' ? 'OTHER' : null),
             reimburse: REIMB.includes(d.reimburse) ? d.reimburse : null, reimburseWho: d.reimburse ? String(d.reimburseWho || '').slice(0, 120) : '',
-            goalRef: /^kx:\/\//.test(String(d.goalRef || '')) ? d.goalRef : null, personRef: /^kx:\/\//.test(String(d.personRef || '')) ? d.personRef : null };
+            goalRef: /^kx:\/\//.test(String(d.goalRef || '')) ? d.goalRef : null, personRef: /^kx:\/\//.test(String(d.personRef || '')) ? d.personRef : null,
+            /* N2.6b+ (user): transfer between areas – both movements carry the same reference */ xferRef: /^kx:\/\/finance-transfer\//.test(String(d.xferRef || '')) ? d.xferRef : null, xferSide: d.xferSide === 'OUT' || d.xferSide === 'IN' ? d.xferSide : null };
     }
     /* VAT split of a gross amount (company) */
     const vatSplit = (gross, rate) => { const base = Math.round(gross / (1 + rate / 100) * 100) / 100; return { base, vat: Math.round((gross - base) * 100) / 100 }; };
@@ -152,7 +153,27 @@ var KXFinance;
     function install(core) {
         if (core.finance)
             return core.finance;
-        const spaceOf = async (id, actor) => { const sp = (await core.propagate.spaces(actor)).find((s) => s.id === id); if (!sp)
+        /* N2.6b+ (user decision): FINANCE ACCESS – own My finances (personal space owner) or a MANAGER of a shared area (a parent); children see only their own finances */
+        core.financeAccess = core.financeAccess || (async (spaceIds, actor) => { if (actor === 'SYSTEM')
+            return true; for (const id of spaceIds || []) {
+            const s = await core.memberships.getSpace(id);
+            if (!s || s.archivedAt)
+                continue;
+            if (s.kind === 'PERSONAL') {
+                if (s.ownerUserId === actor)
+                    return true;
+                continue;
+            }
+            if (await core.memberships.roleFor(id, actor) === 'MANAGE')
+                return true;
+        } return false; });
+        /* due dates of a repeated transfer after lastDate (or from startDate) up to today – catch-up included */
+        const dueDates = (d, today) => { const out = []; const start = d.lastDate ? (() => { const x = new Date(d.lastDate + 'T12:00:00'); x.setDate(x.getDate() + 1); return x; })() : new Date(String(d.startDate) + 'T12:00:00'); const end = new Date(today + 'T12:00:00'); for (let x = new Date(start); x <= end && out.length < 60; x.setDate(x.getDate() + 1)) {
+            const ok = d.rule === 'WEEKLY' ? x.getDay() === Number(d.day) : x.getDate() === Number(d.day);
+            if (ok)
+                out.push(x.toISOString().slice(0, 10));
+        } return out; };
+        const spaceOf = async (id, actor) => { const sp = (await core.propagate.spaces(actor)).find((s) => s.id === id); if (!sp || !await core.financeAccess([sp.id], actor))
             throw new Error('FINANCE_SPACE'); return sp; };
         const svc = {
             async save(p, ctx) {
@@ -163,7 +184,107 @@ var KXFinance;
                     throw new Error('FINANCE_NOT_FOUND');
                 return core.entities.save({ id: p.id, type: T, ownerApp: OWNER, schema: 'KX.FINANCE.MOVEMENT/1', spaceIds: [sp.id], expectedRevision: old?.revision, data }, ctx);
             },
-            async list(p, ctx) { const ids = new Set((await core.propagate.spaces(ctx.actorId)).filter((s) => !p?.spaceId || s.id === p.spaceId).map((s) => s.id)); return (await core.entities.list()).filter((r) => r.type === T && !r.archivedAt && r.spaceIds.some((s) => ids.has(s))); },
+            async list(p, ctx) { const vis = (await core.propagate.spaces(ctx.actorId)).filter((s) => !p?.spaceId || s.id === p.spaceId); const okIds = []; for (const s of vis)
+                if (await core.financeAccess([s.id], ctx.actorId))
+                    okIds.push(s.id); const ids = new Set(okIds); return (await core.entities.list()).filter((r) => r.type === T && !r.archivedAt && r.spaceIds.some((s) => ids.has(s))); },
+            /* N2.6b+ (user decision): transfer between areas – Moje finance ↔ Rodina / Firma, Rodina ↔ Firma (both ways), Rodina / Firma → a member.
+               Rights: from a shared area only its manager (a parent); from My finances only their owner. Two linked movements: EXPENSE in the source, INCOME in the target. */
+            async transfer(p, ctx) {
+                const from = await spaceOf(String(p?.fromSpaceId || ''), ctx.actorId);
+                const visible = await core.propagate.spaces(ctx.actorId);
+                let to = p?.toSpaceId ? visible.find((x) => x.id === p.toSpaceId) : null;
+                if (!to && p?.toMemberId)
+                    to = (await core.memberships.listSpaces()).find((x) => x.kind === 'PERSONAL' && x.ownerUserId === p.toMemberId && !x.archivedAt);
+                if (!to)
+                    throw new Error('FINANCE_TRANSFER_TARGET');
+                if (to.id === from.id)
+                    throw new Error('FINANCE_TRANSFER_SAME');
+                if (from.kind === 'PERSONAL') {
+                    const full = await core.memberships.getSpace(from.id);
+                    if (!full || full.ownerUserId !== ctx.actorId)
+                        throw new Error('FINANCE_TRANSFER_NOT_OWNER'); /* the owner comes from the core space record – never trust a missing value */
+                }
+                else {
+                    const role = await core.memberships.roleFor(from.id, ctx.actorId);
+                    if (role !== 'MANAGE')
+                        throw new Error('FINANCE_TRANSFER_PARENTS_ONLY');
+                }
+                const date = String(p?.date || new Date().toISOString().slice(0, 10)), currency = String(p?.currency || 'CZK'), amount = Number(p?.amount), note = String(p?.note || '').slice(0, 500);
+                const ref = 'kx://finance-transfer/' + (globalThis.crypto?.randomUUID?.() || String(Date.now()) + Math.random().toString(36).slice(2));
+                const nameOf = (x) => x.kind === 'PERSONAL' ? (x.name || 'Moje finance') : x.name || x.kind;
+                const outData = validate({ kind: 'EXPENSE', date, amount, currency, category: 'AREA_TRANSFER', counterparty: nameOf(to), note, xferRef: ref, xferSide: 'OUT' }, from.kind);
+                const inData = validate({ kind: 'INCOME', date, amount, currency, category: 'AREA_TRANSFER', counterparty: nameOf(from), note, xferRef: ref, xferSide: 'IN' }, to.kind);
+                const out = await core.entities.save({ type: T, ownerApp: OWNER, schema: 'KX.FINANCE.MOVEMENT/1', spaceIds: [from.id], data: outData }, ctx);
+                let inc = null;
+                try {
+                    const canWrite = visible.some((x) => x.id === to.id);
+                    inc = await core.entities.save({ type: T, ownerApp: OWNER, schema: 'KX.FINANCE.MOVEMENT/1', spaceIds: [to.id], data: { ...inData, xferBy: ctx.actorId } }, canWrite ? ctx : { ...ctx, actorId: 'SYSTEM' });
+                }
+                catch (e) {
+                    try {
+                        const o = await core.entities.get(out.id);
+                        await core.entities.save({ ...o, archivedAt: new Date().toISOString(), expectedRevision: o.revision }, ctx);
+                    }
+                    catch { }
+                    throw e;
+                }
+                return { ref, out, in: inc, from: { id: from.id, kind: from.kind }, to: { id: to.id, kind: to.kind } };
+            },
+            /* N2.6b+ (user): REPEATED TRANSFER (e.g. pocket money) – WEEKLY on a weekday or MONTHLY on a day; mode AUTO (transfers by itself) or MANUAL (only reminds, “Transfer now”); stored in the source area (parents only for shared money) */
+            async xferPlanSave(p, ctx) {
+                const from = await spaceOf(String(p?.fromSpaceId || ''), ctx.actorId);
+                if (from.kind !== 'PERSONAL' && await core.memberships.roleFor(from.id, ctx.actorId) !== 'MANAGE')
+                    throw new Error('FINANCE_TRANSFER_PARENTS_ONLY');
+                const rule = p?.rule === 'MONTHLY' ? 'MONTHLY' : 'WEEKLY';
+                const day = Number(p?.day);
+                if (rule === 'WEEKLY' && !(day >= 0 && day <= 6))
+                    throw new Error('FINANCE_XPLAN_DAY');
+                if (rule === 'MONTHLY' && !(day >= 1 && day <= 28))
+                    throw new Error('FINANCE_XPLAN_DAY');
+                const amount = Number(p?.amount);
+                if (!(amount > 0))
+                    throw new Error('FINANCE_AMOUNT');
+                if (!p?.toSpaceId && !p?.toMemberId)
+                    throw new Error('FINANCE_TRANSFER_TARGET');
+                const data = { fromSpaceId: from.id, toSpaceId: p.toSpaceId ? String(p.toSpaceId) : null, toMemberId: p.toMemberId ? String(p.toMemberId) : null, toLabel: String(p?.toLabel || '').slice(0, 80), amount, currency: String(p?.currency || 'CZK'), note: String(p?.note || '').slice(0, 200), rule, day, mode: p?.mode === 'MANUAL' ? 'MANUAL' : 'AUTO', startDate: String(p?.startDate || new Date().toISOString().slice(0, 10)), lastDate: p?.lastDate ? String(p.lastDate) : null };
+                if (p?.id) {
+                    const cur = await core.entities.get(String(p.id));
+                    if (!cur || cur.type !== 'APP.FINANCE.XFER_PLAN')
+                        throw new Error('FINANCE_XPLAN_NOT_FOUND');
+                    await spaceOf(cur.spaceIds[0], ctx.actorId);
+                    return core.entities.save({ ...cur, expectedRevision: cur.revision, data: { ...cur.data, ...data, lastDate: cur.data.lastDate } }, ctx);
+                }
+                return core.entities.save({ type: 'APP.FINANCE.XFER_PLAN', ownerApp: OWNER, schema: 'KX.FINANCE.XFER_PLAN/1', spaceIds: [from.id], data }, ctx);
+            },
+            async xferPlanList(p, ctx) { const out = []; for (const r of await core.entities.list()) {
+                if (r.type !== 'APP.FINANCE.XFER_PLAN' || r.archivedAt)
+                    continue;
+                if (!await core.financeAccess(r.spaceIds || [], ctx.actorId))
+                    continue;
+                out.push({ ...r, due: dueDates(r.data, String(p?.today || new Date().toISOString().slice(0, 10))) });
+            } return out; },
+            async xferPlanMode(p, ctx) { const cur = await core.entities.get(String(p?.id || '')); if (!cur || cur.type !== 'APP.FINANCE.XFER_PLAN')
+                throw new Error('FINANCE_XPLAN_NOT_FOUND'); await spaceOf(cur.spaceIds[0], ctx.actorId); return core.entities.save({ ...cur, expectedRevision: cur.revision, data: { ...cur.data, mode: p?.mode === 'MANUAL' ? 'MANUAL' : 'AUTO' } }, ctx); },
+            async xferPlanStop(p, ctx) { const cur = await core.entities.get(String(p?.id || '')); if (!cur || cur.type !== 'APP.FINANCE.XFER_PLAN')
+                throw new Error('FINANCE_XPLAN_NOT_FOUND'); await spaceOf(cur.spaceIds[0], ctx.actorId); return core.entities.save({ ...cur, expectedRevision: cur.revision, archivedAt: new Date().toISOString() }, ctx); },
+            /* run: AUTO plans – every due date up to today; one plan with {id} – “Transfer now” (also MANUAL) */
+            async xferPlanRun(p, ctx) {
+                const today = String(p?.today || new Date().toISOString().slice(0, 10));
+                const done = [];
+                for (const r of await this.xferPlanList({}, ctx)) {
+                    if (p?.id && r.id !== p.id)
+                        continue;
+                    if (!p?.id && r.data.mode !== 'AUTO')
+                        continue;
+                    for (const d of dueDates(r.data, today)) {
+                        const t = await this.transfer({ fromSpaceId: r.data.fromSpaceId, toSpaceId: r.data.toSpaceId || undefined, toMemberId: r.data.toMemberId || undefined, amount: r.data.amount, currency: r.data.currency, date: d, note: (r.data.note || '') + (r.data.mode === 'AUTO' ? ' (automaticky)' : '') }, ctx);
+                        const cur = await core.entities.get(r.id);
+                        await core.entities.save({ ...cur, expectedRevision: cur.revision, data: { ...cur.data, lastDate: d } }, ctx);
+                        done.push({ plan: r.id, date: d, ref: t.ref });
+                    }
+                }
+                return { done };
+            },
             async archive(p, ctx) { const r = await core.entities.get(p.id); if (!r || r.type !== T)
                 throw new Error('FINANCE_NOT_FOUND'); return core.entities.save({ ...r, archivedAt: new Date().toISOString(), expectedRevision: r.revision }, ctx); }
         };
@@ -174,7 +295,14 @@ var KXFinance;
         reg('ACTION.FINANCE.MOVEMENT.SAVE', 'SAFE_WRITE', (p, c) => svc.save(p, c));
         reg('ACTION.FINANCE.MOVEMENT.LIST', 'READ', (p, c) => svc.list(p, c));
         reg('ACTION.FINANCE.MOVEMENT.ARCHIVE', 'SAFE_WRITE', (p, c) => svc.archive(p, c));
-        reg('ACTION.FINANCE.SUMMARY', 'READ', async (p, c) => { const rows = await svc.list(p, c); if (p.convert && core.currency) {
+        reg('ACTION.FINANCE.TRANSFER', 'SAFE_WRITE', (p, c) => svc.transfer(p, c));
+        reg('ACTION.FINANCE.XFER_PLAN.SAVE', 'SAFE_WRITE', (p, c) => svc.xferPlanSave(p, c));
+        reg('ACTION.FINANCE.XFER_PLAN.LIST', 'READ', (p, c) => svc.xferPlanList(p, c));
+        reg('ACTION.FINANCE.XFER_PLAN.MODE', 'SAFE_WRITE', (p, c) => svc.xferPlanMode(p, c));
+        reg('ACTION.FINANCE.XFER_PLAN.STOP', 'SAFE_WRITE', (p, c) => svc.xferPlanStop(p, c));
+        reg('ACTION.FINANCE.XFER_PLAN.RUN', 'SAFE_WRITE', (p, c) => svc.xferPlanRun(p, c));
+        reg('ACTION.FINANCE.SUMMARY', 'READ', async (p, c) => { if (p?.spaceId)
+            await spaceOf(String(p.spaceId), c.actorId); /* refused, not silently empty */ /* refused, not silently empty */ const rows = await svc.list(p, c); if (p.convert && core.currency) {
             const r = await core.currency.rates();
             return summaryConverted(rows, String(p.month), p.currency || 'CZK', r?.rates || { CZK: 1 });
         } return summary(rows, String(p.month), p.currency || 'CZK'); });
@@ -560,10 +688,14 @@ var KXFinanceHub;
         }
         catch { }
         const kindsFor = (c) => c === 'WORK' ? ['COMPANY'] : c === 'HOME' ? ['PERSONAL', 'FAMILY'] : ['PERSONAL', 'FAMILY', 'COMPANY'];
-        const allSpaces = (await core.propagate.spaces(opts.actorId)).filter((s) => ['PERSONAL', 'FAMILY', 'COMPANY'].includes(s.kind));
-        let spaces = allSpaces.filter((s) => kindsFor(navCtx).includes(s.kind));
+        const allSpaces0 = (await core.propagate.spaces(opts.actorId)).filter((s) => ['PERSONAL', 'FAMILY', 'COMPANY'].includes(s.kind));
+        const allSpaces = [];
+        for (const s0 of allSpaces0)
+            if (await core.financeAccess([s0.id], opts.actorId))
+                allSpaces.push(s0); /* children: only their own finances */
+        let spaces = allSpaces.filter((s) => kindsFor(navCtx).includes(s.kind) && (s.kind !== 'PERSONAL' || !s.ownerUserId || s.ownerUserId === opts.actorId));
         if (!spaces.length)
-            spaces = allSpaces;
+            spaces = allSpaces.filter((s) => s.kind !== 'PERSONAL' || !s.ownerUserId || s.ownerUserId === opts.actorId); /* N2.6b+ (user): every member keeps his own finances – others never see them */
         if (st.navCtx !== navCtx) {
             st.navCtx = navCtx;
             st.space = '';
@@ -590,7 +722,7 @@ var KXFinanceHub;
             st.sumCur = st.sumCur || 'CZK';
             const rates = core.currency ? (await core.currency.rates())?.rates || { CZK: 1 } : { CZK: 1 };
             const per = [];
-            for (const spx of spaces) {
+            for (const spx of spaces.filter((x) => x.kind !== 'PERSONAL') /* N2.6b+ (user): My finances stay with the member – not in the shared summary */) {
                 let rws = [];
                 try {
                     rws = await core.actions.invoke('ACTION.FINANCE.MOVEMENT.LIST', { spaceId: spx.id }, C);
@@ -613,10 +745,11 @@ var KXFinanceHub;
                     other.add(c);
             }
             const f = (n) => Number(Math.round(n * 100) / 100).toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const nm = (spx) => { const k = TL('fin.space.' + spx.kind, spx.kind); const n = String(spx.name || ''); return n.toLowerCase().startsWith(String(k).toLowerCase()) ? n : `${k} · ${n}`; };
+            const nm = (spx) => { if (spx.kind === 'PERSONAL')
+                return '👤 ' + TL('fin.mine', 'My finances'); const k = TL('fin.space.' + spx.kind, spx.kind); const n = String(spx.name || ''); return n.toLowerCase().startsWith(String(k).toLowerCase()) ? n : `${k} · ${n}`; };
             const top = Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 6);
             root.innerHTML = `<div class="kx-fin" data-fin-hub data-fin-sum><div class="kx-print3d-tabs" data-fin-spaces>${spaces.map((s2) => `<button class="chip" data-fin-space="${esc(s2.id)}" title="${esc(TL('fin.sum.openArea', 'Open this area'))}">${esc(nm(s2))}</button>`).join('')}${sumChip}</div>
-         <div class="kx-fin-head"><label>${esc(TL('fin.month', 'Month'))} <input type="month" data-fin-summonth value="${esc(st.month)}"></label><small class="muted">${esc(st.sumCur)}${st.convert ? ' · ' + esc(TL('fin.sum.converted', 'converted')) : ''}</small></div>
+         ${spaces.some((x) => x.kind === 'PERSONAL') ? `<small class="muted kx-fin-mine-note">👤 ${esc(TL('fin.mineNote', 'My finances are yours only – they are not counted in the shared summary'))}</small>` : ''}<div class="kx-fin-head"><label>${esc(TL('fin.month', 'Month'))} <input type="month" data-fin-summonth value="${esc(st.month)}"></label><small class="muted">${esc(st.sumCur)}${st.convert ? ' · ' + esc(TL('fin.sum.converted', 'converted')) : ''}</small></div>
          <div class="kx-fin-kpis kx-fin-sumkpi"><div><small>${esc(TL('fin.income', 'Income'))}</small><b>${f(tot.income)} ${esc(st.sumCur)}</b></div><div><small>${esc(TL('fin.expense', 'Expenses'))}</small><b>${f(tot.expense)} ${esc(st.sumCur)}</b></div><div><small>${esc(TL('fin.balance', 'Balance'))}</small><b class="${tot.balance < 0 ? 'kx-neg' : 'kx-pos'}">${f(tot.balance)} ${esc(st.sumCur)}</b></div></div>
          <table class="kx-calc-table kx-fin-sumtab"><thead><tr><th>${esc(TL('fin.sum.area', 'Area'))}</th><th class="num">${esc(TL('fin.income', 'Income'))}</th><th class="num">${esc(TL('fin.expense', 'Expenses'))}</th><th class="num">${esc(TL('fin.balance', 'Balance'))}</th><th class="num">${esc(TL('fin.sum.count', 'Movements'))}</th><th></th></tr></thead><tbody>${per.map(x => `<tr><td>${esc(nm(x.sp))}</td><td class="num">${f(x.sm.income)}</td><td class="num">${f(x.sm.expense)}</td><td class="num ${x.sm.balance < 0 ? 'kx-neg' : 'kx-pos'}">${f(x.sm.balance)}</td><td class="num">${x.sm.count}</td><td><button class="btn compact" data-fin-space="${esc(x.sp.id)}" title="${esc(TL('fin.sum.openArea', 'Open this area'))}">${esc(TL('fin.sum.open', 'Open'))} →</button></td></tr>`).join('')}<tr class="kx-fin-total"><td><b>Σ ${esc(TL('fin.sum.total', 'Total'))}</b></td><td class="num"><b>${f(tot.income)}</b></td><td class="num"><b>${f(tot.expense)}</b></td><td class="num ${tot.balance < 0 ? 'kx-neg' : 'kx-pos'}"><b>${f(tot.balance)}</b></td><td class="num"><b>${tot.count}</b></td><td></td></tr></tbody></table>
          ${top.length ? `<h5>${esc(TL('fin.sum.topCats', 'Largest expenses by category'))}</h5><div class="kx-fin-cats">${top.map(([k, v]) => `<div><span>${esc(TL('fin.cat.' + k, k))}</span><b>${f(Number(v))}</b><i style="width:${Math.max(4, Math.round(Number(v) / top[0][1] * 100))}%"></i></div>`).join('')}</div>` : ''}
@@ -636,7 +769,7 @@ var KXFinanceHub;
             else
                 throw e;
         }
-        const spaceChips = `<div class="kx-print3d-tabs" data-fin-spaces>${spaces.map((s) => `<button class="chip ${s.id === st.space ? 'active' : ''}" data-fin-space="${esc(s.id)}">${(() => { const k = TL('fin.space.' + s.kind, s.kind); const nm = String(s.name || ''); return nm.toLowerCase().startsWith(String(k).toLowerCase()) ? esc(nm) : `${esc(k)} · ${esc(nm)}`; })()}</button>`).join('')}${sumChip}</div>`;
+        const spaceChips = `<div class="kx-print3d-tabs" data-fin-spaces>${spaces.map((s) => `<button class="chip ${s.id === st.space ? 'active' : ''}" data-fin-space="${esc(s.id)}">${s.kind === 'PERSONAL' ? `👤 ${esc(TL('fin.mine', 'My finances'))}` : (() => { const k = TL('fin.space.' + s.kind, s.kind); const nm = String(s.name || ''); return nm.toLowerCase().startsWith(String(k).toLowerCase()) ? esc(nm) : `${esc(k)} · ${esc(nm)}`; })()}</button>`).join('')}${sumChip}</div>`;
         const tabBar = `<div class="kx-sf-scope" data-fin-tabs>${TABS.map(([k, l]) => `<button type="button" class="${st.view === k ? 'active' : ''}" data-fin-tab="${k}">${esc(l)}</button>`).join('')}</div>`;
         if (locked) {
             root.innerHTML = `<div class="kx-fin" data-fin-hub data-fin-locked>${spaceChips}<div class="kx-tw-safety">🔒 ${esc(TL('fin.locked', 'Finance is sensitive – sign in to see and record movements.'))} <span class="kx-fix"><button type="button" class="btn ghost compact" data-fix-place="IDENTITY">🔐 ${esc(TL('fix.place.IDENTITY', 'Sign in'))}</button><button type="button" class="btn ghost compact" data-fix-manual="${esc(TL('fix.idManual', 'identity'))}">📘 ${esc(TL('fix.manual', 'Manual'))}</button></span></div></div>`;
@@ -662,7 +795,17 @@ var KXFinanceHub;
       <div class="kx-fin-head"><label>${esc(TL('fin.month', 'Month'))} <input type="month" data-fin-month value="${esc(st.month)}"></label>
         <label>${esc(TL('fin.sumCur', 'Currency'))} <select data-fin-sumcur>${CODES.map((c) => `<option value="${c}" ${c === st.sumCur ? 'selected' : ''} title="${esc(FX?.label(c) || c)}">${c}</option>`).join('')}</select></label><label class="kx-chk" title="${esc(TL('fin.convertHelp', 'Movements in other currencies (EUR, USD…) are converted to the chosen currency with the current exchange rate and added to the totals'))}"><input type="checkbox" data-fin-convert ${st.convert ? 'checked' : ''}> ${esc(TL('fin.convert', 'convert other currencies'))} <i class="lce-i">ⓘ</i></label>
         <div class="kx-fin-sum" data-fin-summary><span>${esc(TL('fin.income', 'Income'))} <b data-fin-income>${money(sum.income, st.sumCur)}</b></span><span>${esc(TL('fin.expense', 'Expense'))} <b data-fin-expense>${money(sum.expense, st.sumCur)}</b></span><span>${esc(TL('fin.balance', 'Balance'))} <b data-fin-balance class="${sum.balance < 0 ? 'kx-neg' : ''}">${money(sum.balance, st.sumCur)}</b></span>${(sum.otherCurrencies || []).length ? `<small class="muted">${esc(TL('fin.otherCurrencies', 'other currencies not added'))}: ${esc(sum.otherCurrencies.join(', '))}</small>` : ''}${(sum.missingRates || []).length ? `<small class="kx-off" data-fin-missing>${esc(TL('fin.missingRates', 'no rate (not added)'))}: ${esc(sum.missingRates.join(', '))}</small>` : ''}</div>
-        <button class="btn ghost compact" data-fin-csv>⇩ CSV</button> <details class="kx-fin-imp"><summary class="btn ghost compact" title="${esc(TL('fin.importHelp', 'Movements from the bank statement (CSV) – first a preview, nothing is saved without confirmation'))}">⇧ ${esc(TL('fin.importBank', 'Import from bank (CSV)'))}</summary><label class="btn ghost compact">⇧ ${esc(TL('fin.import', 'Import CSV'))}<input type="file" accept=".csv,text/csv" data-fin-import hidden></label></details></div>
+        <button class="btn ghost compact" data-fin-csv>⇩ CSV</button> <details class="kx-fin-imp kx-fin-xfer"><summary class="btn ghost compact" title="${esc(TL('fin.xferHelp', 'Move money between My finances, Family, Company or to a member'))}">⇄ ${esc(TL('fin.xfer', 'Transfer'))}</summary><div class="kx-fin-xfer-f" data-fin-xfer-form>
+          <label class="kx-lf"><span>${esc(TL('fin.xferFrom', 'From'))}</span><select data-fx="from">${spaces.map((s0) => `<option value="${esc(s0.id)}" ${s0.id === st.space ? 'selected' : ''}>${s0.kind === 'PERSONAL' ? '👤 ' + esc(TL('fin.mine', 'My finances')) : esc(s0.name || s0.kind)}</option>`).join('')}</select></label>
+          <label class="kx-lf"><span>${esc(TL('fin.xferTo', 'To'))}</span><select data-fx="to"><option value="">${esc(TL('fin.xferPick', '– choose –'))}</option></select></label>
+          <label class="kx-lf"><span>${esc(TL('fin.xferAmount', 'Amount'))}</span><input type="number" min="0.01" step="0.01" data-fx="amount" placeholder="0"></label>
+          <label class="kx-lf"><span>${esc(TL('fin.col.currency', 'Currency'))}</span><select data-fx="currency">${['CZK', 'EUR', 'USD'].map(c => `<option ${c === defCur ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+          <label class="kx-lf"><span>${esc(TL('fin.col.date', 'Date'))}</span><input type="date" data-fx="date" value="${new Date().toISOString().slice(0, 10)}"></label>
+          <label class="kx-lf kx-lf-wide"><span>${esc(TL('fin.col.note', 'Note'))}</span><input type="text" data-fx="note" placeholder="${esc(TL('fin.xferNotePh', 'e.g. pocket money, contribution, return'))}"></label>
+          <label class="kx-lf"><span>${esc(TL('fin.xrRepeat', 'Repeat'))}</span><select data-fx="rule"><option value="">${esc(TL('fin.xrNone', 'No – only now'))}</option><option value="WEEKLY">${esc(TL('fin.xrWeekly', 'Every week'))}</option><option value="MONTHLY">${esc(TL('fin.xrMonthly', 'Every month'))}</option></select></label>
+          <label class="kx-lf" data-fx-daywrap hidden><span>${esc(TL('fin.xrDay', 'Day'))}</span><select data-fx="day"></select></label>
+          <label class="kx-lf" data-fx-modewrap hidden title="${esc(TL('fin.xrModeHelp', 'Automatically = transfers by itself on the day; Manually = only reminds, you confirm with Transfer now'))}"><span>${esc(TL('fin.xrMode', 'Mode'))}</span><select data-fx="mode"><option value="AUTO">⚡ ${esc(TL('fin.xrAuto', 'Automatically'))}</option><option value="MANUAL">✋ ${esc(TL('fin.xrManual', 'Manually (remind)'))}</option></select></label>
+          <button class="btn" data-fin-xfer-go title="${esc(TL('fin.xferGoHelp', 'Transfer now, or save the repeated transfer'))}">⇄ ${esc(TL('fin.xferGo', 'Transfer'))}</button><small class="muted" data-fin-xfer-msg></small><div class="kx-fin-xplans" data-fin-xplans></div></div></details> <details class="kx-fin-imp"><summary class="btn ghost compact" title="${esc(TL('fin.importHelp', 'Movements from the bank statement (CSV) – first a preview, nothing is saved without confirmation'))}">⇧ ${esc(TL('fin.importBank', 'Import from bank (CSV)'))}</summary><label class="btn ghost compact">⇧ ${esc(TL('fin.import', 'Import CSV'))}<input type="file" accept=".csv,text/csv" data-fin-import hidden></label></details></div>
       <div data-fin-import-box></div>
       ${Object.keys(sum.byCategory).length ? `<div class="kx-fin-cats" data-fin-cats>${Object.entries(sum.byCategory).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<span class="chip">${esc(TL('fin.cat.' + k, k))} <b>${money(v, 'CZK')}</b></span>`).join('')}</div>` : ''}
       <details class="kx-lcols" data-fin-new ${mRows.length ? '' : 'open'}><summary>＋ ${esc(TL('fin.new', 'New movement'))}</summary><div class="kx-calc-grid">
@@ -713,6 +856,95 @@ var KXFinanceHub;
                 impBox.innerHTML = `<div class="kx-tw-safety">${esc(TL('fin.err.' + String(e?.message || '').split(' ')[0], String(e?.message || e)))}</div>`;
             }
         };
+        /* N2.6b+ (user): ⇄ transfer – targets: other areas (Family / Company / My finances) and, for parents, members (their My finances) */
+        {
+            const fx = root.querySelector('[data-fin-xfer-form]');
+            if (fx) {
+                const q = (k) => fx.querySelector(`[data-fx="${k}"]`);
+                const fillTo = async () => {
+                    const from = String(q('from').value);
+                    const vis = (await core.propagate.spaces(opts.actorId)).filter((x) => ['PERSONAL', 'FAMILY', 'COMPANY', 'HOME', 'WORKSHOP', 'SHARED'].includes(x.kind) && x.id !== from);
+                    const fromSp = vis.concat(spaces).find((x) => x.id === from) || spaces.find((x) => x.id === from);
+                    let opt = vis.map((x) => `<option value="S:${esc(x.id)}">${x.kind === 'PERSONAL' ? '👤 ' + esc(TL('fin.mine', 'My finances')) : esc(x.name || x.kind)}</option>`).join('');
+                    if (fromSp && fromSp.kind !== 'PERSONAL' && await core.financeAccess([fromSp.id], opts.actorId)) {
+                        const mem = (await core.memberships.listMemberships()).filter((m) => m.userId !== opts.actorId);
+                        const seen = new Set();
+                        const own = await core.memberships.listSpaces();
+                        for (const m of mem) {
+                            if (seen.has(m.userId))
+                                continue;
+                            seen.add(m.userId);
+                            const ps = own.find((x) => x.kind === 'PERSONAL' && x.ownerUserId === m.userId);
+                            if (ps)
+                                opt += `<option value="M:${esc(m.userId)}">👤 ${esc(String(ps.name || m.userId).replace(/^Osobní\s*·\s*/, ''))}</option>`;
+                        }
+                    }
+                    q('to').innerHTML = `<option value="">${esc(TL('fin.xferPick', '– choose –'))}</option>` + opt;
+                };
+                void fillTo();
+                q('from').addEventListener('change', () => void fillTo());
+                const WD = [TL('fin.wd0', 'Sunday'), TL('fin.wd1', 'Monday'), TL('fin.wd2', 'Tuesday'), TL('fin.wd3', 'Wednesday'), TL('fin.wd4', 'Thursday'), TL('fin.wd5', 'Friday'), TL('fin.wd6', 'Saturday')];
+                const fillDay = () => { const r = String(q('rule').value); fx.querySelector('[data-fx-daywrap]').hidden = !r; fx.querySelector('[data-fx-modewrap]').hidden = !r; q('day').innerHTML = r === 'WEEKLY' ? WD.map((w, i) => `<option value="${i}" ${i === 0 ? 'selected' : ''}>${esc(w)}</option>`).join('') : Array.from({ length: 28 }, (_, i) => `<option value="${i + 1}" ${i === 0 ? 'selected' : ''}>${i + 1}.</option>`).join(''); fx.querySelector('[data-fin-xfer-go]').textContent = r ? '💾 ' + TL('fin.xrSave', 'Save repeated transfer') : '⇄ ' + TL('fin.xferGo', 'Transfer'); };
+                q('rule').addEventListener('change', fillDay);
+                fillDay();
+                /* list of repeated transfers + run AUTO ones */
+                void (async () => {
+                    const host = fx.querySelector('[data-fin-xplans]');
+                    if (!host)
+                        return;
+                    try {
+                        const run = await core.actions.invoke('ACTION.FINANCE.XFER_PLAN.RUN', {}, C);
+                        if (run?.done?.length)
+                            opts.onToast?.(TL('fin.xrRan', 'Automatic transfers done') + ': ' + run.done.length);
+                    }
+                    catch { }
+                    const L = await core.actions.invoke('ACTION.FINANCE.XFER_PLAN.LIST', {}, C).catch(() => []);
+                    if (!L.length) {
+                        host.innerHTML = '';
+                        return;
+                    }
+                    const nameOf = (id) => { const x = spaces.find((s0) => s0.id === id); return x ? (x.kind === 'PERSONAL' ? '👤 ' + TL('fin.mine', 'My finances') : x.name) : id; };
+                    host.innerHTML = `<b>${esc(TL('fin.xrList', 'Repeated transfers'))}</b>` + L.map((r) => { const d = r.data; const when = d.rule === 'WEEKLY' ? TL('fin.ewd' + d.day, 'every ' + WD[d.day]) : TL('fin.xrMonthDay', 'every month on the') + ' ' + d.day + '.'; return `<div class="kx-fin-xplan"><span>${esc(nameOf(d.fromSpaceId))} → ${esc(d.toLabel || d.toMemberId || nameOf(d.toSpaceId))} · <b>${esc(String(d.amount))} ${esc(d.currency)}</b> · ${esc(when)}${d.note ? ' · ' + esc(d.note) : ''}</span>${r.due.length ? `<i class="ag-tag violet">${esc(TL('fin.xrDue', 'due'))}: ${r.due.length}</i>` : ''}<button class="btn ghost compact" data-xr-mode="${esc(r.id)}" title="${esc(TL('fin.xrModeHelp', 'Automatically / Manually'))}">${d.mode === 'AUTO' ? '⚡ ' + esc(TL('fin.xrAuto', 'Automatically')) : '✋ ' + esc(TL('fin.xrManual', 'Manually (remind)'))}</button>${r.due.length && d.mode === 'MANUAL' ? `<button class="btn compact" data-xr-run="${esc(r.id)}" title="${esc(TL('fin.xrNowHelp', 'Transfer the due amount now'))}">⇄ ${esc(TL('fin.xrNow', 'Transfer now'))}</button>` : ''}<button class="btn ghost compact" data-xr-stop="${esc(r.id)}" title="${esc(TL('fin.xrStopHelp', 'Stop repeating – manual transfers stay possible'))}">✕ ${esc(TL('fin.xrStop', 'Stop repeating'))}</button></div>`; }).join('');
+                    host.querySelectorAll('[data-xr-mode]').forEach(b => b.onclick = async () => { const r = L.find((x) => x.id === b.dataset.xrMode); await core.actions.invoke('ACTION.FINANCE.XFER_PLAN.MODE', { id: r.id, mode: r.data.mode === 'AUTO' ? 'MANUAL' : 'AUTO' }, C); void mountHub(root, core, opts); });
+                    host.querySelectorAll('[data-xr-run]').forEach(b => b.onclick = async () => { const res = await core.actions.invoke('ACTION.FINANCE.XFER_PLAN.RUN', { id: b.dataset.xrRun }, C); opts.onToast?.(TL('fin.xferDone', 'Transferred') + ': ' + (res?.done?.length || 0)); void mountHub(root, core, opts); });
+                    host.querySelectorAll('[data-xr-stop]').forEach(b => b.onclick = async () => { if (!confirm(TL('fin.xrStopQ', 'Stop this repeated transfer? Transfers already made stay.')))
+                        return; await core.actions.invoke('ACTION.FINANCE.XFER_PLAN.STOP', { id: b.dataset.xrStop }, C); void mountHub(root, core, opts); });
+                })();
+                fx.querySelector('[data-fin-xfer-go]').onclick = async () => {
+                    const msg = fx.querySelector('[data-fin-xfer-msg]');
+                    const to = String(q('to').value);
+                    if (!to) {
+                        msg.textContent = TL('fin.xferPickMsg', 'Choose where to');
+                        return;
+                    }
+                    const p = { fromSpaceId: String(q('from').value), amount: Number(q('amount').value), currency: String(q('currency').value), date: String(q('date').value), note: String(q('note').value) };
+                    if (to.startsWith('M:'))
+                        p.toMemberId = to.slice(2);
+                    else
+                        p.toSpaceId = to.slice(2);
+                    const rule = String(q('rule').value);
+                    if (rule) {
+                        try {
+                            await core.actions.invoke('ACTION.FINANCE.XFER_PLAN.SAVE', { ...p, toLabel: q('to').selectedOptions[0]?.textContent || '', rule, day: Number(q('day').value), mode: String(q('mode').value), startDate: String(q('date').value) }, C);
+                            opts.onToast?.(TL('fin.xrSaved', 'Repeated transfer saved'));
+                            void mountHub(root, core, opts);
+                        }
+                        catch (e) {
+                            msg.textContent = TL('fin.err.' + String(e?.message || '').split(' ')[0], String(e?.message || e));
+                        }
+                        return;
+                    }
+                    try {
+                        await core.actions.invoke('ACTION.FINANCE.TRANSFER', p, C);
+                        opts.onToast?.(TL('fin.xferDone', 'Transferred') + ': ' + q('from').selectedOptions[0]?.textContent + ' → ' + q('to').selectedOptions[0]?.textContent);
+                        void mountHub(root, core, opts);
+                    }
+                    catch (e) {
+                        msg.textContent = TL('fin.err.' + String(e?.message || '').split(' ')[0], String(e?.message || e));
+                    }
+                };
+            }
+        }
         root.querySelector('[data-fin-import]').onchange = async (e) => { const f = e.target.files?.[0]; if (!f)
             return; st.imp = { name: f.name, text: await f.text(), src: defCur, to: '' }; void showImport(); };
         if (st.imp)
@@ -829,7 +1061,7 @@ var KXFinanceHub;
             }
         };
         if (globalThis.KXTable)
-            await globalThis.KXTable(root.querySelector('[data-fin-table]'), { scope: SCOPE, rows: mRows.sort((a, b) => b.data.date.localeCompare(a.data.date)), rowId: (r) => r.id, value: val, exportValue: val, filterState: () => st.filter || {}, onFilter: (x) => { st.filter = x; }, density: 'COMPACT', onDensity: () => { }, selection: st.sel, sortState: () => st.sort, onSort: (x) => { st.sort = x; },
+            await globalThis.KXTable(root.querySelector('[data-fin-table]'), { scope: SCOPE, rows: mRows.map((r) => sp?.kind !== 'PERSONAL' && r?.data?.kxControls?.sensitive === true ? { ...r, data: { ...r.data, counterparty: '🔒 ' + TL('fin.private', 'Private'), docNo: '🔒', note: '🔒 ' + TL('fin.private', 'Private') } } : r) /* N2.6b+ (user): sensitive shared movements count in the totals, their description stays hidden */.sort((a, b) => b.data.date.localeCompare(a.data.date)), rowId: (r) => r.id, value: val, exportValue: val, filterState: () => st.filter || {}, onFilter: (x) => { st.filter = x; }, density: 'COMPACT', onDensity: () => { }, selection: st.sel, sortState: () => st.sort, onSort: (x) => { st.sort = x; },
                 onOpen: () => { }, onChange: () => void mountHub(root, core, opts), isStale: () => false, rowMenu: (r) => [{ label: `🗑 ${TL('fin.archive', 'Remove (stays in history)')}`, run: async () => { try {
                             await core.actions.invoke('ACTION.FINANCE.MOVEMENT.ARCHIVE', { id: r.id }, C);
                             void mountHub(root, core, opts);

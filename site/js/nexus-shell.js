@@ -820,6 +820,20 @@ var KXAPP;
         const sumPay = pay.reduce((a, x) => a + amt(x), 0);
         const fmt = (n) => n.toLocaleString('cs-CZ', { style: 'currency', currency: 'CZK', maximumFractionDigits: 0 });
         set('today', String(todayItems.length), `${todayItems.filter(x => x.kind === 'TASK').length} ${TL('agd.tasks')} · ${todayItems.filter(x => x.kind !== 'TASK').length} ${TL('agd.events')}`);
+        try {
+            const fa = runtime.financeAccess;
+            if (fa) {
+                const shared = (await runtime.memberships.listSpaces()).filter((s) => s.kind !== 'PERSONAL' && !s.archivedAt).map((s) => s.id);
+                let has = false;
+                for (const id of shared)
+                    if (await fa([id], CURRENT_USER_ID)) {
+                        has = true;
+                        break;
+                    }
+                host.classList.toggle('ag-no-fin', !has);
+            }
+        }
+        catch { } /* N2.6b+ (user): children see no shared money on My day */
         set('topay', sumPay ? fmt(sumPay) : String(pay.length), pay.length ? `❗ ${pay.length} ${TL('agd.items')}` : TL('agd.none'));
         const payday = items.filter(x => /výplat|mzd|salary/i.test(String(x.title || '')) && at(x) >= day0).sort((a, b) => at(a) - at(b))[0];
         set('payday', payday ? `${Math.ceil((at(payday) - day0) / D)} ${TL('agd.days')}` : '—', payday ? new Date(at(payday)).toLocaleDateString('cs-CZ') : TL('agd.setPayday'));
@@ -1700,6 +1714,15 @@ var KXAPP;
         t.insertAdjacentHTML('afterbegin', html);
     else
         b.insertAdjacentHTML('afterbegin', html); })(); }); }
+    /* N2.6b+ (family audit): every field gets an accessible label – from its placeholder, help text or the text right before it */
+    function kxFieldLabelSweep() { document.querySelectorAll('#inspector.open :is(input,select,textarea):not([type=hidden]):not([type=file]):not([aria-label]):not([aria-labelledby]):not([data-kx-fl]),.content :is(input,select,textarea):not([type=hidden]):not([type=file]):not([aria-label]):not([aria-labelledby]):not([data-kx-fl])').forEach(el => { el.dataset.kxFl = '1'; if (el.closest('label'))
+        return; const id = el.id; if (id && document.querySelector(`label[for="${CSS.escape(id)}"]`))
+        return; const ph = el.placeholder || el.title || ''; let txt = String(ph).trim(); if (!txt) {
+        const prev = el.previousElementSibling;
+        txt = String(prev && /^(SPAN|SMALL|B|LABEL)$/.test(prev.tagName) ? prev.textContent || '' : '').trim();
+    } if (!txt && el.type === 'checkbox')
+        txt = String(el.parentElement?.textContent || '').trim(); if (txt)
+        el.setAttribute('aria-label', txt.slice(0, 80)); }); }
     function kxHubMoreSweep() {
         document.querySelectorAll('#inspector.open [data-hub-issues]:not([data-kx-hubmore-done])').forEach(iss => {
             iss.dataset.kxHubmoreDone = '1';
@@ -1864,6 +1887,9 @@ var KXAPP;
     }
     catch { } try {
         kxHubMoreSweep();
+    }
+    catch { } try {
+        kxFieldLabelSweep();
     }
     catch { } try {
         kxAreaLinkSweep();
@@ -3831,7 +3857,7 @@ var KXAPP;
             const hubs = [...new Set(rows.map(x => x.d.owner))];
             const vis = rows.filter(x => (!ARCH_ST.hub || x.d.owner === ARCH_ST.hub) && (!ARCH_ST.q || JSON.stringify(x.r.data || {}).toLowerCase().includes(ARCH_ST.q.toLowerCase())));
             const nm = (x) => String(x.r.data?.[x.d.nameKey] || x.r.data?.name || x.r.id);
-            root.innerHTML = `<section class="kx-arch"><div class="kx-arch-top"><input data-arch-q placeholder="${esc(TL('arch.search'))}" value="${esc(ARCH_ST.q)}"><select data-arch-hub><option value="">${esc(TL('arch.allHubs'))} (${rows.length})</option>${hubs.map(h => `<option value="${esc(h)}" ${ARCH_ST.hub === h ? 'selected' : ''}>${esc(hubLabel(h))} (${rows.filter(x => x.d.owner === h).length})</option>`).join('')}</select><button type="button" class="btn ghost" data-arch-trash>🗑 ${esc(TL('arch.trash'))}</button></div>
+            root.innerHTML = `<section class="kx-arch"><div class="kx-arch-top"><input data-arch-q placeholder="${esc(TL('arch.search'))}" value="${esc(ARCH_ST.q)}"><select data-arch-hub aria-label="${esc(TL('arch.hubFilter'))}" title="${esc(TL('arch.hubFilter'))}"><option value="">${esc(TL('arch.allHubs'))} (${rows.length})</option>${hubs.map(h => `<option value="${esc(h)}" ${ARCH_ST.hub === h ? 'selected' : ''}>${esc(hubLabel(h))} (${rows.filter(x => x.d.owner === h).length})</option>`).join('')}</select><button type="button" class="btn ghost" data-arch-trash>🗑 ${esc(TL('arch.trash'))}</button></div>
         <p class="muted">${esc(TL('arch.hint'))}</p>
         ${vis.length ? `<ul class="kx-arch-list">${vis.map(x => `<li><span><b>${esc(nm(x))}</b><small>${esc(hubLabel(x.d.owner))} · ${esc(x.d.label || '')} · ${esc(TL('arch.archivedAt'))} ${esc(new Date(x.r.archivedAt).toLocaleDateString(UI_LOCALE === 'en' ? 'en-GB' : 'cs-CZ'))}</small></span><button type="button" class="btn" data-arch-restore="${esc(x.r.id)}" data-arch-rev="${esc(String(x.r.revision))}">↶ ${esc(TL('arch.restore'))}</button></li>`).join('')}</ul>` : `<p class="muted">${esc(TL('arch.empty'))}</p>`}</section>`;
             const again = () => void KXArchiveHub.mountHub(root);
@@ -13812,7 +13838,7 @@ var KXAPP;
                 qr = `<small>QR nelze vytvořit: ${esc(String(e?.message || e))}</small>`;
             }
         }
-        host.innerHTML = `<div data-record-share><h3>QR a sdílení</h3>${u.available ? `<div class="record-qr" data-record-qr data-qr-url="${esc(u.url)}" style="width:168px">${qr}</div><input readonly data-record-url value="${esc(u.url)}">` : `<p class="empty" data-record-qr-unavailable>${esc(u.hint)}</p>`}
+        host.innerHTML = `<div data-record-share><h3>QR a sdílení</h3>${u.available ? `<div class="record-qr" data-record-qr data-qr-url="${esc(u.url)}" style="width:168px">${qr}</div><input readonly data-record-url aria-label="${esc(TL('qr.urlLabel'))}" title="${esc(TL('qr.urlHelp'))}" value="${esc(u.url)}">` : `<p class="empty" data-record-qr-unavailable>${esc(u.hint)}</p>`}
           <div class="studio-toolbar">${u.available ? '<button class="btn ghost compact" data-copy-record-url>Kopírovat odkaz</button>' : ''}<button class="btn ghost compact" data-copy-record-link>Kopírovat odkaz kx://</button><button class="btn compact" data-handoff-send>📲 Poslat na jiné zařízení</button></div><small data-record-share-note>Mobilem načtěte QR – otevře se tento záznam (NEXUS musí být na telefonu dostupný na stejné adrese).</small></div>`;
         host.addEventListener('click', e => e.stopPropagation());
         const copy = async (t) => { try {
@@ -16940,7 +16966,25 @@ var KXAPP;
                 el('#searchResults').innerHTML = kxSearchBrowse();
                 return;
             }
-            const rows = await runtime.search.search({ text: q, actorId: CURRENT_USER_ID, limit: 20, includeMarkedSensitive: !!el('#searchIncludeMarked')?.checked });
+            const rows0 = await runtime.search.search({ text: q, actorId: CURRENT_USER_ID, limit: 20, includeMarkedSensitive: !!el('#searchIncludeMarked')?.checked }); /* N2.6b+ (user): children never see shared finances – finance records only with finance access */
+            const rows = [];
+            for (const r of rows0) {
+                const dl = String(r.deepLink || '');
+                if (/FINANCE/i.test(dl) && runtime.financeAccess) {
+                    let sp = r.spaceIds || [];
+                    if (!sp.length) {
+                        try {
+                            const id = decodeURIComponent((dl.match(/^kx:\/\/[a-z_]+\/([^?#@]+)/i)?.[1] || '').split('/').filter(Boolean).pop() || '');
+                            const e = await runtime.entities.get(id);
+                            sp = e?.spaceIds || [];
+                        }
+                        catch { }
+                    }
+                    if (!await runtime.financeAccess(sp, CURRENT_USER_ID))
+                        continue;
+                }
+                rows.push(r);
+            }
             try {
                 const codeHits = runtime.recordCodes ? await runtime.recordCodes.resolve(q, CURRENT_USER_ID) : [];
                 for (const h of codeHits.reverse())
