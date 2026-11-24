@@ -2178,3 +2178,5 @@ html body .content .ag-prow > em{color:var(--kx-cbwarn) !important}.ag-prow b .k
 
 /* family audit: one way to add – hubs with their own add button hide the generic “＋ Nový” of the hub bar */
 html body #inspector.open:has(.veh-hub .veh-head > .btn) .kx-hub-bar [data-hub-new]{display:none !important}
+
+.kit-help{margin:2px 0 8px;font-size:12.5px}.kit-help>summary{cursor:pointer;opacity:.85;list-style:none;display:inline-block}.kit-help>summary::-webkit-details-marker{display:none}.kit-help[open]>ul{margin:6px 0 0;padding:8px 12px 8px 26px;border:1px solid var(--border);border-radius:10px;display:grid;gap:4px;line-height:1.4}

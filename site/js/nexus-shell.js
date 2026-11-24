@@ -731,7 +731,7 @@ var KXAPP;
       <div class="ag-tabs">${[['today', 'agd.t.today'], ['week', 'agd.t.week'], ['late', 'agd.t.late']].map(([k, l]) => `<button type="button" class="${agUi.tab === k ? 'on' : ''}" data-ag-tab="${k}">${esc(TL(l))} <span data-ag-cnt="${k}"></span></button>`).join('')}</div><div class="ag-list" data-ag-list><small>…</small></div></div></div>
       </div>
       <div class="ag-card ag-cal"><div class="ag-cal-h"><b>📅 ${esc(TL('agd.cal'))}</b><small>${esc(TL('agd.calEn'))}</small></div><div class="ag-cal-days" data-ag-cal></div></div>
-      <div class="ag-row2"><div class="ag-card ag-plan"><div class="ag-card-h"><b>📋 ${esc(TL('agd.plan'))}</b><small>${esc(TL('agd.planEn'))}</small></div><div class="ag-filters">${[['all', 'agd.f.all'], ['pay', 'agd.f.pay'], ['task', 'agd.f.task'], ['event', 'agd.f.event']].map(([k, l]) => `<button type="button" class="${agUi.filter === k ? 'on' : ''}" data-ag-filter="${k}">${esc(TL(l))} <span data-ag-fcnt="${k}"></span></button>`).join('')}</div><div data-ag-plan><small>…</small></div></div>
+      <div class="ag-row2"><div class="ag-card ag-plan"><div class="ag-card-h"><b>📋 ${esc(TL('agd.plan'))}</b><small>${esc(TL('agd.planEn'))}</small></div><details class="kit-help"><summary>ⓘ ${esc(TL('kit.help.title'))}</summary><ul>${['done', 'menu', 'badge', 'changes', 'scope'].map(k => `<li>${esc(TL('agh.' + k))}</li>`).join('')}</ul></details><div class="ag-filters">${[['all', 'agd.f.all'], ['pay', 'agd.f.pay'], ['task', 'agd.f.task'], ['event', 'agd.f.event']].map(([k, l]) => `<button type="button" class="${agUi.filter === k ? 'on' : ''}" data-ag-filter="${k}">${esc(TL(l))} <span data-ag-fcnt="${k}"></span></button>`).join('')}</div><div data-ag-plan><small>…</small></div></div>
       <div class="ag-card ag-quick"><div class="ag-card-h"><b>⚡ ${esc(TL('agd.quick'))}</b><small>Quick actions</small></div><div class="ag-qgrid">${[['💳', 'agd.q.pay', 'APP.KX.FINANCE', 'green'], ['☑', 'agd.q.task', 'APP.KX.TASKS', 'blue'], ['📅', 'agd.q.event', 'APP.KX.CALENDAR', 'violet'], ['⇄', 'agd.q.transfer', 'APP.KX.FINANCE', 'orange'], ['⌗', 'agd.q.scan', 'APP.KX.DOCUMENTS', 'teal'], ['👤', 'agd.q.contact', 'APP.KX.CONTACTS', 'indigo']].map(([ic, l, hub, c]) => `<button type="button" class="ag-q ag-q-${c}" data-ag-open="${hub}"><span>${ic}</span><b>${esc(TL(l))}</b></button>`).join('')}</div></div></div></section>`;
     }
     /* N2.6b+ (user: clicking in the plan reloaded the windows) – plan actions refresh only the overview data, not the whole app */
@@ -1730,6 +1730,9 @@ var KXAPP;
     } if (!txt && el.type === 'checkbox')
         txt = String(el.parentElement?.textContent || '').trim(); if (txt)
         el.setAttribute('aria-label', txt.slice(0, 80)); }); }
+    /* N2.6b+ (family audit): a short “how it works” above the Calendar planner */
+    function kxCalHelpSweep() { const g = document.querySelector('.content .kx-pk-grid'); if (!g || document.querySelector('.content .kx-cal-help'))
+        return; const d = document.createElement('details'); d.className = 'kit-help kx-cal-help'; d.innerHTML = `<summary>ⓘ ${esc(TL('kit.help.title'))}</summary><ul>${['open', 'add', 'badge', 'private'].map(k => `<li>${esc(TL('calh.' + k))}</li>`).join('')}</ul>`; (g.closest('.kx-pk-card') || g).insertAdjacentElement('beforebegin', d); }
     function kxHubMoreSweep() {
         document.querySelectorAll('#inspector.open [data-hub-issues]:not([data-kx-hubmore-done])').forEach(iss => {
             iss.dataset.kxHubmoreDone = '1';
@@ -1894,6 +1897,9 @@ var KXAPP;
     }
     catch { } try {
         kxHubMoreSweep();
+    }
+    catch { } try {
+        kxCalHelpSweep();
     }
     catch { } try {
         kxFieldLabelSweep();
