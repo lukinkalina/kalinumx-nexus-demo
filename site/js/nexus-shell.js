@@ -742,6 +742,15 @@ var KXAPP;
     else
         render(); }
     async function hydrateAgDash() {
+        try {
+            const day = new Date().toISOString().slice(0, 10), key = 'kx.xfer.autorun.' + CURRENT_USER_ID;
+            if (!kxPreview && localStorage.getItem(key) !== day && runtime.financeAccess) {
+                localStorage.setItem(key, day);
+                void runtime.actions.invoke('ACTION.FINANCE.XFER_PLAN.RUN', {}, { ...lyCtx(), appCode: 'APP.KX.FINANCE' }).then((r) => { if (r?.done?.length)
+                    toast(TL('fin.xrRan') + ': ' + r.done.length); }).catch(() => { });
+            }
+        }
+        catch { }
         const host = document.querySelector('[data-ag-dash]');
         if (!host || !runtime)
             return;
