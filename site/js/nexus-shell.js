@@ -1742,6 +1742,11 @@ var KXAPP;
     /* N2.6b+ (family audit): a short “how it works” above the Calendar planner */
     function kxCalHelpSweep() { const g = document.querySelector('.content .kx-pk-grid'); if (!g || document.querySelector('.content .kx-cal-help'))
         return; const d = document.createElement('details'); d.className = 'kit-help kx-cal-help'; d.innerHTML = `<summary>ⓘ ${esc(TL('kit.help.title'))}</summary><ul>${['open', 'add', 'badge', 'private'].map(k => `<li>${esc(TL('calh.' + k))}</li>`).join('')}</ul>`; (g.closest('.kx-pk-card') || g).insertAdjacentElement('beforebegin', d); }
+    /* N2.6b+ (family audit): “ⓘ how it works” for hubs with their own interface */
+    const KX_HUBX_HELP = { 'APP.KX.TIME': 'hxt', 'APP.KX.PRINT3D': 'hxp', 'APP.KX.HOBBY': 'hxh', 'APP.KX.LASER': 'hxl' };
+    function kxHubxHelpSweep() { const ins = document.querySelector('#inspector.open'); const code = String(ins?.dataset.hubFull || ''); const pref = KX_HUBX_HELP[code]; if (!ins || !pref)
+        return; const root = ins.querySelector('[data-hub-root]'); if (!root || root.querySelector(':scope > .kx-hubx-help'))
+        return; const d = document.createElement('details'); d.className = 'kit-help kx-hubx-help'; d.innerHTML = `<summary>ⓘ ${esc(TL('kit.help.hubTitle'))}</summary><ul>${[1, 2, 3, 4].map(i => `<li>${esc(TL(pref + '.' + i))}</li>`).join('')}</ul>`; root.insertAdjacentElement('afterbegin', d); }
     function kxHubMoreSweep() {
         document.querySelectorAll('#inspector.open [data-hub-issues]:not([data-kx-hubmore-done])').forEach(iss => {
             iss.dataset.kxHubmoreDone = '1';
@@ -1906,6 +1911,9 @@ var KXAPP;
     }
     catch { } try {
         kxHubMoreSweep();
+    }
+    catch { } try {
+        kxHubxHelpSweep();
     }
     catch { } try {
         kxCalHelpSweep();
