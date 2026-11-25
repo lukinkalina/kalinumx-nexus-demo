@@ -2180,3 +2180,5 @@ html body .content .ag-prow > em{color:var(--kx-cbwarn) !important}.ag-prow b .k
 html body #inspector.open:has(.veh-hub .veh-head > .btn) .kx-hub-bar [data-hub-new]{display:none !important}
 
 .kit-help{margin:2px 0 8px;font-size:12.5px}.kit-help>summary{cursor:pointer;opacity:.85;list-style:none;display:inline-block}.kit-help>summary::-webkit-details-marker{display:none}.kit-help[open]>ul{margin:6px 0 0;padding:8px 12px 8px 26px;border:1px solid var(--border);border-radius:10px;display:grid;gap:4px;line-height:1.4}
+html[data-kx-scheme="light"] body .kx-rc-both,html[data-kx-scheme="light"] body .kx-fin-mine-note,html[data-kx-scheme="light"] body .kit-help>summary{color:#5a4a2c !important;opacity:1 !important}
+html[data-kx-scheme="light"] body #inspector.open .kx-rc-det small.muted.kx-rc-both.kx-rc-both,html[data-kx-scheme="light"] body #inspector.open .veh-card small.muted.kx-rc-both{color:#5a4a2c !important;opacity:1 !important}
