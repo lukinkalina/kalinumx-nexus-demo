@@ -1072,10 +1072,7 @@ var KXAPP;
         /* N2.6b (user: what I enter must stand out): split the technical "rev N" from the record description and tag the sharing row */
         ins.querySelectorAll('.veh-card > header > small:not([data-ag-split])').forEach(sm => { sm.dataset.agSplit = '1'; const m = (sm.textContent || '').match(/^(.*?)(?:\s*·\s*)?(rev\s*\d+)\s*$/); if (m) {
             sm.textContent = m[1];
-            const r = document.createElement('span');
-            r.className = 'ag-tech';
-            r.textContent = m[2];
-            sm.closest('header')?.insertBefore(r, sm.nextSibling);
+            sm.dataset.rev = m[2]; /* N2.6b+ (family audit): the technical revision is not shown to the family any more */
         } });
         ins.querySelectorAll('.veh-card > header:not([data-ag-acts])').forEach(h => { h.dataset.agActs = '1'; const bs = Array.from(h.querySelectorAll(':scope > button')); if (!bs.length)
             return; const w = document.createElement('span'); w.className = 'ag-head-acts'; bs.forEach(b => w.appendChild(b)); h.appendChild(w); }); /* the record's own actions (↗ ⋯) stay small at the right of the header */
