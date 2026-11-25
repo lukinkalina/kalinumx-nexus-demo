@@ -720,7 +720,7 @@ var KXAPP;
     /* ===== N2.6b · Alpine Gold v2 – Společný přehled (horní polovina podle NEXUS_NAVRH_DESIGN_ALPINE_V2) ===== */
     const agUi = { scope: 'ALL', horizon: 7, tab: 'today', filter: 'all' };
     function agDashHtml() {
-        const sc = [['ALL', 'agd.scope.all', 'agd.scope.allSub', '👥'], ['FAMILY', 'agd.scope.family', 'agd.scope.familySub', '👨‍👩‍👧'], ['COMPANY', 'agd.scope.company', 'agd.scope.companySub', '💼']];
+        const sc = [['ALL', 'agd.scope.all', 'agd.scope.allSub', '👥'], ['FAMILY', 'agd.scope.family', 'agd.scope.familySub', '👨‍👩‍👧'], ['COMPANY', 'agd.scope.company', 'agd.scope.companySub', '💼'], ['PERSONAL', 'agd.scope.mine', 'agd.scope.mineEn', '👤']];
         const kpi = (k, ic, cls) => `<button type="button" class="ag-kpi ag-${cls}" data-ag-kpi="${k}"><span class="ag-kpi-ic">${ic}</span><span class="ag-kpi-tx"><b>${esc(TL('agd.k.' + k))}</b><small>${esc(TL('agd.k.' + k + '.en'))}</small><strong data-ag-val="${k}">…</strong><em data-ag-sub="${k}"></em></span><span class="ag-kpi-go">›</span></button>`;
         return `<section class="ag-dash" data-ag-dash>
       <div class="ag-hero"><div><h2 class="ag-hero-title">👨‍👩‍👧 ${esc(TL('agd.title'))}</h2><b>${esc(TL('agd.subtitle'))}</b><small>${esc(TL('agd.subtitleEn'))}</small></div><div class="ag-motto"><i>${esc(TL('agd.motto1'))}</i><i>${esc(TL('agd.motto2'))}</i><small>${esc(TL('agd.mottoEn'))}</small></div></div>
@@ -745,7 +745,7 @@ var KXAPP;
         const host = document.querySelector('[data-ag-dash]');
         if (!host || !runtime)
             return;
-        host.querySelectorAll('[data-ag-scope]').forEach(b => b.onclick = () => { agUi.scope = String(b.dataset.agScope); kxAgSync(); /* the money chart follows the scope */ /* the money chart follows the scope */ const tab = agUi.scope === 'COMPANY' ? 'com' : agUi.scope === 'FAMILY' ? 'fam' : 'all'; setTimeout(() => document.querySelector(`[data-ag-ch-tab="${tab}"]`)?.click(), 60); });
+        host.querySelectorAll('[data-ag-scope]').forEach(b => b.onclick = () => { agUi.scope = String(b.dataset.agScope); kxAgSync(); /* the money chart follows the scope */ /* the money chart follows the scope */ const tab = agUi.scope === 'COMPANY' ? 'com' : agUi.scope === 'FAMILY' ? 'fam' : 'all'; /* 👤 Moje: the chart shows the overall view */ /* 👤 Moje: the chart shows the overall view */ setTimeout(() => document.querySelector(`[data-ag-ch-tab="${tab}"]`)?.click(), 60); });
         host.querySelectorAll('[data-ag-hz]').forEach(b => b.onclick = () => { agUi.horizon = Number(b.dataset.agHz); kxAgSync(); });
         host.querySelectorAll('[data-ag-tab]').forEach(b => b.onclick = () => { agUi.tab = String(b.dataset.agTab); kxAgSync(); });
         host.querySelectorAll('[data-section-jump]').forEach(b => b.onclick = () => { state.activeSection = String(b.dataset.sectionJump); render(); });
@@ -3543,7 +3543,9 @@ var KXAPP;
         return null; try {
         const sps = await runtime.memberships.listSpaces();
         const kindOf = (s) => String(s.kind || s.data?.kind || s.id || '').toUpperCase();
-        return sps.filter(s => sc === 'COMPANY' ? /COMPANY|WORKSHOP|SHARED/.test(kindOf(s)) : /FAMILY|PERSONAL|HOME|SHARED/.test(kindOf(s))).map(s => String(s.id)); /* house = Rodina, workshop = Firma, shared = both */
+        if (sc === 'PERSONAL')
+            return sps.filter((s) => String(s.kind) === 'PERSONAL' && s.ownerUserId === CURRENT_USER_ID).map((s) => String(s.id)); /* 👤 Moje = only my own */
+        return sps.filter(s => sc === 'COMPANY' ? /COMPANY|WORKSHOP|SHARED/.test(kindOf(s)) : /FAMILY|HOME|SHARED/.test(kindOf(s))).map(s => String(s.id)); /* Rodina = shared family only – My finances stay with the member */ /* house = Rodina, workshop = Firma, shared = both */
     }
     catch {
         return null;
