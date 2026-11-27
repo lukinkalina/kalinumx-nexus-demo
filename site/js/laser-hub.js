@@ -981,12 +981,14 @@ var KXLaserHub;
         st.liSel = st.liSel || new Set();
         const cur = st.liOpen ? imps.find((x) => x.id === st.liOpen) : null;
         body.innerHTML = `<div class="kx-li-msg" data-li-msg role="status" aria-live="polite">${esc(st.liMsg || '')}</div><div class="kx-li-bar"><label class="btn primary kx-li-up">＋ ${esc(TL('li.new', 'New import (screenshot / photo)'))}<input type="file" accept="image/*" multiple capture="environment" data-li-file hidden></label><input class="kx-li-q" data-li-q placeholder="${esc(TL('li.search', 'Search import, material, product…'))}" value="${esc(st.liQ || '')}"><span class="kx-li-sel">${st.liSel.size ? `${st.liSel.size} ${esc(TL('li.selected', 'selected'))} · <button class="btn compact" data-li-merge="PROJECT">${esc(TL('li.mergeP', 'Merge → Project'))}</button><button class="btn compact" data-li-merge="TEST">${esc(TL('li.mergeT', 'Merge → Test'))}</button><button class="btn ghost compact" data-li-clearsel>${esc(TL('li.clearSel', 'Clear selection'))}</button>` : ''}</span></div>
-      <details class="kx-li-mig" data-li-mig ${st.migOpen ? 'open' : ''}><summary>⇪ ${esc(TL('mig.title', 'Transfer from the old Laser Parameter Hub (P566)'))}</summary><p class="muted">${esc(TL('mig.help', 'Load the backup (.json) or the portable file (.html) of the old hub – first a preview, then the transfer. A restore point is made before writing; records already transferred are skipped.'))}</p><div class="sg-lbar"><label class="btn compact">📂 ${esc(TL('mig.pick', 'Choose the file'))}<input type="file" accept=".json,.html,.htm,application/json,text/html" data-mig-file hidden></label><label>${esc(TL('lw.space', 'Area'))} <select data-mig-space data-keep-select>${['SPACE.COMPANY', 'SPACE.PERSONAL', 'SPACE.FAMILY'].map(x => `<option value="${x}" ${(st.migSpace || 'SPACE.COMPANY') === x ? 'selected' : ''}>${esc(TL('lw.sp.' + x, x))}</option>`).join('')}</select></label></div><div data-mig-out>${st.migOut || ''}</div></details><p class="muted kx-acc-help">${esc(TL('li.help', 'Screenshots of LightBurn / EZCAD / LaserPecker settings and photos of results. Type the values from the picture (AI reading comes with the server phase); the source protection is checked BEFORE conversion.'))}</p>
+      <details class="kx-li-mig" data-li-mig ${st.migOpen ? 'open' : ''}><summary>⇪ ${esc(TL('mig.title', 'Transfer from the old Laser Parameter Hub (P566)'))}</summary><p class="muted">${esc(TL('mig.help', 'Load the backup (.json) or the portable file (.html) of the old hub – first a preview, then the transfer. A restore point is made before writing; records already transferred are skipped.'))}</p><div class="sg-lbar"><label class="btn compact">📂 ${esc(TL('mig.pick', 'Choose the file'))}<input type="file" accept=".json,.html,.htm,application/json,text/html" data-mig-file hidden></label><span class="muted">${esc(TL('lw.space', 'Area'))}: 🏢 ${esc(TL('lw.sp.SPACE.COMPANY', 'Company'))} · ${esc(TL('lw.companyOnly', 'Laser belongs to the company'))}</span></div><div data-mig-out>${st.migOut || ''}</div></details><p class="muted kx-acc-help">${esc(TL('li.help', 'Screenshots of LightBurn / EZCAD / LaserPecker settings and photos of results. Type the values from the picture (AI reading comes with the server phase); the source protection is checked BEFORE conversion.'))}</p>
       ${shown.length ? `<table class="kx-calc-table kx-li-table"><thead><tr><th></th><th>${esc(TL('li.col.code', 'Code'))}</th><th>${esc(TL('li.col.title', 'Name'))}</th><th>${esc(TL('li.col.pics', 'Pictures'))}</th><th>${esc(TL('li.col.profile', 'Laser / profile'))}</th><th>${esc(TL('li.col.layers', 'Layers'))}</th><th>${esc(TL('lce.col.guard', 'Protection'))}</th><th>${esc(TL('li.col.state', 'State'))}</th></tr></thead><tbody>${shown.map((im) => `<tr data-li-row="${esc(im.id)}" class="${cur?.id === im.id ? 'on' : ''}"><td><input type="checkbox" data-li-pick="${esc(im.id)}" ${st.liSel.has(im.id) ? 'checked' : ''}></td><td>${esc(im.data.recordCode || '')}</td><td><button class="kx-link" data-li-open="${esc(im.id)}">${esc(im.data.title)}</button></td><td>${(im.data.fileIds || []).length}</td><td>${esc(byId(im.data.profileId)?.data.name || '—')}</td><td>${(im.data.layers || []).length}</td><td>${badge(worst(im))}</td><td>${esc(stLab(im))}</td></tr>`).join('')}</tbody></table>` : `<p class="muted">${esc(TL('li.empty', 'No imports yet – add a screenshot or a photo.'))}</p>`}
       <div data-li-detail></div>`;
         /* P566 transfer: preview (ANALYZE) → confirm → APPLY */
         const migBox = body.querySelector('[data-mig-out]');
-        body.querySelector('[data-mig-space]').onchange = (e) => { st.migSpace = e.target.value; };
+        const migSel = body.querySelector('[data-mig-space]');
+        if (migSel)
+            migSel.onchange = (e) => { st.migSpace = e.target.value; };
         body.querySelector('[data-li-mig]').ontoggle = (e) => { st.migOpen = e.target.open; };
         const MC = { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['LASER.READ', 'LASER.MIGRATION.PREVIEW'], confirmed: true };
         const T2 = { machines: TL('mig.c.machines', 'lasers'), sourceModules: TL('mig.c.sources', 'sources'), profiles: TL('mig.c.profiles', 'profiles'), lenses: TL('mig.c.lenses', 'lenses'), projects: TL('mig.c.projects', 'projects'), operations: TL('mig.c.operations', 'layers'), tests: TL('mig.c.tests', 'tests'), testRuns: TL('mig.c.runs', 'test steps'), imports: TL('mig.c.imports', 'imports') };
@@ -1010,7 +1012,7 @@ var KXLaserHub;
                         return;
                     migBox.insertAdjacentHTML('beforeend', `<p class="muted" data-mig-run>${esc(TL('mig.running', 'Transferring…'))}</p>`);
                     try {
-                        const a = await core.actions.invoke('ACTION.LASER.P566.MIGRATION.APPLY', { source: text, spaceIds: [st.migSpace || 'SPACE.COMPANY'] }, { ...MC, permissions: [...MC.permissions, 'LASER.CONFIG.EDIT', 'LASER.PROJECT.EDIT', 'LASER.TEST.EDIT', 'LASER.IMPORT.EDIT', 'CORE.ENTITY.CREATE'] });
+                        const a = await core.actions.invoke('ACTION.LASER.P566.MIGRATION.APPLY', { source: text, spaceIds: [(((await core.propagate.spaces(opts.actorId)).find((x) => x.kind === 'COMPANY')) || { id: 'SPACE.COMPANY' }).id] /* N2.6b+ (user split): Laser = company – the real space id */ }, { ...MC, permissions: [...MC.permissions, 'LASER.CONFIG.EDIT', 'LASER.PROJECT.EDIT', 'LASER.TEST.EDIT', 'LASER.IMPORT.EDIT', 'CORE.ENTITY.CREATE'] });
                         const sum = (o) => Object.values(o || {}).reduce((x, y) => x + Number(y), 0);
                         st.migOut = `<p><b>✓ ${esc(TL('mig.done', 'Transferred'))}</b> · ${esc(TL('mig.created', 'created'))} ${sum(a.created)} · ${esc(TL('mig.skipped', 'skipped (already transferred)'))} ${sum(a.skipped)}${a.errors.length ? ` · <span class="lce-err">${esc(TL('mig.errors', 'errors'))} ${a.errors.length}</span>` : ''}${a.restorePoint ? ` · ${esc(TL('mig.rp', 'restore point made'))}` : ''}</p>${a.errors.length ? `<ul>${a.errors.slice(0, 8).map((x) => `<li><small>${esc(x.key)}: ${esc(x.error)}</small></li>`).join('')}</ul>` : ''}`;
                         st.migOpen = true;
@@ -2428,21 +2430,32 @@ var KXLaserHub;
                         if (localStorage.getItem('kx.laser.toCompany.v1') !== '1') {
                             const comp = (await core.propagate.spaces(opts.actorId)).find((x) => x.kind === 'COMPANY');
                             if (comp) {
-                                const all0 = await core.laserDomain.list();
+                                const ORDER = ['MACHINE', 'SOURCE_MODULE', 'LENS', 'MATERIAL', 'PROFILE', 'PROJECT', 'OPERATION', 'TEST', 'TEST_RUN', 'IMPORT'];
+                                const rank = (t) => { const k = ORDER.findIndex(o => String(t).endsWith('.' + o)); return k < 0 ? 99 : k; };
                                 let moved = 0;
-                                for (const x of all0) {
-                                    if (x.archivedAt || (x.spaceIds || []).includes(comp.id))
-                                        continue;
-                                    const act = 'ACTION.' + String(x.type).replace(/^APP\./, '') + '.SAVE';
-                                    try {
-                                        await core.actions.invoke(act, { id: x.id, expectedRevision: x.revision, spaceIds: [comp.id], data: x.data }, { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['LASER.READ', 'LASER.CONFIG.EDIT', 'LASER.PROJECT.EDIT', 'LASER.TEST.EDIT', 'LASER.IMPORT.EDIT', 'CORE.ENTITY.CREATE'], confirmed: true });
-                                        moved++;
+                                let left = 0;
+                                for (let pass = 0; pass < 5; pass++) {
+                                    const todo = (await core.laserDomain.list()).filter((x) => !x.archivedAt && !(x.spaceIds || []).includes(comp.id)).sort((a, b) => rank(a.type) - rank(b.type));
+                                    left = todo.length;
+                                    if (!todo.length)
+                                        break;
+                                    let progress = 0;
+                                    for (const x of todo) {
+                                        const act = 'ACTION.' + String(x.type).replace(/^APP\./, '') + '.SAVE';
+                                        try {
+                                            await core.actions.invoke(act, { id: x.id, expectedRevision: x.revision, spaceIds: [comp.id], data: x.data }, { actorId: opts.actorId, appCode: OWNER, deviceId: opts.deviceId, permissions: ['LASER.READ', 'LASER.CONFIG.EDIT', 'LASER.PROJECT.EDIT', 'LASER.TEST.EDIT', 'LASER.IMPORT.EDIT', 'CORE.ENTITY.CREATE'], confirmed: true });
+                                            moved++;
+                                            progress++;
+                                        }
+                                        catch { }
                                     }
-                                    catch { }
+                                    if (!progress)
+                                        break;
                                 }
+                                left = (await core.laserDomain.list()).filter((x) => !x.archivedAt && !(x.spaceIds || []).includes(comp.id)).length; /* dependency order + several passes: a record may move only after what it references */
                                 localStorage.setItem('kx.laser.toCompany.v1', '1');
                                 if (moved)
-                                    opts.onToast?.(TL('laser.toCompany', 'Laser records moved to the company area') + ': ' + moved);
+                                    opts.onToast?.(TL('laser.toCompany', 'Laser records moved to the company area') + ': ' + moved + (left ? ' · ' + TL('laser.toCompanyLeft', 'not moved') + ': ' + left : ''));
                             }
                         }
                     }

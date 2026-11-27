@@ -17052,6 +17052,7 @@ var KXAPP;
                 el('#searchResults').innerHTML = kxSearchBrowse();
                 return;
             }
+            const kxSeq = (globalThis.__kxSearchSeq = (globalThis.__kxSearchSeq || 0) + 1); /* N2.6b+: only the newest query may render (typing fires several searches) */
             const rows0 = await runtime.search.search({ text: q, actorId: CURRENT_USER_ID, limit: 20, includeMarkedSensitive: !!el('#searchIncludeMarked')?.checked }); /* N2.6b+ (user): children never see shared finances – finance records only with finance access */
             const rows = [];
             for (const r of rows0) {
@@ -17071,12 +17072,38 @@ var KXAPP;
                 }
                 rows.push(r);
             }
+            /* N2.6b+ (user): finance movements in the search – only what the user may see (children: their own); sensitive shared movements are not searched by their hidden text */
+            try {
+                const qq = String(q || '').trim().toLowerCase();
+                if (qq.length >= 2 && runtime.financeAccess) {
+                    const mv = await runtime.actions.invoke('ACTION.FINANCE.MOVEMENT.LIST', {}, { ...lyCtx(), appCode: 'APP.KX.FINANCE' }).catch(() => []);
+                    const kinds = await kxSpaceKinds();
+                    const norm = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    const nq = norm(qq);
+                    const hits = [];
+                    for (const r of mv) {
+                        const d = r.data || {};
+                        const shared = (r.spaceIds || []).some((id) => kinds.get(String(id)) !== 'PERSONAL');
+                        const hidden = shared && d.kxControls?.sensitive === true;
+                        const hay = norm([hidden ? '' : d.counterparty, hidden ? '' : d.note, TL('fin.cat.' + d.category), d.category, String(d.amount)].join(' '));
+                        if (!hay.includes(nq))
+                            continue;
+                        hits.push({ title: `💳 ${hidden ? '🔒 ' + TL('fin.private') : (d.counterparty || TL('fin.cat.' + d.category))} · ${d.kind === 'EXPENSE' ? '−' : ''}${Number(d.amount).toLocaleString('cs-CZ')} ${d.currency} · ${new Date(String(d.date) + 'T12:00:00').toLocaleDateString('cs-CZ')}`, breadcrumb: `${TL('fin.searchCrumb')} › ${TL('fin.cat.' + d.category)}`, kind: TL('fin.searchKind'), deepLink: runtime.deepLinks.build({ kind: 'ENTITY', type: 'APP.FINANCE.MOVEMENT', id: r.id, appCode: 'APP.KX.FINANCE' }) });
+                        if (hits.length >= 6)
+                            break;
+                    }
+                    rows.push(...hits);
+                }
+            }
+            catch { }
             try {
                 const codeHits = runtime.recordCodes ? await runtime.recordCodes.resolve(q, CURRENT_USER_ID) : [];
                 for (const h of codeHits.reverse())
                     rows.unshift({ title: `${h.code} · ${h.title}`, breadcrumb: h.via === 'ALIAS' ? `dříve ${h.matched} · ${h.ownerApp}` : h.ownerApp, kind: 'KÓD', deepLink: runtime.deepLinks.build(h.target.kind === 'ENTITY' ? { kind: 'ENTITY', type: h.type, id: h.target.id, appCode: h.ownerApp } : { kind: h.target.kind, id: h.target.id, appCode: h.ownerApp }) });
             }
             catch { }
+            if (kxSeq !== globalThis.__kxSearchSeq)
+                return;
             const target = el('#searchResults');
             const setHits = (runtime.settingsNav?.search(q) || []);
             /* N2.5r (user): Kaira's „where is it in NEXUS“ inside the global search – one search for the whole NEXUS */ let placeHits = [];
