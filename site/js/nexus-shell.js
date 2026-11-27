@@ -6690,7 +6690,7 @@ var KXAPP;
     }
     catch { }
     /* N2.5r: AREAS for calendars = tree categories of the hub (stable colour from a palette by the category code; always with text) */
-    const AREA_PAL = ['#e07a2f', '#2f8fe0', '#2e8b57', '#b0459b', '#c9a227', '#c0392b', '#5b6ee1', '#1aa39a', '#8a6d3b', '#6c757d'];
+    const AREA_PAL = ['#e07a2f', '#2f8fe0', '#2e8b57', '#b0459b', '#c9a227', '#b7791f', '#5b6ee1', '#1aa39a', '#8a6d3b', '#6c757d'] /* N2.6b+: no red for the colour-sensitive son */;
     const areaOf = (owner) => { const c = hubCategoryOf(owner === 'APP.NEXUS' ? 'APP.KX.NEXUS' : owner); const code = String(c?.code || 'CORE'); let h = 0; for (const ch of code)
         h = (h * 31 + ch.charCodeAt(0)) >>> 0; return { code, label: String(c?.label || TL('cal.area.core')), color: AREA_PAL[h % AREA_PAL.length] }; };
     /* N2.5r (user): PLANNERS shared by all calendars – week (default), day, month; item = kind chip + title + area; side panel of the chosen day */
@@ -6901,7 +6901,7 @@ var KXAPP;
     function plannerSide(items, day) {
         const its = items.filter(x => dateValue(new Date(x.at)) === day).sort((a, b) => String(a.at).localeCompare(String(b.at)));
         return `<aside class="kx-pk-side"><b>${esc(new Date(day + 'T12:00:00').toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' }))}</b><div class="kx-pk-sbtn"><button type="button" class="btn compact" data-pk-day="${day}">📅 ${esc(TL('pk2.openDay'))}</button><button type="button" class="btn ghost compact" data-pk-add="${day}">＋ ${esc(TL('pk2.add'))}</button></div>
-        ${its.map(x => { const a = areaOf(x.ownerApp); return `<button type="button" class="kx-pk-card" style="border-left-color:${a.color}" data-pk-open="${esc(x.deepLink || '')}"><span class="kx-pk-kind">${KXTags.iconSvg(PK_ICON[x.kind] || 'calendar', 11)} ${esc(TL('pk2.k.' + x.kind))}</span><b>${esc(x.title || '')}</b><small>${esc(a.label)} · ${esc(hubName(x.ownerApp === 'APP.NEXUS' ? 'APP.KX.NEXUS' : x.ownerApp))}${isAllDay(x) ? '' : ' · ' + esc(new Date(x.at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }))}</small></button>`; }).join('') || `<p class="muted">${esc(TL('pk2.free'))}</p>`}</aside>`;
+        ${its.map(x => { const a = areaOf(x.ownerApp); return `<button type="button" class="kx-pk-card" style="border-left-color:${a.color}" data-pk-open="${esc(x.deepLink || '')}"><span class="kx-pk-kind">${KXTags.iconSvg(PK_ICON[x.kind] || 'calendar', 11)} ${esc(TL('pk2.k.' + x.kind))}</span><b>${esc(x.title || '')}</b><small>${esc(hubName(x.ownerApp === 'APP.NEXUS' ? 'APP.KX.NEXUS' : x.ownerApp))}${kxSpKinds && (x.spaceIds || []).length ? ' ' + kxAreaBadge(x.spaceIds, kxSpKinds) : ''}${isAllDay(x) ? '' : ' · ' + esc(new Date(x.at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }))}</small></button>`; }).join('') || `<p class="muted">${esc(TL('pk2.free'))}</p>`}</aside>`;
     }
     function plannerHtml(items, start, days, sel, hol) {
         const today = dateValue();
