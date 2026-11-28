@@ -6286,6 +6286,8 @@ var KXAPP;
     const showTip = (el) => {
         if (helpMode !== 'FULL' || !el.dataset.kxHelpLong || !el.isConnected || !el.matches(':hover'))
             return;
+        if (typeof matchMedia === 'function' && matchMedia('(hover: none)').matches)
+            return; /* N2.6b+: touch screens keep :hover after a tap – the bubble would stay over the content */
         hideTip();
         helpTip = document.createElement('div');
         helpTip.className = 'kx-help-tip';
